@@ -1,0 +1,91 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  background-color: #0D1117;
+  color: #FFFFFF;
+  font-family: Arial, sans-serif;
+  min-height: 100vh;
+}
+.dashboard {
+  max-width: 390px;
+  margin: 0 auto;
+  padding: 16px;
+}
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.header-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.header-saudacao {
+  font-size: 12px;
+  color: #8B949E;
+}
+
+.header-veiculo {
+  font-size: 15px;
+  font-weight: bold;
+  color: #FFFFFF;
+}
+
+.header-avatar {
+  width: 36px;
+  height: 36px;
+  background-color: #00C896;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #000000;
+}
+
+.banner-lucro {
+  background-color: #161B22;
+  border: 1px solid #00C896;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.banner-label {
+  font-size: 11px;
+  color: #8B949E;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.banner-valor {
+  font-size: 28px;
+  font-weight: bold;
+  color: #00C896;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.banner-sub {
+  font-size: 11px;
+  color: #8B949E;
+  display: block;
+}
+
+.banner-badge {
+  background-color: #00C89620;
+  border: 1px solid #00C896;
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: #00C896;
+  font-weight: bold;
+}

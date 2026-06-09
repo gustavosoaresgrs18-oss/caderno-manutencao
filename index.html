@@ -4,28 +4,44 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Caderno de Manutenção</title>
+    <link rel="stylesheet" href="style.css">
   </head>
   <body>
     <div class="dashboard">
 
-      <h1>Caderno Digital de Manutenção</h1>
+      <div class="header">
+        <div class="header-info">
+          <span class="header-saudacao">Boa noite 👋</span>
+          <span class="header-veiculo">Honda CG 160 · BH-9834</span>
+        </div>
+        <div class="header-avatar">G</div>
+      </div>
+
+      <div class="banner-lucro">
+        <div class="banner-esquerda">
+          <span class="banner-label">Lucro líquido hoje</span>
+          <span class="banner-valor">R$ 187</span>
+          <span class="banner-sub">Receita R$312 · Custos R$125</span>
+        </div>
+        <div class="banner-badge">▲ +12%</div>
+      </div>
 
       <div class="cards-grid">
         <div class="card">
           <span class="card-label">Km hoje</span>
-          <span class="card-valor">142 km</span>
-        </div>
-        <div class="card">
-          <span class="card-label">Lucro do dia</span>
-          <span class="card-valor">R$ 187</span>
+          <span class="card-valor azul">142 km</span>
         </div>
         <div class="card">
           <span class="card-label">Custo / km</span>
-          <span class="card-valor">R$ 0,43</span>
+          <span class="card-valor amarelo">R$ 0,43</span>
         </div>
         <div class="card">
-          <span class="card-label">Próx. revisão</span>
-          <span class="card-valor">830 km</span>
+          <span class="card-label">Reserva</span>
+          <span class="card-valor verde">R$ 340</span>
+        </div>
+        <div class="card">
+          <span class="card-label">CRLV vence</span>
+          <span class="card-valor amarelo">28 dias</span>
         </div>
       </div>
 
@@ -46,7 +62,7 @@
 
       <div class="registro-rapido">
         <button class="botao-principal">
-          Registrar Km do Dia
+          ⚡ Registrar Km do Dia
         </button>
       </div>
 
@@ -62,6 +78,10 @@
         <button class="nav-item">
           <span class="nav-icone">⛽</span>
           <span class="nav-texto">Combustível</span>
+        </button>
+        <button class="nav-item">
+          <span class="nav-icone">🤖</span>
+          <span class="nav-texto">Cadê</span>
         </button>
         <button class="nav-item">
           <span class="nav-icone">💰</span>
