@@ -917,11 +917,10 @@ h2.tela-h{ font-size:20px; font-weight:800; margin-bottom:16px; }
 
 #modalGuia .guia-caixa {
   display: flex; flex-direction: column;
-  -webkit-overflow-scrolling: touch;
+  overflow-y: auto; -webkit-overflow-scrolling: touch;
 }
 #modalGuia .guia-topo { flex-shrink: 0; }
 #modalGuia .guia-lista {
-  overflow-y: auto; -webkit-overflow-scrolling: touch;
   margin-right: -6px; padding-right: 6px;
 }
 #modalGuia .guia-suporte,
