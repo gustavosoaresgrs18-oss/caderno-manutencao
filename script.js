@@ -670,7 +670,8 @@ function finalizarCadastro() {
   const v1 = criarVeiculo(perfil.veiculo, perfil.modelo, perfil.placa, null);
   setVidAtivo(v1.id);
   document.getElementById('telaCadastro').style.display = 'none';
-  salvarLS('guiaPendente', true);   // sinaliza p/ o dashboard abrir o guia 1x
+  // guia agora é PUXADO pelo botão de ajuda (?), não empurrado no cadastro
+  // salvarLS('guiaPendente', true);
   iniciarApp(perfil);
   abrirPresenteCaramelo(perfil.nome.split(' ')[0]);   // ganha o filhote de boas-vindas
 }
@@ -1028,40 +1029,40 @@ function pintarKmHoje() {
 // ═══════════════════════════════════════════════════════════════
 const GUIA_ROTINAS = [
   { ic: '🎯', cor: 'var(--signal)', tit: 'Lucro de hoje',
-    hero: 'R$ 300?',
-    isaac: 'Todo dia tem gente comemorando os R$ 300 que fez. Aí some a taxa do app, some a gasolina, some o resto — e o "bom dia" era R$ 190. Eu te mostro o número que sobra de verdade, não o que passou pela sua mão.',
+    hero: '300 → 190',
+    isaac: 'Comemorou os R$ 300? Calma. Tira a taxa do app, a gasolina, o resto — e o "bom dia" era R$ 190. Eu te mostro o que sobra de verdade, não o que passou pela sua mão.',
     fonte: 'eu monto sozinho — você só diz quanto entrou' },
   { ic: '⛽', cor: 'var(--signal)', tit: 'Custo real por km',
-    hero: 'Cadê?',
-    isaac: 'Você roda o dia inteiro, o dinheiro entra, e no fim do mês não sobrou nada. A rua comeu e não te avisou: foi o óleo, o pneu, a corrente gastando a cada km. Eu ponho preço nisso. Depois de me ver, você nunca mais aceita corrida no escuro.',
+    hero: 'o ladrão',
+    isaac: 'Roda o dia todo, o dinheiro entra, e no fim do mês sumiu. Não foi azar: foi o óleo, o pneu, a corrente comendo cada km calados. Eu ponho preço nesse ladrão.',
     fonte: 'eu calculo do seu combustível — zero digitação' },
   { ic: '⏱️', cor: 'var(--info)', tit: 'Ganho por hora',
-    hero: 'R$ 40/h',
-    isaac: 'R$ 250 no fim do dia parece bom. Mas foram 6 horas ou 11? Uma é R$ 40 por hora, a outra é R$ 22 — e a maioria nem sabe em qual tá vivendo. Eu conto suas horas e te digo a real: teu tempo tá valendo, ou a rua tá te usando?',
+    hero: 'ouro ou esmola?',
+    isaac: 'R$ 250 no fim do dia? Depende. Em 6 horas é ouro. Em 11, a rua tá te usando e você agradecendo. Eu conto suas horas e te falo a real.',
     fonte: 'só desliza o "Bora rodar" — eu cronometro' },
   { ic: '💰', cor: 'var(--money)', tit: 'Receita do dia',
     hero: '10 seg',
-    isaac: 'Caderninho molha, some, e você para de anotar na terceira semana. Aqui é um número no fim do dia e acabou. Rápido de propósito — você tá cansado, de capacete, entre uma corrida e outra. Errou? Reabre e corrige. Não empilha, não te enrola.',
+    isaac: 'Caderninho molha, some, e na terceira semana você desistiu. Aqui é um número no fim do dia e pronto. Rápido de propósito — você tá cansado, de capacete. Errou? Reabre e corrige.',
     fonte: 'você digita um número, uma vez por dia' },
   { ic: '🐷', cor: 'var(--money)', tit: 'Cofrinho',
-    hero: 'R$ 0 na conta',
-    isaac: 'O pneu não estoura no dia bom. Ele espera a semana que você tá liso — sempre. Junta um trocado por dia comigo e, quando a porrada vier, o dinheiro já tá lá. Sem empréstimo, sem parar de rodar, sem passar aperto.',
+    hero: 'a porrada vem',
+    isaac: 'O pneu não estoura no dia bom. Ele te espera ficar liso — e estoura na pior semana, sempre. Não dá esse mole: junta um trocado agora, ou paga caro e a pé depois.',
     fonte: 'guarda o tanto que você escolher, por dia' },
   { ic: '🔧', cor: 'var(--signal)', tit: 'Manutenção',
-    hero: 'Dia perdido',
-    isaac: 'Corrente arrebentada no meio da corrida é dia perdido, guincho e conta dobrada. Trocar na hora certa é barato — quebrado na rua é caro e humilhante. Me diz quando você trocou, e eu grito ANTES, não depois do prejuízo.',
+    hero: 'dia perdido',
+    isaac: 'Corrente arrebentada no meio da corrida é dia perdido, guincho e conta dobrada. Trocar na hora é barato; quebrar na rua é caro e humilhante. Eu grito ANTES do prejuízo, não depois.',
     fonte: 'eu conto os km e te aviso na hora certa' },
   { ic: '📄', cor: 'var(--info)', tit: 'Documentos',
-    hero: '7 pontos',
-    isaac: 'CNH vencida não é multa qualquer: é gravíssima, 7 pontos, e o risco de ficar a pé — sem seu ganha-pão. Blitz não avisa. Eu aviso, com folga pra você resolver sem correria e sem multa.',
+    hero: 'a pé',
+    isaac: 'CNH vencida não é multazinha: é gravíssima, 7 pontos, e o risco de ficar a pé — sem seu ganha-pão. A blitz não avisa. Eu aviso, com folga pra resolver sem correria.',
     fonte: 'guarda as datas — eu cutuco antes de vencer' },
   { ic: '🐺', cor: 'var(--purple)', tit: 'Eu, o Isaac',
-    hero: 'Todo dia',
-    isaac: 'Todo mundo tem palpite sobre o seu dinheiro. Ninguém nunca olhou os SEUS números. Eu olho — todos, todo dia — e te falo a verdade sem passar a mão na cabeça. Foi bom, eu digo. Foi fraco, eu digo também. E comparo sempre com o SEU normal, nunca com chute.',
+    hero: 'a real',
+    isaac: 'Todo mundo tem palpite sobre o seu dinheiro. Ninguém nunca olhou os SEUS números. Eu olho, todo dia, e falo a verdade sem passar a mão na cabeça. Foi fraco? Eu digo. Sempre comparado com o SEU normal, nunca com chute.',
     fonte: 'eu leio seus números e falo — de graça' },
   { ic: '🏆', cor: 'var(--purple)', tit: 'Patente',
-    hero: 'Só sobe',
-    isaac: 'App que te castiga quando você falta um dia? Aqui não existe isso. Sua patente só sobe, nunca cai. Sumiu uma semana, voltou? Bem-vindo de volta, continua de onde parou. Cada dia rodando te leva mais longe.',
+    hero: 'só sobe',
+    isaac: 'App que te pune quando você falta um dia? Aqui não. Sua patente só sobe. Sumiu uma semana e voltou? Bem-vindo — continua de onde parou. Cada dia rodando te leva mais longe.',
     fonte: 'sobe sozinha conforme você usa o app' },
 ];
 
