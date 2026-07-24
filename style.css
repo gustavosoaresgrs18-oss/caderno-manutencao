@@ -924,7 +924,7 @@ h2.tela-h{ font-size:20px; font-weight:800; margin-bottom:16px; }
 #modalGuia .guia-fechar { flex-shrink: 0; }
 
 .guia-topo {
-  display: flex; align-items: flex-start; gap: 10px; margin-bottom: 18px;
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
 }
 .guia-lobo { flex-shrink: 0; margin-top: 2px; }
 .guia-balao {
@@ -982,10 +982,10 @@ h2.tela-h{ font-size:20px; font-weight:800; margin-bottom:16px; }
   border: 1px solid var(--line);
   border-left: 3px solid var(--acc);
   border-radius: 14px;
-  padding: 14px 15px 12px;
+  padding: 12px 15px 10px;
 }
 .guia-card-topo {
-  display: flex; align-items: center; gap: 9px; margin-bottom: 9px;
+  display: flex; align-items: center; gap: 9px; margin-bottom: 7px;
 }
 .guia-card-ic { font-size: 20px; line-height: 1; flex-shrink: 0; }
 .guia-card-tit {

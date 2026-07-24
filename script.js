@@ -1078,8 +1078,8 @@ function abrirGuia(origem) {
   const lobo = document.getElementById('guiaLobo');
   if (lobo) lobo.innerHTML = svgCaramelo('lenda', 'feliz', 92, false);
   document.getElementById('guiaFala').innerHTML =
-    'Fala, ' + esc(nome) + '. Vou ser reto contigo: a maioria roda no escuro e acha que t\u00e1 indo bem. ' +
-    'Aqui voc\u00ea vai enxergar o que a rua esconde. Segura a\u00ed.';
+    'Todo mundo te d\u00e1 palpite sobre seu dinheiro. Eu te dou a <b>conta</b>. ' +
+    'Esses cards s\u00e3o tudo que eu calculo por voc\u00ea \u2014 desliza.';
 
   _guiaIdx = 0;
   _guiaRender();
