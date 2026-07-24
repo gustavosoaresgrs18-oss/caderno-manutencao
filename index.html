@@ -2,93 +2,932 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Caderno de Manutenção</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0B0F14">
+    <title>Copiloto</title>
+
+    <!-- ── APP INSTALAVEL (PWA) ── -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="icone-192.png">
+    <link rel="apple-touch-icon" href="icone-192.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Copiloto">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
   </head>
   <body>
     <div class="dashboard">
 
-      <div class="header">
-        <div class="header-info">
-          <span class="header-saudacao">Boa noite 👋</span>
-          <span class="header-veiculo">Honda CG 160 · BH-9834</span>
+      <!-- ══════════ TELA CADASTRO ══════════ -->
+      <div class="tela-cadastro" id="telaCadastro" style="display: none;">
+        <div class="cadastro-content">
+          <div class="cadastro-logo">
+            <div class="cadastro-logo-icon"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#0B0F14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 18a9 9 0 1 1 15 0"/><path d="M12 14a2 2 0 0 0 1.6-3.2L16.5 7"/><circle cx="12" cy="12" r="1.1" fill="#0B0F14"/></svg></div>
+            <div class="cadastro-logo-nome">Copiloto</div>
+            <div class="cadastro-logo-sub">O painel do seu dinheiro na estrada</div>
+          </div>
+          <div class="step-ind">
+            <div class="step-dot on" id="dot1"></div>
+            <div class="step-dot" id="dot2"></div>
+            <div class="step-dot" id="dot3"></div>
+          </div>
+          <div class="cad-step on" id="cadStep1">
+            <div class="cad-step-title">Seus dados</div>
+            <div class="cad-step-sub">Só o essencial pra começar</div>
+            <div class="cad-field"><label>Nome completo</label><input type="text" id="cadNome" placeholder="Ex: Gustavo Silva"></div>
+            <div class="cad-field"><label>E-mail</label><input type="email" id="cadEmail" placeholder="Ex: gustavo@email.com"></div>
+            <div class="cad-field">
+              <label>Senha</label>
+              <div class="senha-wrap">
+                <input type="password" id="cadSenha" placeholder="Mínimo 6 caracteres">
+                <button class="senha-olho" onclick="toggleSenha()">👁️</button>
+              </div>
+            </div>
+            <div class="cad-erro" id="cadErro1" style="display:none;"></div>
+            <button class="cad-btn-next" onclick="validarStep1()">Continuar →</button>
+          </div>
+          <div class="cad-step" id="cadStep2">
+            <div class="cad-step-title">Seu veículo</div>
+            <div class="cad-step-sub">Moto ou carro — cada um tem sua manutenção</div>
+            <div style="font-size:11px;color:var(--dim);margin-bottom:8px">Tipo de veículo</div>
+            <div class="veiculo-grid">
+              <div class="veiculo-btn on" id="btnMoto" onclick="selecionarVeiculo('moto')"><div class="veiculo-icon">🏍️</div><div class="veiculo-label">Moto</div></div>
+              <div class="veiculo-btn" id="btnCarro" onclick="selecionarVeiculo('carro')"><div class="veiculo-icon">🚗</div><div class="veiculo-label">Carro</div></div>
+            </div>
+            <div class="cad-field"><label>Modelo</label><input type="text" id="cadModelo" placeholder="Ex: Honda CG 160"></div>
+            <div class="cad-field"><label>Placa</label><input type="text" id="cadPlaca" placeholder="Ex: BH-9834" style="text-transform:uppercase"></div>
+            <div class="cad-erro" id="cadErro2" style="display:none;"></div>
+            <button class="cad-btn-next" onclick="validarStep2()">Continuar →</button>
+            <button class="cad-btn-back" onclick="cadIrPara(1)">← Voltar</button>
+          </div>
+          <div class="cad-step" id="cadStep3">
+            <div class="cad-step-title">Suas plataformas</div>
+            <div class="cad-step-sub">Selecione todas que você usa</div>
+            <div class="plat-grid">
+              <div class="plat-btn on" onclick="togglePlat('Uber', this)"><div class="plat-check">✓</div>Uber</div>
+              <div class="plat-btn" onclick="togglePlat('99', this)"><div class="plat-check">✓</div>99</div>
+              <div class="plat-btn" onclick="togglePlat('iFood', this)"><div class="plat-check">✓</div>iFood</div>
+              <div class="plat-btn" onclick="togglePlat('Lalamove', this)"><div class="plat-check">✓</div>Lalamove</div>
+              <div class="plat-btn" onclick="togglePlat('Rappi', this)"><div class="plat-check">✓</div>Rappi</div>
+              <div class="plat-btn" onclick="togglePlat('Outra', this)"><div class="plat-check">✓</div>Outra</div>
+            </div>
+            <div class="plats-sel" id="platsSel">✅ Uber selecionado</div>
+            <button class="cad-btn-next" onclick="finalizarCadastro()">✅ Começar a usar</button>
+            <button class="cad-btn-back" onclick="cadIrPara(2)">← Voltar</button>
+          </div>
         </div>
-        <div class="header-avatar">G</div>
       </div>
 
-      <div class="banner-lucro">
-        <div class="banner-esquerda">
-          <span class="banner-label">Lucro líquido hoje</span>
-          <span class="banner-valor">R$ 187</span>
-          <span class="banner-sub">Receita R$312 · Custos R$125</span>
+      <!-- ══════════ TELA INÍCIO (DASHBOARD) ══════════ -->
+      <div class="tela-inicio" id="telaInicio" style="display: none;">
+        <div class="header">
+          <div class="header-info">
+            <span class="header-saudacao" id="headerSaudacao">Boa noite 👋</span>
+            <span class="header-veiculo" id="headerVeiculo">Honda CG 160 · BH-9834</span>
+            <div class="header-odo-linha">
+              <span class="pat-pill" id="patPill" onclick="event.stopPropagation(); abrirModalPatente();"><span class="pat-pill-pedra" id="patPillPedra"></span><span class="pat-pill-nome" id="patPillNome">Pé de Chumbo</span></span>
+            </div>
+          </div>
+          <div class="header-direita">
+            <button class="header-ajuda" id="btnAjuda" onclick="abrirGuia('ajuda')" title="Ajuda" aria-label="Ajuda">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </button>
+            <div class="header-avatar" id="headerAvatar">G</div>
+            <div class="header-streak" id="streakDisplay">🔥 0</div>
+          </div>
         </div>
-        <div class="banner-badge">▲ +12%</div>
+
+        <!-- ═══ VELOCÍMETRO DO LUCRO (a estrela) ═══ -->
+        <div class="gauge-card">
+          <div class="gc-label">Lucro de hoje</div>
+          <div class="gauge-wrap">
+            <svg viewBox="0 0 270 152" width="100%" style="max-width:225px;display:block;margin:0 auto;">
+              <defs>
+                <linearGradient id="gArcOn" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stop-color="#FFB020"/><stop offset="1" stop-color="#00E08A"/>
+                </linearGradient>
+              </defs>
+              <path d="M 25 135 A 110 110 0 0 1 245 135" fill="none" stroke="#1a2430" stroke-width="14" stroke-linecap="round"/>
+              <path id="gaugeArc" d="M 25 135 A 110 110 0 0 1 245 135" fill="none" stroke="url(#gArcOn)" stroke-width="14" stroke-linecap="round" stroke-dasharray="345.6" stroke-dashoffset="345.6"/>
+              <g stroke="#3a4a5a" stroke-width="2">
+                <line x1="25" y1="135" x2="33" y2="131"/><line x1="57" y1="72" x2="64" y2="78"/>
+                <line x1="135" y1="25" x2="135" y2="34"/><line x1="213" y1="72" x2="206" y2="78"/>
+                <line x1="245" y1="135" x2="237" y2="131"/>
+              </g>
+              <g id="gaugePonteiro">
+                <line x1="135" y1="57" x2="135" y2="33" stroke="#F2F6FA" stroke-width="4" stroke-linecap="round"/>
+                <circle cx="135" cy="31" r="4" fill="#F2F6FA"/>
+              </g>
+            </svg>
+            <div class="gauge-center">
+              <span class="banner-valor num" id="bannerLucroValor">—</span>
+              <span class="banner-sub" id="bannerLucroSub">Registre sua receita do dia</span>
+            </div>
+          </div>
+          <div class="gc-breakdown" id="gaugeBreakdown" style="display:none;"></div>
+          <div class="gc-meta" id="metaCard" onclick="editarMeta()">🎯 <b class="num" id="metaPct">—</b> da meta · <span id="metaFalta">Meta R$ 250</span> <span class="int" onclick="abrirAjuda('meta', event)">ⓘ</span></div>
+          <span style="display:none" id="metaValorTexto">R$ 250</span>
+          <div class="meta-bar" style="display:none"><span id="metaBarra" style="width:0%"></span></div>
+          <div class="hero-strip">
+            <div class="hero-m gold ajuda" onclick="abrirAjuda('hora', event)"><div class="v num" id="ganhoHoraValor">—</div><div class="k">/ hora real <span class="int">ⓘ</span></div></div>
+            <div class="hero-m ajuda" onclick="abrirAjuda('km', event)"><div class="v num" id="custoKmStrip">—</div><div class="k">/ km real <span class="int">ⓘ</span></div></div>
+            <div class="hero-m ajuda" onclick="editarReserva()"><div class="v num" style="color:var(--money)" id="reservaValor">R$ 0</div><div class="k">reserva 🐷</div></div>
+          </div>
+          <div class="gc-substrip"><span style="display:none" id="custoPorKmValor">—</span><span id="custoRealSub">combustível + reserva</span><span style="display:none" id="reservaSub"></span></div>
+          <div class="ajuda-balao" id="ajudaBalao" style="display:none;">
+            <div class="ajuda-topo"><span class="ajuda-titulo" id="ajudaTitulo">—</span><span class="ajuda-x" onclick="fecharAjuda()">✕</span></div>
+            <div class="ajuda-texto" id="ajudaTexto">—</div>
+            <div class="ajuda-conta" id="ajudaConta"></div>
+          </div>
+        </div>
+
+        <!-- ═══ ODÔMETRO + TANQUE DO MÊS ═══ -->
+        <div class="odo-row">
+          <div class="odo-card">
+            <div class="odo-label">🛣️ Odômetro</div>
+            <div class="odo" id="odoDigitos"></div>
+            <div class="odo-hoje num" id="odoHoje">+<span class="num" id="kmHojeValor">0 km</span> hoje</div>
+            <span style="display:none" id="odometroTotal"></span>
+          </div>
+          <div class="tank-card" onclick="abrirAjudaCard('gastomes')">
+            <div class="odo-label">💸 Combustível/mês <span class="int">ⓘ</span></div>
+            <svg viewBox="0 0 110 62" width="100%" style="max-width:104px;display:block;margin:2px auto 0;">
+              <path d="M 12 52 A 46 46 0 0 1 98 52" fill="none" stroke="#1a2430" stroke-width="9" stroke-linecap="round"/>
+              <path id="tqArc" d="M 12 52 A 46 46 0 0 1 98 52" fill="none" stroke="#FFB020" stroke-width="9" stroke-linecap="round" stroke-dasharray="144.5" stroke-dashoffset="144.5"/>
+              <text x="8" y="61" font-size="9" fill="#5C6B7A" font-weight="700">E</text>
+              <text x="96" y="61" font-size="9" fill="#5C6B7A" font-weight="700">F</text>
+              <g id="tqAgulha"><line x1="55" y1="52" x2="55" y2="16" stroke="#F2F6FA" stroke-width="2.6" stroke-linecap="round"/><circle cx="55" cy="52" r="4.5" fill="#F2F6FA"/></g>
+            </svg>
+            <div class="tq-valor num" id="tqValor">R$ 0</div>
+            <div class="tq-sub" id="tqSub">aprendendo seu normal</div>
+          </div>
+        </div>
+
+        <!-- ═══ LUZES DE MANUTENÇÃO ═══ -->
+        <div class="luzes">
+          <div class="luzes-top"><span class="luzes-t">🔧 Painel de manutenção</span><span class="luzes-dica">toque numa luz</span></div>
+          <div class="luzes-row">
+            <div class="luz" id="alertaItem1" onclick="abrirManutencao(1)">
+              <span class="lz-ic" id="luzIc1"></span>
+              <div class="lz-nome" id="alertaNome1">Troca de óleo</div>
+              <div class="lz-st num" id="statusItem1">—</div>
+              <span style="display:none"><span id="alertaBarra1"></span></span>
+            </div>
+            <div class="luz" id="alertaItem2" onclick="abrirManutencao(2)">
+              <span class="lz-ic" id="luzIc2"></span>
+              <div class="lz-nome" id="alertaNome2">Rodízio de pneus</div>
+              <div class="lz-st num" id="statusItem2">—</div>
+              <span style="display:none"><span id="alertaBarra2"></span></span>
+            </div>
+            <div class="luz" id="alertaItem3" onclick="abrirManutencao(3)">
+              <span class="lz-ic" id="luzIc3"></span>
+              <div class="lz-nome" id="alertaNome3">—</div>
+              <div class="lz-st num" id="statusItem3">—</div>
+              <span style="display:none"><span id="alertaBarra3"></span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ DOCUMENTO MAIS URGENTE ═══ -->
+        <div class="card clicavel doc-wide" id="cardDocumento" onclick="irParaDocumentos()">
+          <div class="dw-flex">
+            <span class="card-label" id="cardDocLabel">Documentos</span>
+            <span class="card-valor amarelo num" id="cardDocValor" style="font-size:16px;">—</span>
+          </div>
+          <span class="card-sub" id="cardDocSub"></span>
+        </div>
+
+        <!-- FAIXINHA DE TURNO ATIVO (discreta, só o tempo) -->
+        <div class="turno-pill" id="turnoLive" style="display:none;">
+          <span class="tl-pulso"></span>
+          <span class="tp-label">Rodando agora</span>
+          <span class="tp-tempo num" id="tlTempo">0h00</span>
+        </div>
+
+        <!-- SLIDER TURNO -->
+        <div class="registro-rapido">
+          <div class="slider-container" id="sliderContainer">
+            <div class="slider-track"><span class="slider-texto" id="sliderTexto">🏍️  Bora rodar →</span></div>
+            <div class="slider-thumb" id="sliderThumb">🏍️</div>
+          </div>
+        </div>
+        <div class="acao-secundaria">
+          <button class="btn-simulador-mini" id="btnAbrirSimulador">🧮 Vale a pena rodar hoje?</button>
+        </div>
       </div>
 
-      <div class="cards-grid">
-        <div class="card">
-          <span class="card-label">Km hoje</span>
-          <span class="card-valor azul">142 km</span>
+      <!-- ══════════ TELA MANUTENÇÃO ══════════ -->
+      <div class="tela-manutencao" id="telaManutencao" style="display: none;">
+        <h2 class="tela-h">🔧 Manutenção</h2>
+        <p class="tela-sub">Toque num item pra registrar a troca ou ajustar</p>
+        <div class="manut-card" id="manutCard1" onclick="abrirManutencao(1)">
+          <div class="manut-card-top">
+            <div class="manut-card-nome"><span class="manut-ic" id="manutIc1">🛢️</span><span id="manutNome1">—</span></div>
+            <div class="manut-restante num" id="restanteItem1">—</div>
+          </div>
+          <div class="alerta-bar" style="margin:11px 0 9px;"><span id="manutBarra1" style="width:0%"></span></div>
+          <div class="manut-info"><span>Última: <b class="num" id="kmUltimaItem1">—</b></span><span class="num" id="manutIntervalo1">—</span></div>
         </div>
-        <div class="card">
-          <span class="card-label">Custo / km</span>
-          <span class="card-valor amarelo">R$ 0,43</span>
+        <div class="manut-card" id="manutCard2" onclick="abrirManutencao(2)">
+          <div class="manut-card-top">
+            <div class="manut-card-nome"><span class="manut-ic" id="manutIc2">🛞</span><span id="manutNome2">—</span></div>
+            <div class="manut-restante num" id="restanteItem2">—</div>
+          </div>
+          <div class="alerta-bar" style="margin:11px 0 9px;"><span id="manutBarra2" style="width:0%"></span></div>
+          <div class="manut-info"><span>Última: <b class="num" id="kmUltimaItem2">—</b></span><span class="num" id="manutIntervalo2">—</span></div>
         </div>
-        <div class="card">
-          <span class="card-label">Reserva</span>
-          <span class="card-valor verde">R$ 340</span>
-        </div>
-        <div class="card">
-          <span class="card-label">CRLV vence</span>
-          <span class="card-valor amarelo">28 dias</span>
-        </div>
-      </div>
-
-      <div class="alertas">
-        <div class="alerta vermelho">
-          <span class="alerta-nome">Troca de óleo</span>
-          <span class="alerta-status">Vencida</span>
-        </div>
-        <div class="alerta amarelo">
-          <span class="alerta-nome">Rodízio de pneus</span>
-          <span class="alerta-status">830 km</span>
-        </div>
-        <div class="alerta verde">
-          <span class="alerta-nome">Filtro de ar</span>
-          <span class="alerta-status">Ok</span>
+        <div class="manut-card" id="manutCard3" onclick="abrirManutencao(3)">
+          <div class="manut-card-top">
+            <div class="manut-card-nome"><span class="manut-ic" id="manutIc3">⛓️</span><span id="manutNome3">—</span></div>
+            <div class="manut-restante num" id="restanteItem3">—</div>
+          </div>
+          <div class="alerta-bar" style="margin:11px 0 9px;"><span id="manutBarra3" style="width:0%"></span></div>
+          <div class="manut-info"><span>Última: <b class="num" id="kmUltimaItem3">—</b></span><span class="num" id="manutIntervalo3">—</span></div>
         </div>
       </div>
 
-      <div class="registro-rapido">
-        <button class="botao-principal">
-          ⚡ Registrar Km do Dia
-        </button>
+      <!-- ══════════ TELA COMBUSTÍVEL ══════════ -->
+      <div class="tela-combustivel" id="telaCombustivel" style="display: none;">
+        <div class="comb-header"><div class="comb-titulo">⛽ Combustível</div><div class="comb-sub" id="combSubMes">Junho 2025</div></div>
+        <!-- TANQUE GRANDE: gasto de combustível do mês (o "bolso", não o tanque do veículo) -->
+        <div class="tanque-card ajuda-clic" onclick="abrirAjudaCard('gastomes')">
+          <div class="tanque-titulo">💸 Quanto já gastei de combustível no mês <span class="int">ⓘ</span></div>
+          <div class="tanque-corpo">
+            <svg class="tanque-svg" viewBox="0 0 132 156" width="118" aria-hidden="true">
+              <defs>
+                <clipPath id="tqgClip"><rect x="34" y="20" width="52" height="126" rx="11"/></clipPath>
+              </defs>
+              <!-- bico do tanque -->
+              <rect x="50" y="6" width="20" height="11" rx="3" fill="#26313D"/>
+              <!-- corpo de vidro -->
+              <rect x="30" y="16" width="60" height="134" rx="14" fill="#0d141c" stroke="#26313D" stroke-width="2"/>
+              <!-- líquido (clipado pelo corpo) — sobe/desce por transform -->
+              <g clip-path="url(#tqgClip)">
+                <g id="tqgLiquido" transform="translate(0,78)">
+                  <path id="tqgWave" d="M34 26 q13 -9 26 0 q13 9 26 0 v134 h-52 z" fill="#FFB020"/>
+                </g>
+              </g>
+              <!-- brilho lateral do vidro -->
+              <rect x="37" y="22" width="6" height="122" rx="3" fill="#ffffff" opacity=".06"/>
+              <!-- marcas ¼ ½ ¾ -->
+              <g stroke="#3a4a5a" stroke-width="1.5">
+                <line x1="86" y1="52" x2="92" y2="52"/>
+                <line x1="86" y1="83" x2="92" y2="83"/>
+                <line x1="86" y1="114" x2="92" y2="114"/>
+              </g>
+              <g fill="#5C6B7A" font-size="8" font-family="Inter" font-weight="700">
+                <text x="95" y="55">¾</text>
+                <text x="95" y="86">½</text>
+                <text x="95" y="117">¼</text>
+              </g>
+            </svg>
+            <div class="tanque-info">
+              <div class="tanque-valor num" id="tqgValor">R$ 0</div>
+              <div class="tanque-normal" id="tqgNormal">aprendendo seu normal</div>
+              <span class="tanque-pill neutro" id="tqgPill">🟡 aprendendo</span>
+            </div>
+          </div>
+          <div class="tanque-aviso" id="tqgAviso">⚠️ não é o tanque da sua moto — é o seu <b>bolso</b>: soma do que você pagou nos postos este mês</div>
+        </div>
+        <!-- Custo médio/km vira faixa horizontal -->
+        <div class="comb-mediakm ajuda-clic" onclick="abrirAjudaCard('mediakm')">
+          <div class="cmk-esq"><span class="cmk-label">Combustível / km <span class="int">ⓘ</span></span><span class="cmk-sub" id="custoMedioSub">sem registros</span></div>
+          <div class="cmk-val verde num" id="custoMedioVal">—</div>
+        </div>
+        <button class="btn-abrir-abastecer" id="btnAbrirAbastecer">⛽ Registrar abastecimento</button>
+        <button class="btn-ver-extrato-full" id="btnVerExtrato">📄 Ver extrato de combustível →</button>
       </div>
 
-      <nav class="nav-inferior">
-        <button class="nav-item ativo">
-          <span class="nav-icone">🏠</span>
-          <span class="nav-texto">Início</span>
-        </button>
-        <button class="nav-item">
-          <span class="nav-icone">🔧</span>
-          <span class="nav-texto">Manutenção</span>
-        </button>
-        <button class="nav-item">
-          <span class="nav-icone">⛽</span>
-          <span class="nav-texto">Combustível</span>
-        </button>
-        <button class="nav-item">
-          <span class="nav-icone">🤖</span>
-          <span class="nav-texto">Cadê</span>
-        </button>
-        <button class="nav-item">
-          <span class="nav-icone">💰</span>
-          <span class="nav-texto">Finanças</span>
-        </button>
+      <!-- ══════════ MODAL ABASTECER (novo) ══════════ -->
+      <div class="modal-overlay" id="modalAbastecer">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo">⛽ Registrar abastecimento</h2>
+          <div class="tipo-grid" style="margin-bottom:14px;">
+            <div class="tipo-btn ativo" id="tipoGasolinaTela">Gasolina</div>
+            <div class="tipo-btn" id="tipoEtanolTela">Etanol</div>
+            <div class="tipo-btn" id="tipoFlexTela">Flex</div>
+            <div class="tipo-btn" id="tipoGNVTela">GNV</div>
+            <div class="tipo-btn" id="tipoMistoTela">50/50</div>
+          </div>
+          <div class="comb-field"><label>Valor gasto (R$)</label><input type="text" inputmode="decimal" id="inputValorTela" placeholder="Ex: 45,00" oninput="calcCustoPorKmTela()"></div>
+          <div class="comb-field destaque-km">
+            <label>Km rodados hoje <b>· importante</b></label>
+            <input type="text" inputmode="numeric" id="inputKmTela" placeholder="Ex: 87" oninput="calcCustoPorKmTela()">
+            <div class="campo-dica">é isso que calcula seu custo por km — não confunda com litros</div>
+          </div>
+          <div class="linha-dupla">
+            <div class="comb-field"><label>Litros <span style="color:var(--faint)">· opcional</span></label><input type="text" inputmode="decimal" id="inputLitrosTela" placeholder="Ex: 7,5"></div>
+            <div class="comb-field"><label>Posto <span style="color:var(--faint)">· opcional</span></label><input type="text" id="inputPostoTela" placeholder="Ex: Mineiro"></div>
+          </div>
+          <div class="comb-preview"><span class="comb-preview-label">Custo por km</span><span class="comb-preview-val num" id="combPreviewValTela">— /km</span></div>
+          <div class="modal-botoes" style="margin-top:14px;">
+            <button class="modal-btn cancelar" id="btnCancelarAbastecer">Cancelar</button>
+            <button class="modal-btn confirmar" id="btnSalvarTela">✅ Registrar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ TELA EXTRATO DE COMBUSTÍVEL ══════════ -->
+      <div class="tela-extrato" id="telaExtrato" style="display: none;">
+        <div class="ext-header">
+          <button class="ext-back" id="extBack">←</button>
+          <div><div class="ext-title">📄 Extrato de combustível</div><div class="ext-sub">seu gasto por período</div></div>
+        </div>
+        <div class="ext-toggle">
+          <button class="ext-toggle-btn ativo" id="extMes">Por mês</button>
+          <button class="ext-toggle-btn" id="extSemana">Por semana</button>
+        </div>
+        <div class="ext-nav">
+          <button class="ext-seta" id="extPrev">‹</button>
+          <div class="ext-periodo-wrap"><div class="ext-periodo num" id="extPeriodo">—</div><div class="ext-periodo-datas" id="extDatas"></div></div>
+          <button class="ext-seta" id="extNext">›</button>
+        </div>
+        <div class="ext-resumo">
+          <div class="ext-stat"><div class="ext-stat-label">Gasto no período</div><div class="ext-stat-val amarelo num" id="extGasto">R$ 0</div></div>
+          <div class="ext-stat"><div class="ext-stat-label">Abastecimentos</div><div class="ext-stat-val num" id="extQtd">0</div></div>
+          <div class="ext-stat"><div class="ext-stat-label">Preço médio/L</div><div class="ext-stat-val num" id="extPreco">—</div></div>
+          <div class="ext-stat"><div class="ext-stat-label">Combustível / km</div><div class="ext-stat-val verde num" id="extCpk">—</div></div>
+        </div>
+        <div class="ext-export">
+          <button class="ext-exp-btn" id="extCombPDF">🖨️ Exportar PDF</button>
+          <button class="ext-exp-btn" id="extCombCSV">📊 Exportar CSV</button>
+        </div>
+
+        <!-- BLOCO POR TIPO DE COMBUSTÍVEL -->
+        <div class="tipos-bloco" id="tiposBloco" style="display:none;">
+          <div class="tipos-titulo">Por tipo de combustível</div>
+          <div class="tipos-lista" id="tiposLista"></div>
+          <div class="tipos-veredict" id="tiposVeredict" style="display:none;"></div>
+        </div>
+
+        <div class="comb-hist-titulo" style="margin-bottom:10px;">Abastecimentos do período</div>
+        <div class="comb-hist-lista" id="extLista"></div>
+      </div>
+
+      <!-- ══════════ TELA FINANÇAS ══════════ -->
+      <div class="tela-financas" id="telaFinancas" style="display: none;">
+        <div class="fin-header"><div class="fin-titulo">💰 Finanças</div><div class="fin-sub" id="finSubMes">Junho 2025</div></div>
+
+        <!-- HERO: LUCRO DO DIA + DETALHES DENTRO -->
+        <div class="fin-hero">
+          <div class="fh-label">LUCRO LÍQUIDO HOJE</div>
+          <div class="fh-valor num" id="finLucroValor">—</div>
+          <div class="fh-sub" id="finLucroSub">Registre sua receita do dia</div>
+          <div class="fh-detalhes" id="finDetalhes">
+            <div class="fh-det"><span class="k">Receita</span><span class="v num" id="finReceita">—</span></div>
+            <div class="fh-det"><span class="k">Taxa plataforma</span><span class="v num" style="color:var(--danger)" id="finTaxa">—</span></div>
+            <div class="fh-det"><span class="k">Combustível</span><span class="v num" style="color:var(--danger)" id="finCombustivel">—</span></div>
+            <div class="fh-det"><span class="k">Lucro/km</span><span class="v num" style="color:var(--info)" id="finLucroKm">—</span></div>
+          </div>
+        </div>
+
+        <!-- BOTÃO PÍLULA REGISTRAR -->
+        <button class="btn-registrar-pill" id="btnRegistrarReceita">⚡ Registrar receita do dia</button>
+        <button class="btn-despesas-abrir" id="btnAbrirDespesas">🧾 Despesas do dia<span id="btnDespesasTotal"></span> →</button>
+
+        <!-- DESEMPENHO: 3 visões em 1 card que alterna -->
+        <div class="desempenho-wrap">
+          <div class="seg-toggle" id="desempenhoToggle">
+            <button type="button" class="seg-btn" data-v="hoje">Hoje</button>
+            <button type="button" class="seg-btn" data-v="semana">Semana</button>
+            <button type="button" class="seg-btn ativo" data-v="mes">Mês</button>
+          </div>
+        <!-- CARD COMPARATIVO: HOJE VS SEU NORMAL -->
+        <div class="comp-personal" id="compPersonal" style="display:none;" onclick="abrirAjudaComp()">
+          <div class="cp-topo"><span class="cp-titulo">📊 Hoje vs. seu normal</span><span class="cp-info">ⓘ</span></div>
+          <div class="cp-linha1"><span class="cp-hoje num" id="cpHoje">R$ 0</span><span class="cp-vs">·</span><span class="cp-media num">média <b id="cpMedia">R$ 0</b></span></div>
+          <div class="cp-verdict" id="cpVerdict">—</div>
+          <div class="cp-base" id="cpBase">média dos últimos dias que você rodou</div>
+        </div>
+
+        <!-- PROJEÇÃO DO MÊS -->
+        <div class="proj-card" id="projCard">
+          <div class="proj-top"><span class="proj-label ajuda-clic" onclick="abrirAjudaCard('projecao')">📈 Projeção do mês <span class="int">ⓘ</span></span><span class="proj-tag" id="projTag">estimativa</span></div>
+          <div class="proj-valor num" id="projValor">—</div>
+          <div class="proj-sub" id="projSub">Registre alguns dias pra eu projetar seu mês</div>
+          <div class="proj-barra"><span id="projBarra" style="width:0%"></span></div>
+          <div class="proj-pe" id="projPe">—</div>
+        </div>
+
+        <!-- COMPARATIVO SEMANAL (só aparece com histórico) -->
+        <div class="comp-semanal" id="comparativoSemanal" style="display:none;">
+          <div class="comp-header"><div class="comp-titulo">📊 Esta semana</div><div class="comp-vs" id="compVsLabel">vs semana passada</div></div>
+          <div class="comp-totais">
+            <div class="comp-total-bloco"><div class="comp-total-label">Lucro da semana</div><div class="comp-total-valor num" id="compTotalAtual">—</div></div>
+            <div class="comp-seta-bloco"><div class="comp-variacao num" id="compVariacao">—</div><div class="comp-variacao-label" id="compVariacaoLabel">sem histórico</div></div>
+          </div>
+          <div class="comp-grafico" id="compGrafico"></div>
+          <div class="comp-destaques" id="compDestaques" style="display:none;">
+            <div class="comp-destaque melhor"><div class="comp-destaque-icone">🏆</div><div><div class="comp-destaque-label">Melhor dia</div><div class="comp-destaque-val num" id="compMelhorDia">—</div></div></div>
+            <div class="comp-destaque pior"><div class="comp-destaque-icone">📉</div><div><div class="comp-destaque-label">Pior dia</div><div class="comp-destaque-val num" id="compPiorDia">—</div></div></div>
+          </div>
+          <div class="comp-vazio" id="compVazio" style="display:none;">Registre sua receita diária para ver o comparativo aparecer aqui.</div>
+        </div>
+
+          <div class="desempenho-ph" id="desempenhoPlaceholder" style="display:none;"></div>
+        </div>
+        <button class="btn-ver-extrato-full" id="btnVerExtratoFin">📄 Ver extrato de finanças →</button>
+      </div>
+
+      <!-- ══════════ MODAL AJUDA COMPARATIVO ══════════ -->
+      <div class="modal-overlay" id="modalAjudaComp">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo">📊 Hoje vs. seu normal</h2>
+          <p style="font-size:13.5px;color:var(--dim);line-height:1.6;">Compara o lucro que você fez hoje com sua <b style="color:var(--text)">média dos últimos 30 dias em que você rodou</b>. Serve pra saber, num piscar de olhos, se hoje foi um dia acima ou abaixo do seu normal.</p>
+          <p style="font-size:12px;color:var(--faint);line-height:1.5;margin-top:12px;">Só aparece depois de 5 dias registrados. Antes disso, ainda tô aprendendo o seu ritmo.</p>
+          <div class="modal-botoes" style="margin-top:16px;"><button class="modal-btn confirmar" id="btnFecharAjudaComp" style="flex:1;">Entendi</button></div>
+        </div>
+      </div>
+
+      <!-- ══════════ TELA EXTRATO DE FINANÇAS ══════════ -->
+      <div class="tela-extrato" id="telaExtratoFin" style="display: none;">
+        <div class="ext-header">
+          <button class="ext-back" id="extFinBack">←</button>
+          <div><div class="ext-title">📄 Extrato de ganhos</div><div class="ext-sub">seu lucro por período</div></div>
+        </div>
+        <div class="ext-toggle">
+          <button class="ext-toggle-btn ativo" id="extFinMes">Por mês</button>
+          <button class="ext-toggle-btn" id="extFinSemana">Por semana</button>
+        </div>
+        <div class="ext-nav">
+          <button class="ext-seta" id="extFinPrev">‹</button>
+          <div class="ext-periodo-wrap"><div class="ext-periodo num" id="extFinPeriodo">—</div><div class="ext-periodo-datas" id="extFinDatas"></div></div>
+          <button class="ext-seta" id="extFinNext">›</button>
+        </div>
+        <div class="ext-resumo">
+          <div class="ext-stat" style="grid-column:1/-1;background:linear-gradient(160deg,#12261e,#141b23 60%);border-color:rgba(0,224,138,.3)"><div class="ext-stat-label">Lucro líquido no período</div><div class="ext-stat-val verde num" id="extFinLucro" style="font-size:26px;">R$ 0</div></div>
+          <div class="ext-stat"><div class="ext-stat-label">Receita bruta</div><div class="ext-stat-val num" id="extFinReceita">R$ 0</div></div>
+          <div class="ext-stat"><div class="ext-stat-label">Taxa da plataforma</div><div class="ext-stat-val num vermelho-txt" id="extFinTaxa">R$ 0</div></div>
+          <div class="ext-stat"><div class="ext-stat-label">Combustível</div><div class="ext-stat-val num vermelho-txt" id="extFinComb">R$ 0</div></div>
+          <div class="ext-stat"><div class="ext-stat-label">Outras despesas</div><div class="ext-stat-val num vermelho-txt" id="extFinDesp">R$ 0</div></div>
+          <div class="ext-stat"><div class="ext-stat-label">Dias rodados</div><div class="ext-stat-val num" id="extFinDias">0</div></div>
+          <div class="ext-stat"><div class="ext-stat-label">Média por dia</div><div class="ext-stat-val num" id="extFinMedia">R$ 0</div></div>
+        </div>
+        <div class="ext-export">
+          <button class="ext-exp-btn" id="extFinPDF">🖨️ Exportar PDF</button>
+          <button class="ext-exp-btn" id="extFinCSV">📊 Exportar CSV</button>
+        </div>
+        <div class="comb-hist-titulo" style="margin-bottom:10px;">Dia a dia</div>
+        <div class="fin-hist-lista" id="extFinLista"></div>
+      </div>
+
+      <!-- ══════════ TELA FINANÇAS (fim) ══════════ -->
+      <!-- ══════════ TELA DOCUMENTOS ══════════ -->
+      <div class="tela-documentos" id="telaDocumentos" style="display: none;">
+        <div class="fin-header"><div class="fin-titulo">📄 Documentos</div><div class="fin-sub">Vencimentos e alertas</div></div>
+        <button class="btn-registrar-receita" id="btnNovoDoc" style="width:100%;margin-bottom:16px;">+ Adicionar documento</button>
+        <div class="doc-lista" id="docLista"></div>
+      </div>
+
+      <!-- ══════════ TELA DO CARAMELO (consultor) ══════════ -->
+      <div class="tela-cade" id="telaCade" style="display: none;">
+        <div class="cade-header">
+          <div class="cade-nome-big" id="cadeNomeBig">Isaac</div>
+          <div class="cade-sub-big">seu consultor financeiro</div>
+        </div>
+        <div class="cade-bicho crm-vivo" id="cadeBicho"></div>
+        <div class="cade-balao" id="cadeBalao">
+          Tô aqui pra te contar como foi seu dia. Aperta o botão abaixo.
+        </div>
+        <div class="cade-status" id="cadeStatus" style="display:none;">
+          <span class="cade-dot"></span><span class="cade-dot"></span><span class="cade-dot"></span>
+        </div>
+        <button class="cade-btn-falar" id="cadeBtnFalar">🐺 Ouvir análise</button>
+        <div class="cade-dica">Registre sua receita do dia antes de pedir a análise completa.</div>
+      </div>
+
+      <!-- ══════════ NAV (6 ABAS · ícones SVG) ══════════ -->
+      <!-- ══════════ TELA DESPESAS DO DIA (sub-tela) ══════════ -->
+      <div class="tela-extrato" id="telaDespesas" style="display: none;">
+        <div class="ext-header">
+          <button class="ext-back" id="despBack">←</button>
+          <div><div class="ext-title">🧾 Despesas do dia</div><div class="ext-sub">pedágio, comida, lavagem, o que rolar</div></div>
+        </div>
+        <div class="desp-intro">Toque no que você gastou e jogue o valor. Tudo opcional — entra no seu lucro real.</div>
+        <div class="desp-chips" id="despChips">
+          <button type="button" class="desp-chip" data-cat="pedagio">🛣️ Pedágio</button>
+          <button type="button" class="desp-chip" data-cat="alimentacao">🍔 Alimentação</button>
+          <button type="button" class="desp-chip" data-cat="lavagem">🧼 Lavagem</button>
+          <button type="button" class="desp-chip" data-cat="estacionamento">🅿️ Estacionamento</button>
+          <button type="button" class="desp-chip" data-cat="internet">📱 Internet</button>
+          <button type="button" class="desp-chip" data-cat="outro">➕ Outro</button>
+        </div>
+        <div class="desp-input-row" id="despInputRow" style="display:none;">
+          <span class="desp-input-cat" id="despInputCat">Pedágio</span>
+          <input class="desp-input" id="despInputValor" type="text" inputmode="decimal" placeholder="R$ 0,00">
+          <button type="button" class="desp-add" id="despAddBtn">Adicionar</button>
+        </div>
+        <div class="desp-hoje-tit">Despesas de hoje</div>
+        <div class="desp-lista" id="despLista"></div>
+        <div class="desp-vazio" id="despVazio">Nada lançado hoje ainda.</div>
+        <div class="desp-total" id="despTotal" style="display:none;"></div>
+      </div>
+
+      <nav class="nav-inferior" id="navInferior" style="display: none;">
+        <button class="nav-item ativo" id="navInicio"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9.5 21v-6h5v6"/></svg><span>Início</span></button>
+        <button class="nav-item" id="navManutencao"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4.5 4.5 0 0 0-5.9 5.9L3 18l3 3 5.8-5.8a4.5 4.5 0 0 0 5.9-5.9l-2.8 2.8-2.1-.9-.9-2.1z"/></svg><span>Manut.</span></button>
+        <button class="nav-item" id="navCombustivel"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="9" height="18" rx="1.5"/><path d="M4 11h9"/><path d="M16 8l3 3v7a1.5 1.5 0 0 1-3 0v-4"/></svg><span>Combust.</span></button>
+        <button class="nav-item" id="navFinancas"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 12h.01M18 12h.01"/></svg><span>Finanças</span></button>
+        <button class="nav-item" id="navDocumentos"><span class="nav-badge" id="navDocsBadge" style="display:none;">1</span><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v4h4"/><path d="M9 13h6M9 17h6"/></svg><span>Docs</span></button>
+        <button class="nav-item" id="navCade"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 2.6 C4.5 6 4.7 8.4 4.9 10 C4.6 14 6.6 17.4 12 20.8 C17.4 17.4 19.4 14 19.1 10 C19.3 8.4 19.5 6 19.8 2.6 L15.4 7 L8.6 7 Z"/><path d="M9.2 11.4 L10.7 11.4"/><path d="M13.3 11.4 L14.8 11.4"/><path d="M10.6 15.2 L12 16.4 L13.4 15.2"/><path d="M12 16.4 L12 18"/></svg><span id="navCadeLabel">Isaac</span></button>
       </nav>
 
+      <!-- ══════════ MODAL KM ══════════ -->
+      <div class="modal-overlay" id="modalKm">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo">Dia encerrado! 🏁</h2>
+          <p class="modal-desc" style="margin-bottom:14px">Confira o km total do painel do seu veículo</p>
+
+          <div class="km-ref" id="kmRef">Seu último registro: <b class="num">—</b></div>
+          <div class="km-gps" id="kmGps" style="display:none;">📍 GPS estimou <b class="num" id="kmGpsVal">~0 km</b> rodados hoje</div>
+
+          <input type="text" inputmode="numeric" class="modal-input" id="inputKm" placeholder="Ex: 32.480" oninput="atualizarKmVivo()" style="margin-bottom:6px;">
+          <div class="km-vivo" id="kmVivo" style="display:none;">= <b class="num">0</b> km rodados hoje</div>
+          <div class="km-erro" id="kmErro" style="display:none;"></div>
+
+          <div class="modal-botoes" style="margin-top:16px;"><button class="modal-btn cancelar" id="btnCancelar">Cancelar</button><button class="modal-btn confirmar" id="btnConfirmar">✅ Confirmar</button></div>
+        </div>
+      </div>
+
+      <!-- ══════════ GUIA · o que cada rotina faz (Isaac lenda explica) ══════════ -->
+      <div class="modal-overlay" id="modalGuia">
+        <div class="modal-caixa guia-caixa">
+          <div class="guia-topo">
+            <div class="guia-lobo" id="guiaLobo"></div>
+            <div class="guia-balao">
+              <div class="guia-balao-nome">ISAAC</div>
+              <div class="guia-fala" id="guiaFala"></div>
+            </div>
+          </div>
+          <div class="guia-lista" id="guiaLista"></div>
+
+          <div class="guia-suporte" id="guiaSuporte" style="display:none;">
+            <span>Travou em algo ou achou um problema?</span>
+            <button class="guia-sup-btn" onclick="fecharGuia(); abrirSuporte();">💬 Falar com o suporte</button>
+          </div>
+
+          <button class="modal-btn confirmar guia-fechar" id="guiaBtn" onclick="fecharGuia()">Bora começar</button>
+        </div>
+      </div>
+
+      <!-- ══════════ SUPORTE ══════════ -->
+      <div class="modal-overlay" id="modalSuporte">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo">💬 Falar com o suporte</h2>
+          <p class="modal-desc" style="margin-bottom:16px">Manda sua dúvida ou o que deu errado. A gente responde de verdade — do outro lado tem gente, não robô.</p>
+          <a class="sup-op" id="supWhats" target="_blank" rel="noopener">
+            <span class="sup-op-ic" style="color:#25D366">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M17.5 14.4c-.3-.2-1.7-.9-2-1-.3-.1-.5-.1-.6.2s-.7 1-.9 1.1c-.2.2-.3.2-.6 0-.3-.2-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6l.5-.5c.1-.2.2-.3.3-.5 0-.2 0-.4 0-.5s-.6-1.5-.9-2c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.2s.9 2.5 1.1 2.7c.1.2 1.9 2.9 4.6 4 .6.3 1.1.4 1.5.6.6.2 1.2.2 1.6.1.5-.1 1.7-.7 1.9-1.3.2-.7.2-1.2.2-1.3-.1-.2-.3-.2-.6-.4zM12 2a10 10 0 0 0-8.6 15l-1.3 4.7 4.9-1.3A10 10 0 1 0 12 2z"/></svg>
+            </span>
+            <span class="sup-op-txt"><b>WhatsApp</b><small>a resposta mais rápida</small></span>
+          </a>
+          <a class="sup-op" id="supMail">
+            <span class="sup-op-ic" style="color:var(--info)">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 5L2 7"/></svg>
+            </span>
+            <span class="sup-op-txt"><b>E-mail</b><small>pra assuntos mais longos</small></span>
+          </a>
+          <div class="modal-botoes" style="margin-top:14px;">
+            <button class="modal-btn cancelar" onclick="fecharSuporte()">Voltar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL TROCA DE VEÍCULO ══════════ -->
+      <!-- Nasce onde o problema aparece: o painel não bate com o último
+           registro. Antes o app dava erro e travava; agora ele pergunta. -->
+      <div class="modal-overlay" id="modalVeic">
+        <div class="modal-caixa">
+
+          <div id="veicPergunta">
+            <h2 class="modal-titulo" id="veicTitulo">Trocou de veículo?</h2>
+            <p class="modal-desc" id="veicDesc" style="margin-bottom:14px"></p>
+            <div class="veic-opcoes" id="veicOpcoes"></div>
+            <div class="veic-rodape">Seu histórico, patente e streak continuam do jeito que estão. Nada aqui apaga nada.</div>
+            <div class="modal-botoes" style="margin-top:12px;">
+              <button class="modal-btn cancelar" id="btnVeicVoltar">Digitei errado</button>
+            </div>
+          </div>
+
+          <div id="veicForm" style="display:none;">
+            <h2 class="modal-titulo">Seu veículo novo</h2>
+            <p class="modal-desc" style="margin-bottom:14px">Só o básico. O km que você digitou já vira o ponto de partida dele.</p>
+            <div class="veic-tipos">
+              <button type="button" class="veic-tipo on" id="veicTipoMoto"  onclick="veicSelTipo('moto')">🏍️ Moto</button>
+              <button type="button" class="veic-tipo"    id="veicTipoCarro" onclick="veicSelTipo('carro')">🚗 Carro</button>
+            </div>
+            <input type="text" class="modal-input" id="veicModelo" placeholder="Modelo (ex: Honda CG 160)" style="margin-bottom:8px;">
+            <input type="text" class="modal-input" id="veicPlaca"  placeholder="Placa (opcional)" maxlength="8" style="margin-bottom:6px;">
+            <div class="km-erro" id="veicErro" style="display:none;"></div>
+            <div class="modal-botoes" style="margin-top:16px;">
+              <button class="modal-btn cancelar"  id="btnVeicCancelar">Voltar</button>
+              <button class="modal-btn confirmar" id="btnVeicSalvar">✅ Salvar</button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL COMBUSTÍVEL ══════════ -->
+      <div class="modal-overlay" id="modalCombustivel">
+        <div class="modal-caixa">
+          <div id="etapaAbasteceu">
+            <h2 class="modal-titulo">⛽ Abasteceu hoje?</h2>
+            <p class="modal-desc">Registre agora para calcular seu custo real por km.</p>
+            <div class="modal-botoes" style="margin-top: 16px;"><button class="modal-btn cancelar" id="btnNaoAbasteceu">Não</button><button class="modal-btn confirmar" id="btnSimAbasteceu">Sim</button></div>
+          </div>
+          <div id="etapaFormComb" style="display: none;">
+            <h2 class="modal-titulo">⛽ Abastecimento</h2>
+            <div class="tipo-grid">
+              <div class="tipo-btn ativo" id="tipoGasolina">Gasolina</div>
+              <div class="tipo-btn" id="tipoEtanol">Etanol</div>
+              <div class="tipo-btn" id="tipoFlex">Flex</div>
+              <div class="tipo-btn" id="tipoGNV">GNV</div>
+              <div class="tipo-btn" id="tipoMisto">50/50</div>
+            </div>
+            <div class="comb-field"><label>Valor gasto (R$)</label><input type="text" inputmode="decimal" id="inputValorComb" placeholder="Ex: 45,00" oninput="calcCustoPorKm()"></div>
+            <div class="comb-field"><label>Litros <span style="color:var(--faint)">· opcional</span></label><input type="text" inputmode="decimal" id="inputLitrosComb" placeholder="Ex: 7,5"></div>
+            <div class="comb-field"><label>Nome do posto <span style="color:var(--faint)">· opcional</span></label><input type="text" id="inputPostoComb" placeholder="Ex: Posto Mineiro"></div>
+            <div class="comb-preview"><span class="comb-preview-label">Custo do combustível por km</span><span class="comb-preview-val num" id="combPreviewVal">— /km</span></div>
+            <div class="modal-botoes"><button class="modal-btn cancelar" id="btnCancelarComb">Pular</button><button class="modal-btn confirmar" id="btnConfirmarComb">✅ Salvar</button></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL RECEITA ══════════ -->
+      <div class="modal-overlay" id="modalReceita">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo" id="modalReceitaTitulo">💰 Receita do dia</h2>
+          <div style="font-size:11px;color:var(--dim);margin-bottom:8px">O valor que você vai digitar é:</div>
+          <div class="tipo-grid tipo-grid-2" style="margin-bottom:14px;">
+            <div class="tipo-btn" id="tipoBruto" onclick="selecionarTipoReceita('bruto')">Valor bruto</div>
+            <div class="tipo-btn ativo" id="tipoLiquido" onclick="selecionarTipoReceita('liquido')">Já recebi líquido</div>
+          </div>
+          <div style="font-size:10px;color:var(--dim);margin-bottom:12px" id="receitaDica">Esse é o valor certo — o que caiu na sua conta.</div>
+          <div class="comb-field"><label>Quanto você recebeu hoje? (R$)</label><input type="text" inputmode="decimal" id="inputReceita" placeholder="Ex: 312,00" class="modal-input" oninput="calcPreviewReceita()"></div>
+          <div class="comb-field" id="campoTaxa" style="display:none;"><label>Taxa da sua plataforma (%) <span style="color:var(--faint)">· só na primeira vez</span></label><input type="text" inputmode="decimal" id="inputTaxaPct" placeholder="Ex: 25" oninput="calcPreviewReceita()"></div>
+          <div class="fin-preview">
+            <div class="fin-preview-linha"><span id="labelReceita">Valor recebido</span><span style="color:var(--money)" id="prevReceita">R$ 0</span></div>
+            <div class="fin-preview-linha" id="linhaTaxa"><span id="labelTaxa">Taxa plataforma (25%)</span><span style="color:var(--danger)" id="prevTaxa">- R$ 0</span></div>
+            <div class="fin-preview-linha"><span>Combustível hoje</span><span style="color:var(--danger)" id="prevComb">- R$ 0</span></div>
+            <div class="fin-preview-linha" id="linhaDesp" style="display:none;"><span>Outras despesas</span><span style="color:var(--danger)" id="prevDesp">- R$ 0</span></div>
+            <div class="fin-preview-linha destaque"><span><b>Lucro líquido</b></span><span style="color:var(--money);font-weight:bold" id="prevLucro">R$ 0</span></div>
+          </div>
+          <div class="modal-botoes" style="margin-top:16px;"><button class="modal-btn cancelar" id="btnCancelarReceita">Cancelar</button><button class="modal-btn confirmar" id="btnConfirmarReceita">✅ Confirmar</button></div>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL DOCUMENTO ══════════ -->
+      <div class="modal-overlay" id="modalDoc">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo" id="modalDocTitulo">📄 Documento</h2>
+          <div class="comb-field"><label>Data de vencimento</label><input type="date" id="inputDocVencimento" class="modal-input" style="font-size:14px;text-align:left;"></div>
+          <button class="btn-sugerir-data" id="btnSugerirData" type="button" style="display:none;">📅 Renovou? Adiantar 1 ano</button>
+          <div class="comb-field"><label>Observações <span style="color:var(--faint)">· opcional</span></label><input type="text" id="inputDocObs" placeholder="Ex: Renovar na DETRAN"></div>
+          <div class="modal-botoes"><button class="modal-btn cancelar" id="btnCancelarDoc">Cancelar</button><button class="modal-btn confirmar" id="btnSalvarDoc">✅ Salvar</button></div>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL NOVO DOCUMENTO ══════════ -->
+      <div class="modal-overlay" id="modalNovoDoc">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo">📋 Novo documento</h2>
+          <div class="comb-field"><label>Nome do documento</label><input type="text" id="inputNovoDocNome" placeholder="Ex: Alvará MEI, Seguro vida..."></div>
+          <div class="comb-field"><label>Data de vencimento</label><input type="date" id="inputNovoDocVenc" class="modal-input" style="font-size:14px;text-align:left;"></div>
+          <div class="comb-field"><label>Observações <span style="color:var(--faint)">· opcional</span></label><input type="text" id="inputNovoDocObs" placeholder="Ex: Renovar online"></div>
+          <div class="modal-botoes"><button class="modal-btn cancelar" id="btnCancelarNovoDoc">Cancelar</button><button class="modal-btn confirmar" id="btnSalvarNovoDoc">✅ Salvar</button></div>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL SIMULADOR ══════════ -->
+      <div class="modal-overlay" id="modalSimulador">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo">🧮 Vale a pena rodar hoje?</h2>
+          <div class="sim-intel" id="simIntel" style="display:none;">
+            <div class="sim-intel-verdict" id="simIntelVerdict">—</div>
+            <div class="sim-intel-texto" id="simIntelTexto">—</div>
+          </div>
+          <div class="comb-field"><label>Quantas horas você tem disponíveis?</label><input type="text" inputmode="decimal" id="inputHoras" placeholder="Ex: 8" class="modal-input" oninput="calcSimulador()"></div>
+          <div class="comb-field"><label>Qual sua meta de lucro hoje? (R$)</label><input type="text" inputmode="decimal" id="inputMeta" placeholder="Ex: 200" class="modal-input" oninput="calcSimulador()"></div>
+          <div class="sim-resultado" id="simResultado" style="display:none;">
+            <div class="sim-verdict" id="simVerdict"></div>
+            <div class="sim-linhas" id="simLinhas"></div>
+            <div class="sim-aviso" id="simAviso" style="display:none;"></div>
+          </div>
+          <div class="modal-botoes" style="margin-top:16px;"><button class="modal-btn cancelar" id="btnFecharSim">Fechar</button></div>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL RESERVA (cofrinho) ══════════ -->
+      <div class="modal-overlay" id="modalReserva">
+        <div class="modal-caixa">
+          <div class="cofre-top">
+            <div class="cofre-emoji">🐷</div>
+            <div class="cofre-label">Sua reserva</div>
+            <div class="cofre-total num" id="reservaTotalBig">R$ 0</div>
+          </div>
+
+          <div class="cofre-objetivo" id="cofreObjetivoBloco">
+            <div class="cofre-obj-row">
+              <span id="cofreObjTexto">Objetivo: R$ 2.000</span>
+              <span class="num" id="cofreObjPct">0%</span>
+            </div>
+            <div class="meta-bar"><span id="cofreObjBarra" style="width:0%"></span></div>
+          </div>
+
+          <div class="cofre-sec">Movimentar</div>
+          <div class="cofre-mov">
+            <input type="text" inputmode="decimal" id="inputMovReserva" placeholder="Ex: 50,00">
+            <button class="cofre-btn guardar" id="btnGuardarReserva">＋ Guardar</button>
+            <button class="cofre-btn tirar" id="btnTirarReserva">－ Tirar</button>
+          </div>
+
+          <div class="cofre-sec">Ajustes</div>
+          <div class="comb-field"><label>Guardar por dia (automático ao encerrar o dia)</label><input type="text" inputmode="decimal" id="inputReservaDia" placeholder="Ex: 20"></div>
+          <div class="comb-field"><label>Meu objetivo <span style="color:var(--faint)">· 0 = sem objetivo</span></label><input type="text" inputmode="decimal" id="inputReservaObjetivo" placeholder="Ex: 2000"></div>
+
+          <div class="modal-botoes" style="margin-top:6px;">
+            <button class="modal-btn cancelar" id="btnFecharReserva">Fechar</button>
+            <button class="modal-btn confirmar" id="btnSalvarReserva">✅ Salvar ajustes</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL META DO DIA ══════════ -->
+      <div class="modal-overlay" id="modalMeta">
+        <div class="modal-caixa">
+          <div class="cofre-top">
+            <div class="cofre-emoji">🎯</div>
+            <div class="cofre-label">Meta de lucro por dia</div>
+            <div class="cofre-total num" id="metaModalBig">R$ 0</div>
+          </div>
+
+          <div class="meta-modal-prog">
+            <div class="cofre-obj-row">
+              <span id="metaModalHoje">Hoje: R$ 0</span>
+              <span class="num" id="metaModalPct">0%</span>
+            </div>
+            <div class="meta-bar"><span id="metaModalBarra" style="width:0%"></span></div>
+            <div class="meta-modal-falta" id="metaModalFalta">Faltam R$ 0 pra bater a meta</div>
+          </div>
+
+          <div class="cofre-sec">Ajustar meta</div>
+          <div class="comb-field"><label>Nova meta de lucro por dia (R$)</label><input type="text" inputmode="decimal" id="inputMetaNova" placeholder="Ex: 250"></div>
+
+          <div class="modal-botoes" style="margin-top:6px;">
+            <button class="modal-btn cancelar" id="btnFecharMeta">Fechar</button>
+            <button class="modal-btn confirmar" id="btnSalvarMeta">✅ Salvar meta</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL MANUTENÇÃO ══════════ -->
+      <div class="modal-overlay" id="modalManutencao">
+        <div class="modal-caixa">
+          <div class="mnt-top">
+            <div class="mnt-icone" id="mntIcone">🔧</div>
+            <div class="mnt-nome" id="mntNome">—</div>
+            <div class="mnt-status num" id="mntStatus">—</div>
+          </div>
+          <div class="meta-bar" style="margin-bottom:16px;"><span id="mntBarra" style="width:0%"></span></div>
+
+          <div class="mnt-linhas">
+            <div class="mnt-lin"><span>Última troca</span><b class="num" id="mntUltima">—</b></div>
+            <div class="mnt-lin"><span>Intervalo recomendado</span><b class="num" id="mntIntervalo">—</b></div>
+            <div class="mnt-lin"><span>Próxima troca</span><b class="num" id="mntProxima">—</b></div>
+          </div>
+
+          <button class="btn-salvar-comb" id="mntBtnTroca" style="background:linear-gradient(135deg,var(--money),var(--money2));color:#04120c;margin-bottom:12px;">✅ Acabei de trocar agora</button>
+
+          <div class="cofre-sec">Ajustar intervalo</div>
+          <div class="cofre-mov">
+            <input type="text" inputmode="numeric" id="mntInputIntervalo" placeholder="Ex: 3000">
+            <button class="cofre-btn guardar" id="mntBtnSalvarIntervalo">Salvar</button>
+          </div>
+
+          <div class="modal-botoes" style="margin-top:14px;"><button class="modal-btn cancelar" id="mntBtnFechar" style="flex:1;">Fechar</button></div>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL STREAK ══════════ -->
+      <div class="modal-streak" id="modalStreak">
+        <div class="modal-streak-caixa">
+          <div class="modal-streak-fogo">🔥</div>
+          <div class="modal-streak-num num" id="modalStreakNum">1</div>
+          <div class="modal-streak-label">dias seguidos!</div>
+          <div class="modal-streak-data" id="modalStreakData"></div>
+          <div class="modal-streak-info" id="modalStreakInfo"></div>
+          <button class="modal-streak-btn" id="modalStreakBtn">Arrasou! Continuar 🏍️</button>
+        </div>
+      </div>
+
     </div>
+      <!-- ══════════ MODAL DETALHE DA PATENTE ══════════ -->
+      <div class="modal-overlay" id="modalPatente">
+        <div class="modal-caixa">
+          <div style="text-align:center;">
+            <div style="font-size:11px;letter-spacing:.08em;color:#c9a8ff;font-weight:800;margin-bottom:8px;" id="modPatNivel">NÍVEL 1 · PATENTE 1 DE 15</div>
+            <div class="crm-modal-palco crm-vivo" id="modPatCaramelo"></div>
+            <div class="crm-modal-fase" id="modPatFase">Filhote · fase 1 de 5</div>
+            <div style="font-size:22px;font-weight:800;color:var(--text);margin-top:8px;" id="modPatNome">Pé de Chumbo</div>
+            <div class="crm-modal-pedra"><span id="modPatPedra"></span><span style="font-size:11px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase;font-weight:700;" id="modPatPedraNome">Rubi</span></div>
+          </div>
+          <div style="margin:16px 0;">
+            <div class="pat-barra"><span id="modPatBarra" style="width:0%"></span></div>
+            <div class="pat-prox" id="modPatProx" style="text-align:center;margin-top:6px;">próxima: —</div>
+          </div>
+          <div style="font-size:10.5px;color:var(--faint);letter-spacing:.06em;text-transform:uppercase;font-weight:700;margin-bottom:8px;">Sua coleção de pedras</div>
+          <div class="pat-colecao" id="modPatColecao" style="border:none;padding:0;"></div>
+          <div class="modal-botoes" style="margin-top:16px;">
+            <button class="modal-btn cancelar" id="btnFecharModPat">Fechar</button>
+            <button class="modal-btn confirmar" id="btnVerManual">Ver todas as 15</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL CELEBRAÇÃO DE PATENTE ══════════ -->
+      <!-- ══════════ PRESENTE DE BOAS-VINDAS: ganha o Caramelo ══════════ -->
+      <div class="modal-overlay" id="modalPresente">
+        <div class="crm-presente-caixa">
+          <div class="celebra-conf"></div>
+          <div class="crm-p-titulo" id="presenteTitulo">Bem-vindo!</div>
+          <div class="crm-p-sub" id="presenteSub">Tem um presente te esperando.</div>
+          <div class="crm-palco">
+            <div class="crm-conf" id="presenteConf"></div>
+            <div class="crm-caixa balanca" id="presenteCaixa" onclick="revelarCaramelo()"></div>
+            <div class="crm-bicho" id="presenteBicho"></div>
+            <div class="crm-dica" id="presenteDica">toca no presente</div>
+          </div>
+          <div class="crm-p-depois" id="presenteDepois" style="display:none;">
+            <div class="crm-p-nome" id="presenteNome">Esse é o Isaac</div>
+            <div class="crm-p-txt">Seu parceiro de estrada. Ele cresce junto com você — quanto mais você roda, mais ele evolui.</div>
+            <button class="modal-btn confirmar" style="width:100%;margin-top:14px;" onclick="fecharPresenteCaramelo()">Bora rodar!</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-overlay" id="modalCelebra">
+        <div class="celebra-caixa">
+          <div class="celebra-conf" id="celebraConf"></div>
+          <div class="celebra-titulo" id="celebraTitulo">🎉 Nova patente desbloqueada!</div>
+          <div class="crm-celebra-palco crm-vivo" id="celebraCaramelo"></div>
+          <div class="crm-celebra-cresceu" id="celebraCresceu" style="display:none;"></div>
+          <div class="celebra-pedra" id="celebraPedra"></div>
+          <div class="celebra-nome" id="celebraNome">—</div>
+          <div class="celebra-pedra-nome" id="celebraPedraNome">—</div>
+          <div class="celebra-recompensa" id="celebraRecompensa" style="display:none;"></div>
+          <button class="modal-btn confirmar" id="btnCelebraFechar" style="width:100%;margin-top:16px;">Bora rodar!</button>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL MANUAL DE PATENTES ══════════ -->
+      <div class="modal-overlay" id="modalManualPat">
+        <div class="modal-caixa" style="max-height:82vh;overflow-y:auto;">
+          <h2 class="modal-titulo" style="text-align:center;">🏁 Sua jornada de patentes</h2>
+          <div style="text-align:center;font-size:12px;color:var(--dim);margin-bottom:16px;">Sobe fazendo ações no app · nunca cai</div>
+          <div id="manualLista"></div>
+          <button class="modal-btn confirmar" id="btnFecharManual" style="width:100%;margin-top:14px;">Fechar</button>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL AJUDA DOS CARDS (explicação + exemplo simples) ══════════ -->
+      <div class="modal-overlay" id="modalAjudaCard">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo" id="ajudaCardTitulo">—</h2>
+          <p style="font-size:13.5px;color:#d7dee6;line-height:1.65;" id="ajudaCardTexto">—</p>
+          <div class="ajuda-exemplo" id="ajudaCardExemplo" style="display:none;"></div>
+          <div class="modal-botoes" style="margin-top:16px;"><button class="modal-btn confirmar" id="btnFecharAjudaCard" style="flex:1;">Entendi</button></div>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL CONFIRMAÇÃO (Sim/Cancelar bonito) ══════════ -->
+      <div class="modal-overlay" id="modalConfirm">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo" id="confirmTitulo">Confirmar</h2>
+          <p class="modal-desc" id="confirmTexto" style="margin-bottom:4px;">—</p>
+          <div class="modal-botoes" style="margin-top:16px;">
+            <button class="modal-btn cancelar" id="btnConfirmNao">Cancelar</button>
+            <button class="modal-btn confirmar" id="btnConfirmSim">Sim, confirmar</button>
+          </div>
+        </div>
+      </div>
+
+    <div id="toast" class="toast"></div>
+    <script src="script.js"></script>
+
+    <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('sw.js').catch(function () {
+            /* sem service worker o app continua funcionando normal */
+          });
+        });
+      }
+    </script>
   </body>
 </html>
