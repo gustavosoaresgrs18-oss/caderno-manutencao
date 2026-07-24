@@ -917,6 +917,7 @@ h2.tela-h{ font-size:20px; font-weight:800; margin-bottom:16px; }
 
 #modalGuia .guia-caixa {
   display: flex; flex-direction: column;
+  max-width: 460px;
 }
 #modalGuia .guia-topo { flex-shrink: 0; }
 #modalGuia .guia-lista { display: block; }
