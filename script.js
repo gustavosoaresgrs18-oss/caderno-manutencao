@@ -670,8 +670,7 @@ function finalizarCadastro() {
   const v1 = criarVeiculo(perfil.veiculo, perfil.modelo, perfil.placa, null);
   setVidAtivo(v1.id);
   document.getElementById('telaCadastro').style.display = 'none';
-  // guia agora é PUXADO pelo botão de ajuda (?), não empurrado no cadastro
-  // salvarLS('guiaPendente', true);
+  salvarLS('guiaPendente', true);   // sinaliza p/ o dashboard abrir o guia 1x
   iniciarApp(perfil);
   abrirPresenteCaramelo(perfil.nome.split(' ')[0]);   // ganha o filhote de boas-vindas
 }
@@ -1036,14 +1035,6 @@ const GUIA_ROTINAS = [
     hero: 'o ladrão',
     isaac: 'Roda o dia todo, o dinheiro entra, e no fim do mês sumiu. Não foi azar: foi o óleo, o pneu, a corrente comendo cada km calados. Eu ponho preço nesse ladrão.',
     fonte: 'eu calculo do seu combustível — zero digitação' },
-  { ic: '⏱️', cor: 'var(--info)', tit: 'Ganho por hora',
-    hero: 'ouro ou esmola?',
-    isaac: 'R$ 250 no fim do dia? Depende. Em 6 horas é ouro. Em 11, a rua tá te usando e você agradecendo. Eu conto suas horas e te falo a real.',
-    fonte: 'só desliza o "Bora rodar" — eu cronometro' },
-  { ic: '💰', cor: 'var(--money)', tit: 'Receita do dia',
-    hero: '10 seg',
-    isaac: 'Caderninho molha, some, e na terceira semana você desistiu. Aqui é um número no fim do dia e pronto. Rápido de propósito — você tá cansado, de capacete. Errou? Reabre e corrige.',
-    fonte: 'você digita um número, uma vez por dia' },
   { ic: '🐷', cor: 'var(--money)', tit: 'Cofrinho',
     hero: 'a porrada vem',
     isaac: 'O pneu não estoura no dia bom. Ele te espera ficar liso — e estoura na pior semana, sempre. Não dá esse mole: junta um trocado agora, ou paga caro e a pé depois.',
@@ -1060,10 +1051,6 @@ const GUIA_ROTINAS = [
     hero: 'a real',
     isaac: 'Todo mundo tem palpite sobre o seu dinheiro. Ninguém nunca olhou os SEUS números. Eu olho, todo dia, e falo a verdade sem passar a mão na cabeça. Foi fraco? Eu digo. Sempre comparado com o SEU normal, nunca com chute.',
     fonte: 'eu leio seus números e falo — de graça' },
-  { ic: '🏆', cor: 'var(--purple)', tit: 'Patente',
-    hero: 'só sobe',
-    isaac: 'App que te pune quando você falta um dia? Aqui não. Sua patente só sobe. Sumiu uma semana e voltou? Bem-vindo — continua de onde parou. Cada dia rodando te leva mais longe.',
-    fonte: 'sobe sozinha conforme você usa o app' },
 ];
 
 // ►► SUPORTE — TROQUE PELOS SEUS CONTATOS (Gustavo):
@@ -1085,20 +1072,42 @@ function _cardRotina(r) {
 }
 
 // abre o guia. origem 'ajuda' mostra o botão de suporte no rodapé.
+let _guiaIdx = 0;
 function abrirGuia(origem) {
   const nome = (getPerfil().nome || '').split(' ')[0] || 'motorista';
   const lobo = document.getElementById('guiaLobo');
-  if (lobo) lobo.innerHTML = svgCaramelo('lenda', 'feliz', 92, false);   // Isaac na fase lenda
+  if (lobo) lobo.innerHTML = svgCaramelo('lenda', 'feliz', 92, false);
   document.getElementById('guiaFala').innerHTML =
-    'Fala, ' + esc(nome) + '. Vou ser reto contigo: a maioria roda no escuro e acha que tá indo bem. ' +
-    'Aqui você vai enxergar o que a rua esconde. Segura aí.';
-  document.getElementById('guiaLista').innerHTML =
-    GUIA_ROTINAS.map(_cardRotina).join('') +
-    '<div class="guia-fecho">O resto dos apps te dá número. Eu te dou a <b>verdade</b> — e ela te faz ganhar mais.</div>';
+    'Fala, ' + esc(nome) + '. Vou ser reto contigo: a maioria roda no escuro e acha que t\u00e1 indo bem. ' +
+    'Aqui voc\u00ea vai enxergar o que a rua esconde. Segura a\u00ed.';
+
+  _guiaIdx = 0;
+  _guiaRender();
+
   document.getElementById('guiaSuporte').style.display = (origem === 'ajuda') ? 'block' : 'none';
-  document.getElementById('guiaBtn').textContent = (origem === 'ajuda') ? 'Fechar' : 'Tô dentro';
+  document.getElementById('guiaBtn').textContent = (origem === 'ajuda') ? 'Fechar' : 'T\u00f4 dentro';
   document.getElementById('modalGuia').style.display = 'flex';
   document.getElementById('modalGuia').scrollTop = 0;
+}
+// desenha o card atual + as setinhas + as bolinhas
+function _guiaRender() {
+  const total = GUIA_ROTINAS.length;
+  const bolinhas = GUIA_ROTINAS.map(function (_, i) {
+    return '<span class="guia-dot' + (i === _guiaIdx ? ' on' : '') + '"></span>';
+  }).join('');
+  document.getElementById('guiaLista').innerHTML =
+    _cardRotina(GUIA_ROTINAS[_guiaIdx]) +
+    '<div class="guia-nav">' +
+      '<button class="guia-seta" onclick="_guiaVai(-1)" aria-label="Anterior"' + (_guiaIdx === 0 ? ' disabled' : '') + '>&#8249;</button>' +
+      '<div class="guia-dots">' + bolinhas + '</div>' +
+      '<button class="guia-seta" onclick="_guiaVai(1)" aria-label="Pr\u00f3ximo"' + (_guiaIdx === total - 1 ? ' disabled' : '') + '>&#8250;</button>' +
+    '</div>';
+}
+function _guiaVai(d) {
+  const n = _guiaIdx + d;
+  if (n < 0 || n >= GUIA_ROTINAS.length) return;
+  _guiaIdx = n;
+  _guiaRender();
 }
 function fecharGuia() { document.getElementById('modalGuia').style.display = 'none'; }
 
@@ -3486,7 +3495,7 @@ function gerarTextoCade() {
   const jaViu = Number(lerLS('isacApresentacoes', 0)) || 0;
   if (jaViu < 3) {
     salvarLS('isacApresentacoes', jaViu + 1);
-    abertura = `Prazer, ${nome}. Eu sou ${ARTIGO_ASSISTENTE} ${A(NOME_ASSISTENTE)}, seu analista de números de bolso. Meu trabalho é olhar os seus números todo dia e te contar a verdade sobre eles, sem enfeite.\n\n`;
+    abertura = `Prazer, ${nome}. Eu sou ${ARTIGO_ASSISTENTE} ${A(NOME_ASSISTENTE)}, seu consultor financeiro de bolso. Meu trabalho é olhar os seus números todo dia e te contar a verdade sobre eles, sem enfeite.\n\n`;
   }
 
   // ── sem receita registrada: não tem o que analisar, e ele diz isso ──
