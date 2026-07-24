@@ -37,7 +37,8 @@ function numBR(v) {
   if (!s) return NaN;
   if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');   // "1.234,56" → "1234.56"
   return parseFloat(s);
-}
+}
+
 // ── DINHEIRO EM PORTUGUÊS ────────────────────────────────────
 // vírgula no centavo, ponto no milhar: R$ 1.234,56 · R$ 325,00 · -R$ 50,00
 // numBRL: só o número formatado ("1.234,56"). fmtBRL: com "R$ " na frente.
@@ -3484,7 +3485,7 @@ function gerarTextoCade() {
   const jaViu = Number(lerLS('isacApresentacoes', 0)) || 0;
   if (jaViu < 3) {
     salvarLS('isacApresentacoes', jaViu + 1);
-    abertura = `Prazer, ${nome}. Eu sou ${ARTIGO_ASSISTENTE} ${A(NOME_ASSISTENTE)}, seu consultor financeiro de bolso. Meu trabalho é olhar os seus números todo dia e te contar a verdade sobre eles, sem enfeite.\n\n`;
+    abertura = `Prazer, ${nome}. Eu sou ${ARTIGO_ASSISTENTE} ${A(NOME_ASSISTENTE)}, seu analista de números de bolso. Meu trabalho é olhar os seus números todo dia e te contar a verdade sobre eles, sem enfeite.\n\n`;
   }
 
   // ── sem receita registrada: não tem o que analisar, e ele diz isso ──
