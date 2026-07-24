@@ -1079,7 +1079,7 @@ function abrirGuia(origem) {
   if (lobo) lobo.innerHTML = svgCaramelo('lenda', 'feliz', 92, false);
   document.getElementById('guiaFala').innerHTML =
     'Voc\u00ea acha que est\u00e1 ganhando dinheiro. Mas talvez s\u00f3 esteja <b>pagando para trabalhar</b>. ' +
-    'Esses cards mostram quanto realmente sobra. Deslize.';
+    'Esses cards mostram quanto realmente sobra. Deslize e veja os cards.';
 
   _guiaIdx = 0;
   _guiaRender();
