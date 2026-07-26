@@ -669,7 +669,8 @@ function finalizarCadastro() {
   const v1 = criarVeiculo(perfil.veiculo, perfil.modelo, perfil.placa, null);
   setVidAtivo(v1.id);
   document.getElementById('telaCadastro').style.display = 'none';
-  salvarLS('guiaPendente', true);   // sinaliza p/ o dashboard abrir o guia 1x
+  // guia agora e PUXADO pelo botao de ajuda (?), nao empurrado no cadastro
+  // salvarLS('guiaPendente', true);
   iniciarApp(perfil);
   abrirPresenteCaramelo(perfil.nome.split(' ')[0]);   // ganha o filhote de boas-vindas
 }
@@ -1026,47 +1027,32 @@ function pintarKmHoje() {
 //     em mais nada.
 // ═══════════════════════════════════════════════════════════════
 const GUIA_ROTINAS = [
-  { ic: '🎯', cor: 'var(--signal)', tit: 'Lucro de hoje',
-    hero: 'R$ 300?',
-    isaac: 'Todo dia tem gente comemorando os R$ 300 que fez. Aí some a taxa do app, some a gasolina, some o resto — e o "bom dia" era R$ 190. Eu te mostro o número que sobra de verdade, não o que passou pela sua mão.',
+  { ic: '🎯', cor: 'var(--signal)', tit: 'Lucro de hoje', hero: '300 → 190',
+    isaac: 'Comemorou os R$ 300? Calma. Tira a taxa do app, a gasolina, o resto — e o "bom dia" era R$ 190. Eu te mostro o que sobra de verdade, não o que passou pela sua mão.',
     fonte: 'eu monto sozinho — você só diz quanto entrou' },
-  { ic: '⛽', cor: 'var(--signal)', tit: 'Custo real por km',
-    hero: 'Cadê?',
-    isaac: 'Você roda o dia inteiro, o dinheiro entra, e no fim do mês não sobrou nada. A rua comeu e não te avisou: foi o óleo, o pneu, a corrente gastando a cada km. Eu ponho preço nisso. Depois de me ver, você nunca mais aceita corrida no escuro.',
+  { ic: '⛽', cor: 'var(--signal)', tit: 'Custo real por km', hero: 'o ladrão',
+    isaac: 'Roda o dia todo, o dinheiro entra, e no fim do mês sumiu. Não foi azar: foi o óleo, o pneu, a corrente comendo cada km calados. Eu ponho preço nesse ladrão.',
     fonte: 'eu calculo do seu combustível — zero digitação' },
-  { ic: '⏱️', cor: 'var(--info)', tit: 'Ganho por hora',
-    hero: 'R$ 40/h',
-    isaac: 'R$ 250 no fim do dia parece bom. Mas foram 6 horas ou 11? Uma é R$ 40 por hora, a outra é R$ 22 — e a maioria nem sabe em qual tá vivendo. Eu conto suas horas e te digo a real: teu tempo tá valendo, ou a rua tá te usando?',
-    fonte: 'só desliza o "Bora rodar" — eu cronometro' },
-  { ic: '💰', cor: 'var(--money)', tit: 'Receita do dia',
-    hero: '10 seg',
-    isaac: 'Caderninho molha, some, e você para de anotar na terceira semana. Aqui é um número no fim do dia e acabou. Rápido de propósito — você tá cansado, de capacete, entre uma corrida e outra. Errou? Reabre e corrige. Não empilha, não te enrola.',
-    fonte: 'você digita um número, uma vez por dia' },
-  { ic: '🐷', cor: 'var(--money)', tit: 'Cofrinho',
-    hero: 'R$ 0 na conta',
-    isaac: 'O pneu não estoura no dia bom. Ele espera a semana que você tá liso — sempre. Junta um trocado por dia comigo e, quando a porrada vier, o dinheiro já tá lá. Sem empréstimo, sem parar de rodar, sem passar aperto.',
+  { ic: '🐷', cor: 'var(--money)', tit: 'Cofrinho', hero: 'a porrada vem',
+    isaac: 'O pneu não estoura no dia bom. Ele te espera ficar liso — e estoura na pior semana, sempre. Não dá esse mole: junta um trocado agora, ou paga caro e a pé depois.',
     fonte: 'guarda o tanto que você escolher, por dia' },
-  { ic: '🔧', cor: 'var(--signal)', tit: 'Manutenção',
-    hero: 'Dia perdido',
-    isaac: 'Corrente arrebentada no meio da corrida é dia perdido, guincho e conta dobrada. Trocar na hora certa é barato — quebrado na rua é caro e humilhante. Me diz quando você trocou, e eu grito ANTES, não depois do prejuízo.',
+  { ic: '🔧', cor: 'var(--signal)', tit: 'Manutenção', hero: 'dia perdido',
+    isaac: 'Corrente arrebentada no meio da corrida é dia perdido, guincho e conta dobrada. Trocar na hora é barato; quebrar na rua é caro e humilhante. Eu grito ANTES do prejuízo, não depois.',
     fonte: 'eu conto os km e te aviso na hora certa' },
-  { ic: '📄', cor: 'var(--info)', tit: 'Documentos',
-    hero: '7 pontos',
-    isaac: 'CNH vencida não é multa qualquer: é gravíssima, 7 pontos, e o risco de ficar a pé — sem seu ganha-pão. Blitz não avisa. Eu aviso, com folga pra você resolver sem correria e sem multa.',
+  { ic: '📄', cor: 'var(--info)', tit: 'Documentos', hero: 'a pé',
+    isaac: 'CNH vencida não é multazinha: é gravíssima, 7 pontos, e o risco de ficar a pé — sem seu ganha-pão. A blitz não avisa. Eu aviso, com folga pra resolver sem correria.',
     fonte: 'guarda as datas — eu cutuco antes de vencer' },
-  { ic: '🐺', cor: 'var(--purple)', tit: 'Eu, o Isaac',
-    hero: 'Todo dia',
-    isaac: 'Todo mundo tem palpite sobre o seu dinheiro. Ninguém nunca olhou os SEUS números. Eu olho — todos, todo dia — e te falo a verdade sem passar a mão na cabeça. Foi bom, eu digo. Foi fraco, eu digo também. E comparo sempre com o SEU normal, nunca com chute.',
+  { ic: '🐺', cor: 'var(--purple)', tit: 'Eu, o Isaac', hero: 'a real',
+    isaac: 'Todo mundo tem palpite sobre o seu dinheiro. Ninguém nunca olhou os SEUS números. Eu olho, todo dia, e falo a verdade sem passar a mão na cabeça. Foi fraco? Eu digo. Sempre comparado com o SEU normal, nunca com chute.',
     fonte: 'eu leio seus números e falo — de graça' },
-  { ic: '🏆', cor: 'var(--purple)', tit: 'Patente',
-    hero: 'Só sobe',
-    isaac: 'App que te castiga quando você falta um dia? Aqui não existe isso. Sua patente só sobe, nunca cai. Sumiu uma semana, voltou? Bem-vindo de volta, continua de onde parou. Cada dia rodando te leva mais longe.',
-    fonte: 'sobe sozinha conforme você usa o app' },
 ];
 
 // ►► SUPORTE — TROQUE PELOS SEUS CONTATOS (Gustavo):
-const SUPORTE_EMAIL    = 'suporte@copiloto.app';          // seu email
-const SUPORTE_WHATSAPP = '5531999999999';                 // só números, com 55 e DDD
+const SUPORTE_EMAIL    = 'app.copilotosup@gmail.com';     // seu email
+// WhatsApp em standby ate comprar o chip. Poe o numero (55+DDD) que o botao volta.
+const SUPORTE_WHATSAPP = '';
+// Instagram em standby ate criar o perfil. Poe so o @ (sem arroba) que o botao aparece.
+const SUPORTE_INSTAGRAM = '';
 
 function _cardRotina(r) {
   return '<div class="guia-card" style="--acc:' + r.cor + '">' +
@@ -1083,20 +1069,39 @@ function _cardRotina(r) {
 }
 
 // abre o guia. origem 'ajuda' mostra o botão de suporte no rodapé.
+let _guiaIdx = 0;
 function abrirGuia(origem) {
   const nome = (getPerfil().nome || '').split(' ')[0] || 'motorista';
   const lobo = document.getElementById('guiaLobo');
-  if (lobo) lobo.innerHTML = svgCaramelo('lenda', 'feliz', 92, false);   // Isaac na fase lenda
+  if (lobo) lobo.innerHTML = svgCaramelo('lenda', 'feliz', 92, false);
   document.getElementById('guiaFala').innerHTML =
-    'Fala, ' + esc(nome) + '. Vou ser reto contigo: a maioria roda no escuro e acha que tá indo bem. ' +
-    'Aqui você vai enxergar o que a rua esconde. Segura aí.';
-  document.getElementById('guiaLista').innerHTML =
-    GUIA_ROTINAS.map(_cardRotina).join('') +
-    '<div class="guia-fecho">O resto dos apps te dá número. Eu te dou a <b>verdade</b> — e ela te faz ganhar mais.</div>';
+    'Voc\u00ea acha que est\u00e1 ganhando dinheiro. Mas talvez s\u00f3 esteja <b>pagando para trabalhar</b>. ' +
+    'Esses cards mostram quanto realmente sobra. Deslize.';
+  _guiaIdx = 0;
+  _guiaRender();
   document.getElementById('guiaSuporte').style.display = (origem === 'ajuda') ? 'block' : 'none';
-  document.getElementById('guiaBtn').textContent = (origem === 'ajuda') ? 'Fechar' : 'Tô dentro';
+  document.getElementById('guiaBtn').textContent = (origem === 'ajuda') ? 'Fechar' : 'T\u00f4 dentro';
   document.getElementById('modalGuia').style.display = 'flex';
   document.getElementById('modalGuia').scrollTop = 0;
+}
+function _guiaRender() {
+  const total = GUIA_ROTINAS.length;
+  const bolinhas = GUIA_ROTINAS.map(function (_, i) {
+    return '<span class="guia-dot' + (i === _guiaIdx ? ' on' : '') + '"></span>';
+  }).join('');
+  document.getElementById('guiaLista').innerHTML =
+    _cardRotina(GUIA_ROTINAS[_guiaIdx]) +
+    '<div class="guia-nav">' +
+      '<button class="guia-seta" onclick="_guiaVai(-1)" aria-label="Anterior"' + (_guiaIdx === 0 ? ' disabled' : '') + '>&#8249;</button>' +
+      '<div class="guia-dots">' + bolinhas + '</div>' +
+      '<button class="guia-seta" onclick="_guiaVai(1)" aria-label="Pr\u00f3ximo"' + (_guiaIdx === total - 1 ? ' disabled' : '') + '>&#8250;</button>' +
+    '</div>';
+}
+function _guiaVai(d) {
+  const n = _guiaIdx + d;
+  if (n < 0 || n >= GUIA_ROTINAS.length) return;
+  _guiaIdx = n;
+  _guiaRender();
 }
 function fecharGuia() { document.getElementById('modalGuia').style.display = 'none'; }
 
@@ -1105,7 +1110,8 @@ function abrirSuporte() {
   const corpo   = encodeURIComponent('Oi, preciso de ajuda com:');
   const wapp    = 'https://wa.me/' + SUPORTE_WHATSAPP + '?text=' + encodeURIComponent('Oi, preciso de ajuda no Copiloto');
   const mail    = 'mailto:' + SUPORTE_EMAIL + '?subject=' + assunto + '&body=' + corpo;
-  document.getElementById('supWhats').href = wapp;
+  const bw = document.getElementById('supWhats');
+  if (SUPORTE_WHATSAPP) { bw.href = wapp; bw.style.display=''; } else { bw.style.display='none'; }
   document.getElementById('supMail').href  = mail;
   document.getElementById('modalSuporte').style.display = 'flex';
 }
@@ -3484,7 +3490,6 @@ function gerarTextoCade() {
 
   const p = [];
   const dataHoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
-  // cabeçalho com cara de fechamento profissional
   p.push(`\uD83D\uDCCA FECHAMENTO DE HOJE \u00B7 ${dataHoje}\n`);
 
   // ── 1. o número que importa, em destaque ──
@@ -3556,8 +3561,6 @@ function gerarTextoCade() {
     p.push(`Ainda tô juntando seus dias pra saber o que é normal pra você.`);
   }
 
-  // ── VITRINE PREMIUM: a lupa travada (vende sem depender do Supabase ainda) ──
-  // aparece só quando já há histórico suficiente pra a promessa ser crível
   if (intel.suficiente && intel.total >= 3) {
     p.push(`\n\uD83D\uDD0D AN\u00c1LISE COPILOTO \u00B7 a lupa no seu m\u00eas\n` +
            `Cruzei seus \u00faltimos dias e achei ${A('padr\u00f5es')} que o fechamento de hoje n\u00e3o mostra \u2014 tipo qual dia da semana te paga melhor e quanto o posto errado te custa no m\u00eas.\n` +
