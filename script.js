@@ -649,9 +649,18 @@ function validarStep2() {
   document.getElementById('cadErro2').style.display = 'none';
   cadIrPara(3);
 }
+// deixa "gustavo silva" / "GUSTAVO" / "gUsTaVo" sempre como "Gustavo Silva"
+function arrumarNome(txt) {
+  if (!txt) return txt;
+  const min = ['de','da','do','das','dos','e'];
+  return String(txt).trim().toLowerCase().split(/\s+/).map(function (w, i) {
+    if (i > 0 && min.indexOf(w) !== -1) return w;
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  }).join(' ');
+}
 function finalizarCadastro() {
   const perfil = {
-    nome:   document.getElementById('cadNome').value.trim(),
+    nome:   arrumarNome(document.getElementById('cadNome').value),
     email:  document.getElementById('cadEmail').value.trim(),
     senha:  document.getElementById('cadSenha').value.trim(),
     veiculo: veiculoSel,
@@ -771,8 +780,7 @@ function iniciarApp(perfil) {
 
   const hora = new Date().getHours();
   const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
-  document.getElementById('headerSaudacao').textContent = saudacao + ' ' + perfil.nome.split(' ')[0] + ' 👋';
-  document.getElementById('headerAvatar').textContent   = perfil.nome.charAt(0).toUpperCase();
+  document.getElementById('headerSaudacao').textContent = saudacao + ' ' + arrumarNome(perfil.nome.split(' ')[0]) + ' 👋';
   document.getElementById('telaInicio').style.display   = 'block';
   document.getElementById('navInferior').style.display  = 'flex';
   aplicarVeiculoNaTela();   // header, ícone, manutenção e odômetro do veículo ATIVO

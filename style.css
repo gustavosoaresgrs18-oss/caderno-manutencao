@@ -30,10 +30,12 @@ body{
 /* ── HEADER ── */
 .header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
 .header-info{ display:flex; flex-direction:column; gap:2px; }
-.header-saudacao{ font-size:13px; color:var(--dim); font-weight:500; }
-.header-veiculo{ font-size:16px; font-weight:700; color:var(--text); }
+.header-saudacao{ font-size:16px; color:var(--text); font-weight:800; }
+.header-veiculo{ font-size:11px; font-weight:600; color:var(--dim); white-space:nowrap; }
+.header-sub{ display:flex; align-items:center; gap:8px; margin-top:4px; flex-wrap:wrap; }
+.header-sub .header-streak{ font-size:11px; }
 .header-odometro{ font-size:11px; color:var(--info); margin-top:1px; }
-.header-direita{ display:flex; flex-direction:column; align-items:center; gap:5px; }
+.header-direita{ display:flex; align-items:flex-start; }
 .header-avatar{
   width:40px; height:40px; border-radius:50%;
   background:linear-gradient(135deg,var(--money),var(--info));
