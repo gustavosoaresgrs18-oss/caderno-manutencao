@@ -3473,7 +3473,7 @@ function gerarTextoCade() {
   const jaViu = Number(lerLS('isacApresentacoes', 0)) || 0;
   if (jaViu < 3) {
     salvarLS('isacApresentacoes', jaViu + 1);
-    abertura = `Prazer, ${nome}. Eu sou ${ARTIGO_ASSISTENTE} ${A(NOME_ASSISTENTE)}, seu consultor financeiro de bolso. Meu trabalho é olhar os seus números todo dia e te contar a verdade sobre eles, sem enfeite.\n\n`;
+    abertura = `Prazer, ${nome}. Eu sou ${ARTIGO_ASSISTENTE} ${A(NOME_ASSISTENTE)}, seu analista de números de bolso. Meu trabalho é fechar sua conta todo dia e te mostrar a verdade dela, sem enfeite.\n\n`;
   }
 
   // ── sem receita registrada: não tem o que analisar, e ele diz isso ──
@@ -3483,11 +3483,13 @@ function gerarTextoCade() {
   }
 
   const p = [];
-  if (!abertura) p.push(`${saud}, ${nome}.`);
+  const dataHoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
+  // cabeçalho com cara de fechamento profissional
+  p.push(`\uD83D\uDCCA FECHAMENTO DE HOJE \u00B7 ${dataHoje}\n`);
 
-  // ── 1. o número que importa, primeiro ──
-  if (lucroHoje >= 0) p.push(`${M(lucroHoje, 'v')} no bolso hoje.`);
-  else                p.push(`Hoje fechou ${R('no vermelho')}: ${M(lucroHoje, 'r')} a menos do que entrou.`);
+  // ── 1. o número que importa, em destaque ──
+  if (lucroHoje >= 0) p.push(`Voc\u00ea fechou com ${M(lucroHoje, 'v')} l\u00edquido no bolso.\n`);
+  else                p.push(`Hoje fechou ${R('no vermelho')}: ${M(lucroHoje, 'r')} a menos do que entrou.\n`);
 
   // ── 2. a conta aberta, sem mistério ──
   if (taxaHoje > 0 && combHoje > 0)  p.push(`Entrou ${M(receitaHoje)}. Saiu ${M(taxaHoje)} de taxa e ${M(combHoje)} de combustível.`);
@@ -3552,6 +3554,14 @@ function gerarTextoCade() {
     p.push(`${M(Math.abs(cmp.diff), cmp.diff > 0 ? 'v' : 'a')} ${cmp.diff > 0 ? 'acima' : 'abaixo'} do seu normal, que é ${M(cmp.media)} por dia nos últimos ${D(cmp.n + ' dias', cmp.n + ' dias')} que você rodou.`);
   } else {
     p.push(`Ainda tô juntando seus dias pra saber o que é normal pra você.`);
+  }
+
+  // ── VITRINE PREMIUM: a lupa travada (vende sem depender do Supabase ainda) ──
+  // aparece só quando já há histórico suficiente pra a promessa ser crível
+  if (intel.suficiente && intel.total >= 3) {
+    p.push(`\n\uD83D\uDD0D AN\u00c1LISE COPILOTO \u00B7 a lupa no seu m\u00eas\n` +
+           `Cruzei seus \u00faltimos dias e achei ${A('padr\u00f5es')} que o fechamento de hoje n\u00e3o mostra \u2014 tipo qual dia da semana te paga melhor e quanto o posto errado te custa no m\u00eas.\n` +
+           `\uD83D\uDD12 ${A('Isso \u00e9 da vers\u00e3o Copiloto.')} Destrava e eu te mostro onde tem dinheiro escondido no seu pr\u00f3prio hist\u00f3rico.`);
   }
 
   return abertura + p.join(' ');
