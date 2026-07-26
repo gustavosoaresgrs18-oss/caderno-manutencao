@@ -6,7 +6,6 @@
 // ═══════════════════════════════════════════════════════════════
 const NOME_ASSISTENTE   = 'Isaac';
 const ARTIGO_ASSISTENTE = 'o';
-const BTN_FALAR = '🐺 Ouvir análise';
 
 // ═══════════════════════════════════════════════════════════════
 //  HELPERS DE ROBUSTEZ (blindagem)
@@ -1028,29 +1027,41 @@ function pintarKmHoje() {
 // ═══════════════════════════════════════════════════════════════
 const GUIA_ROTINAS = [
   { ic: '🎯', cor: 'var(--signal)', tit: 'Lucro de hoje',
-    hero: '300 → 190',
-    isaac: 'Comemorou os R$ 300? Calma. Tira a taxa do app, a gasolina, o resto — e o "bom dia" era R$ 190. Eu te mostro o que sobra de verdade, não o que passou pela sua mão.',
+    hero: 'R$ 300?',
+    isaac: 'Todo dia tem gente comemorando os R$ 300 que fez. Aí some a taxa do app, some a gasolina, some o resto — e o "bom dia" era R$ 190. Eu te mostro o número que sobra de verdade, não o que passou pela sua mão.',
     fonte: 'eu monto sozinho — você só diz quanto entrou' },
   { ic: '⛽', cor: 'var(--signal)', tit: 'Custo real por km',
-    hero: 'o ladrão',
-    isaac: 'Roda o dia todo, o dinheiro entra, e no fim do mês sumiu. Não foi azar: foi o óleo, o pneu, a corrente comendo cada km calados. Eu ponho preço nesse ladrão.',
+    hero: 'Cadê?',
+    isaac: 'Você roda o dia inteiro, o dinheiro entra, e no fim do mês não sobrou nada. A rua comeu e não te avisou: foi o óleo, o pneu, a corrente gastando a cada km. Eu ponho preço nisso. Depois de me ver, você nunca mais aceita corrida no escuro.',
     fonte: 'eu calculo do seu combustível — zero digitação' },
+  { ic: '⏱️', cor: 'var(--info)', tit: 'Ganho por hora',
+    hero: 'R$ 40/h',
+    isaac: 'R$ 250 no fim do dia parece bom. Mas foram 6 horas ou 11? Uma é R$ 40 por hora, a outra é R$ 22 — e a maioria nem sabe em qual tá vivendo. Eu conto suas horas e te digo a real: teu tempo tá valendo, ou a rua tá te usando?',
+    fonte: 'só desliza o "Bora rodar" — eu cronometro' },
+  { ic: '💰', cor: 'var(--money)', tit: 'Receita do dia',
+    hero: '10 seg',
+    isaac: 'Caderninho molha, some, e você para de anotar na terceira semana. Aqui é um número no fim do dia e acabou. Rápido de propósito — você tá cansado, de capacete, entre uma corrida e outra. Errou? Reabre e corrige. Não empilha, não te enrola.',
+    fonte: 'você digita um número, uma vez por dia' },
   { ic: '🐷', cor: 'var(--money)', tit: 'Cofrinho',
-    hero: 'a porrada vem',
-    isaac: 'O pneu não estoura no dia bom. Ele te espera ficar liso — e estoura na pior semana, sempre. Não dá esse mole: junta um trocado agora, ou paga caro e a pé depois.',
+    hero: 'R$ 0 na conta',
+    isaac: 'O pneu não estoura no dia bom. Ele espera a semana que você tá liso — sempre. Junta um trocado por dia comigo e, quando a porrada vier, o dinheiro já tá lá. Sem empréstimo, sem parar de rodar, sem passar aperto.',
     fonte: 'guarda o tanto que você escolher, por dia' },
   { ic: '🔧', cor: 'var(--signal)', tit: 'Manutenção',
-    hero: 'dia perdido',
-    isaac: 'Corrente arrebentada no meio da corrida é dia perdido, guincho e conta dobrada. Trocar na hora é barato; quebrar na rua é caro e humilhante. Eu grito ANTES do prejuízo, não depois.',
+    hero: 'Dia perdido',
+    isaac: 'Corrente arrebentada no meio da corrida é dia perdido, guincho e conta dobrada. Trocar na hora certa é barato — quebrado na rua é caro e humilhante. Me diz quando você trocou, e eu grito ANTES, não depois do prejuízo.',
     fonte: 'eu conto os km e te aviso na hora certa' },
   { ic: '📄', cor: 'var(--info)', tit: 'Documentos',
-    hero: 'a pé',
-    isaac: 'CNH vencida não é multazinha: é gravíssima, 7 pontos, e o risco de ficar a pé — sem seu ganha-pão. A blitz não avisa. Eu aviso, com folga pra resolver sem correria.',
+    hero: '7 pontos',
+    isaac: 'CNH vencida não é multa qualquer: é gravíssima, 7 pontos, e o risco de ficar a pé — sem seu ganha-pão. Blitz não avisa. Eu aviso, com folga pra você resolver sem correria e sem multa.',
     fonte: 'guarda as datas — eu cutuco antes de vencer' },
   { ic: '🐺', cor: 'var(--purple)', tit: 'Eu, o Isaac',
-    hero: 'a real',
-    isaac: 'Todo mundo tem palpite sobre o seu dinheiro. Ninguém nunca olhou os SEUS números. Eu olho, todo dia, e falo a verdade sem passar a mão na cabeça. Foi fraco? Eu digo. Sempre comparado com o SEU normal, nunca com chute.',
+    hero: 'Todo dia',
+    isaac: 'Todo mundo tem palpite sobre o seu dinheiro. Ninguém nunca olhou os SEUS números. Eu olho — todos, todo dia — e te falo a verdade sem passar a mão na cabeça. Foi bom, eu digo. Foi fraco, eu digo também. E comparo sempre com o SEU normal, nunca com chute.',
     fonte: 'eu leio seus números e falo — de graça' },
+  { ic: '🏆', cor: 'var(--purple)', tit: 'Patente',
+    hero: 'Só sobe',
+    isaac: 'App que te castiga quando você falta um dia? Aqui não existe isso. Sua patente só sobe, nunca cai. Sumiu uma semana, voltou? Bem-vindo de volta, continua de onde parou. Cada dia rodando te leva mais longe.',
+    fonte: 'sobe sozinha conforme você usa o app' },
 ];
 
 // ►► SUPORTE — TROQUE PELOS SEUS CONTATOS (Gustavo):
@@ -1072,42 +1083,20 @@ function _cardRotina(r) {
 }
 
 // abre o guia. origem 'ajuda' mostra o botão de suporte no rodapé.
-let _guiaIdx = 0;
 function abrirGuia(origem) {
   const nome = (getPerfil().nome || '').split(' ')[0] || 'motorista';
   const lobo = document.getElementById('guiaLobo');
-  if (lobo) lobo.innerHTML = svgCaramelo('lenda', 'feliz', 92, false);
+  if (lobo) lobo.innerHTML = svgCaramelo('lenda', 'feliz', 92, false);   // Isaac na fase lenda
   document.getElementById('guiaFala').innerHTML =
-    'Voc\u00ea acha que est\u00e1 ganhando dinheiro. Mas talvez s\u00f3 esteja <b>pagando para trabalhar</b>. ' +
-    'Esses cards mostram quanto realmente sobra. Deslize e veja os cards.';
-
-  _guiaIdx = 0;
-  _guiaRender();
-
+    'Fala, ' + esc(nome) + '. Vou ser reto contigo: a maioria roda no escuro e acha que tá indo bem. ' +
+    'Aqui você vai enxergar o que a rua esconde. Segura aí.';
+  document.getElementById('guiaLista').innerHTML =
+    GUIA_ROTINAS.map(_cardRotina).join('') +
+    '<div class="guia-fecho">O resto dos apps te dá número. Eu te dou a <b>verdade</b> — e ela te faz ganhar mais.</div>';
   document.getElementById('guiaSuporte').style.display = (origem === 'ajuda') ? 'block' : 'none';
-  document.getElementById('guiaBtn').textContent = (origem === 'ajuda') ? 'Fechar' : 'T\u00f4 dentro';
+  document.getElementById('guiaBtn').textContent = (origem === 'ajuda') ? 'Fechar' : 'Tô dentro';
   document.getElementById('modalGuia').style.display = 'flex';
   document.getElementById('modalGuia').scrollTop = 0;
-}
-// desenha o card atual + as setinhas + as bolinhas
-function _guiaRender() {
-  const total = GUIA_ROTINAS.length;
-  const bolinhas = GUIA_ROTINAS.map(function (_, i) {
-    return '<span class="guia-dot' + (i === _guiaIdx ? ' on' : '') + '"></span>';
-  }).join('');
-  document.getElementById('guiaLista').innerHTML =
-    _cardRotina(GUIA_ROTINAS[_guiaIdx]) +
-    '<div class="guia-nav">' +
-      '<button class="guia-seta" onclick="_guiaVai(-1)" aria-label="Anterior"' + (_guiaIdx === 0 ? ' disabled' : '') + '>&#8249;</button>' +
-      '<div class="guia-dots">' + bolinhas + '</div>' +
-      '<button class="guia-seta" onclick="_guiaVai(1)" aria-label="Pr\u00f3ximo"' + (_guiaIdx === total - 1 ? ' disabled' : '') + '>&#8250;</button>' +
-    '</div>';
-}
-function _guiaVai(d) {
-  const n = _guiaIdx + d;
-  if (n < 0 || n >= GUIA_ROTINAS.length) return;
-  _guiaIdx = n;
-  _guiaRender();
 }
 function fecharGuia() { document.getElementById('modalGuia').style.display = 'none'; }
 
@@ -3087,12 +3076,6 @@ function atualizarComparativoSemanal() {
 
 // ─── NAVEGAÇÃO (6 abas) ──────────────────────────────────────
 function mostrarTela(tela) {
-  // se o consultor estiver falando, para (ninguém quer ouvir ele na tela de Finanças)
-  if (window.speechSynthesis && window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
-    const b = document.getElementById('cadeBtnFalar'); if (b) b.textContent = BTN_FALAR;
-    const s = document.getElementById('cadeStatus');   if (s) s.style.display = 'none';
-  }
   [telaInicio,telaManutencao,telaCombustivel,telaFinancas,telaDocumentos,telaCade,document.getElementById('telaExtrato'),document.getElementById('telaExtratoFin'),document.getElementById('telaDespesas')].forEach(t => { if (t) t.style.display='none'; });
   [navInicio,navManutencao,navCombustivel,navFinancas,navDocumentos,navCade].forEach(n => n.classList.remove('ativo'));
   tela.style.display = 'block';
@@ -3162,14 +3145,9 @@ function aplicarNomeAssistente() {
 }
 aplicarNomeAssistente();
 
-let textoIsacBruto = '';   // guarda o texto com marcadores: a tela mostra curto, a voz fala por extenso
 navCade.addEventListener('click', () => {
   const texto = gerarTextoCade();
-  textoIsacBruto = texto;
-  document.getElementById('cadeBalao').innerHTML     = cadeParaHTML(texto);
-  document.getElementById('cadeStatus').style.display = 'none';
-  document.getElementById('cadeBtnFalar').textContent = BTN_FALAR;
-  window.speechSynthesis.cancel();
+  document.getElementById('cadeBalao').innerHTML = cadeParaHTML(texto);
   renderCarameloCade();
   mostrarTela(telaCade);
   navCade.classList.add('ativo');
@@ -3578,61 +3556,7 @@ function gerarTextoCade() {
 
   return abertura + p.join(' ');
 }
-function falarCade(texto) {
-  if (!('speechSynthesis' in window)) { toast('Seu navegador não suporta voz', 'erro'); return; }
-  window.speechSynthesis.cancel();
-  const textoLimpo = limparParaVoz(texto);
-  const utterance  = new SpeechSynthesisUtterance(textoLimpo);
-  utterance.lang   = 'pt-BR';
-  utterance.rate   = 0.95;   // um tiquinho mais devagar: dá peso à fala
-  utterance.pitch  = 0.8;    // voz grossa (1.0 = normal · quanto menor, mais grave)
-  const aplicarVoz = () => {
-    const vozes = window.speechSynthesis.getVoices();
-    const pt    = vozes.filter(v => /^pt/i.test(v.lang));
-    const ptBR  = pt.filter(v => v.lang === 'pt-BR' || /pt[-_]br/i.test(v.lang));
-    // o Isac é homem: vozes masculinas na frente.
-    // ordem: masculina neural PT-BR > masculina PT-BR > masculina PT >
-    //        neural PT-BR > qualquer PT-BR > qualquer PT
-    const masc = /antonio|ant[óo]nio|donato|f[áa]bio|fabio|humberto|j[úu]lio|julio|nicolau|val[ée]rio|valerio|felipe|daniel|duarte|ricardo|joaquim|thiago|eddy|reed|male/i;
-    const neural = /natural|online|neural/i;
-    const voz =
-      ptBR.find(v => masc.test(v.name) && neural.test(v.name)) ||
-      ptBR.find(v => masc.test(v.name)) ||
-      pt  .find(v => masc.test(v.name) && neural.test(v.name)) ||
-      pt  .find(v => masc.test(v.name)) ||
-      ptBR.find(v => neural.test(v.name)) ||
-      pt  .find(v => neural.test(v.name)) ||
-      ptBR.find(v => /google/i.test(v.name)) ||
-      ptBR[0] || pt[0];
-    if (voz) utterance.voice = voz;
-  };
-  if (window.speechSynthesis.getVoices().length > 0) aplicarVoz();
-  else window.speechSynthesis.addEventListener('voiceschanged', aplicarVoz, { once: true });
-  utterance.onstart = () => {
-    document.getElementById('cadeBtnFalar').textContent = '⏹ Parar';
-    document.getElementById('cadeStatus').style.display = 'flex';
-  };
-  utterance.onend = () => {
-    document.getElementById('cadeBtnFalar').textContent = '🐺 Ouvir de novo';
-    document.getElementById('cadeStatus').style.display = 'none';
-  };
-  utterance.onerror = () => {
-    document.getElementById('cadeBtnFalar').textContent = BTN_FALAR;
-    document.getElementById('cadeStatus').style.display = 'none';
-  };
-  window.speechSynthesis.speak(utterance);
-}
-document.querySelector('#cadeBtnFalar').addEventListener('click', function() {
-  if (window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
-    this.textContent = BTN_FALAR;
-    document.getElementById('cadeStatus').style.display = 'none';
-    return;
-  }
-  // fala a partir do texto bruto: é lá que mora a versão por extenso dos números
-  falarCade(textoIsacBruto ? cadeParaVoz(textoIsacBruto)
-                           : document.getElementById('cadeBalao').innerText);
-});
+
 
 // ═══════════════════════════════════════════════════════════════
 //  INTEGRAÇÃO PATENTES: render + celebração + manual + hooks
