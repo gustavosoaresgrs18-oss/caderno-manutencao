@@ -1050,6 +1050,12 @@ const GUIA_ROTINAS = [
   { ic: '📄', cor: 'var(--info)', tit: 'Documentos', hero: 'a pé',
     isaac: 'CNH vencida não é multazinha: é gravíssima, 7 pontos, e o risco de ficar a pé — sem seu ganha-pão. A blitz não avisa. Eu aviso, com folga pra resolver sem correria.',
     fonte: 'guarda as datas — eu cutuco antes de vencer' },
+  { ic: '🧮', cor: 'var(--info)', tit: 'Vale a pena rodar?', hero: 'antes de ligar',
+    isaac: 'Sair sem saber quanto PRECISA fazer é rodar no escuro e rezar. Me diz suas horas e sua meta — eu te falo na lata quanto o dia exige por hora, e se dá ou não dá. Sem falso otimismo.',
+    fonte: 'eu calculo com o SEU custo de combustível real' },
+  { ic: '📈', cor: 'var(--money)', tit: 'Projeção do mês', hero: 'onde você vai parar',
+    isaac: 'No dia 10 você não sabe como o mês fecha — e no dia 30 leva susto. Eu pego o SEU ritmo e projeto o fechamento antes. Não é chute: quanto mais roda, mais certeira fica.',
+    fonte: 'estimo do seu próprio histórico — nunca invento' },
   { ic: '🐺', cor: 'var(--purple)', tit: 'Eu, o Isaac', hero: 'a real',
     isaac: 'Todo mundo tem palpite sobre o seu dinheiro. Ninguém nunca olhou os SEUS números. Eu olho, todo dia, e falo a verdade sem passar a mão na cabeça. Foi fraco? Eu digo. Sempre comparado com o SEU normal, nunca com chute.',
     fonte: 'eu leio seus números e falo — de graça' },
@@ -1452,6 +1458,11 @@ const AJUDAS_CARD = {
     t: '⛽ Custo médio por km',
     x: 'Quanto de combustível você gasta pra cada quilômetro rodado. Serve pra saber se o caminho tá comendo seu ganho.',
     e: 'Exemplo: abasteceu <b>R$ 50</b> e rodou <b>100 km</b> → custo de <b>R$ 0,50 por km</b>. Numa entrega de 10 km, são R$ 5 só de combustível.'
+  },
+  valepena: {
+    t: '🧮 Vale a pena rodar?',
+    x: 'Antes de ligar a moto: me diz quantas horas você tem e sua meta de lucro. Eu calculo quanto o dia exige por hora — e comparo com o que você REALMENTE rende. Sem falso otimismo.',
+    e: 'Exemplo: meta de <b>R$ 200</b> em <b>8h</b> pede <b>R$ 25/h</b>. Se seu ritmo real é R$ 18/h, eu aviso: essa meta tá pesada pro tempo que você tem.'
   },
   ritmo: {
     t: '📊 Seu ritmo real',
@@ -2956,7 +2967,14 @@ function mostrarDesempenho(v) {
   const ph = document.getElementById('desempenhoPlaceholder');
   if (ph) {
     ph.style.display = pronto ? 'none' : 'block';
-    if (!pronto) ph.textContent = 'Ainda juntando dados pra essa visão — roda mais uns dias que ela aparece.';
+    if (!pronto) {
+      var _promessa = {
+        hoje:   '\u26A1 Registra hoje e eu te mostro se voc\u00ea foi ACIMA ou abaixo do seu normal \u2014 com o SEU n\u00famero, sem achismo.',
+        semana: '\uD83D\uDCC5 Roda uns dias e aqui vira o comparativo da sua semana contra a passada \u2014 subindo ou caindo.',
+        mes:    '\uD83D\uDCC8 Registra alguns dias que eu projeto onde seu m\u00eas fecha \u2014 pra n\u00e3o levar susto no dia 30.'
+      };
+      ph.textContent = _promessa[desempenhoView] || _promessa.mes;
+    }
   }
   document.querySelectorAll('#desempenhoToggle .seg-btn').forEach(b => b.classList.toggle('ativo', b.dataset.v === v));
 }
