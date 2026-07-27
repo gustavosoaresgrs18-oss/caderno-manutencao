@@ -1540,6 +1540,15 @@ function salvarManutencao() {
   });
   salvarManutVeic(salvos);
 }
+// toque no velocímetro = atalho pra registrar a receita (a ação nº 1 do app)
+function gaugeClique() {
+  const nav = document.getElementById('navFinancas');
+  if (nav) nav.click();
+  setTimeout(function () {
+    const btn = document.getElementById('btnRegistrarReceita');
+    if (btn) btn.click();
+  }, 60);
+}
 function atualizarAlerta(idStatus, idAlerta, idBarra, item) {
   const el = document.getElementById(idAlerta);
   const st = document.getElementById(idStatus);
@@ -1547,7 +1556,7 @@ function atualizarAlerta(idStatus, idAlerta, idBarra, item) {
   el.classList.remove('vermelho', 'amarelo', 'verde');
   if (!item.kmUltima) {                       // troca ainda não registrada (usuário novo)
     st.textContent = 'toque p/ registrar';
-    el.classList.add('amarelo');
+    // estado vazio é NEUTRO (cinza): laranja é moeda de alerta, não de convite
     if (barra) barra.style.width = '0%';
     return;
   }

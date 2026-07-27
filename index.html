@@ -102,7 +102,7 @@
         <!-- ═══ VELOCÍMETRO DO LUCRO (a estrela) ═══ -->
         <div class="gauge-card">
           <div class="gc-label">Lucro de hoje</div>
-          <div class="gauge-wrap">
+          <div class="gauge-wrap" onclick="gaugeClique()" style="cursor:pointer;" title="Registrar receita do dia">
             <svg viewBox="0 0 270 152" width="100%" style="max-width:185px;display:block;margin:0 auto;">
               <defs>
                 <linearGradient id="gArcOn" x1="0" y1="0" x2="1" y2="0">
@@ -233,6 +233,9 @@
           </div>
           <div class="alerta-bar" style="margin:11px 0 9px;"><span id="manutBarra3" style="width:0%"></span></div>
           <div class="manut-info"><span>Última: <b class="num" id="kmUltimaItem3">—</b></span><span class="num" id="manutIntervalo3">—</span></div>
+        </div>
+        <div class="manut-dica">
+          🐺 Registra a última troca de cada item que eu começo a contar os km — e grito ANTES de vencer, não depois.
         </div>
       </div>
 

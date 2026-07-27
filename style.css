@@ -137,6 +137,12 @@ h2.tela-h{ font-size:20px; font-weight:800; margin-bottom:16px; }
 
 /* MANUTENÇÃO */
 .manut-info{ display:flex; justify-content:space-between; font-size:11px; color:var(--dim); margin-bottom:8px; }
+.manut-dica{
+  margin-top:14px; padding:12px 14px; text-align:center;
+  font-size:12px; line-height:1.55; color:var(--dim);
+  background:rgba(155,107,255,.05); border:1px dashed rgba(155,107,255,.25);
+  border-radius:12px;
+}
 .manut-restante{ font-size:13px; font-weight:800; color:var(--info); font-family:'Sora'; }
 
 /* COMBUSTÍVEL */
