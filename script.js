@@ -3531,9 +3531,11 @@ function gerarTextoCade() {
   const dataHoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
   p.push(`\uD83D\uDCCA FECHAMENTO DE HOJE \u00B7 ${dataHoje}\n`);
 
-  // ── 1. o número que importa, em destaque ──
-  if (lucroHoje >= 0) p.push(`Voc\u00ea fechou com ${M(lucroHoje, 'v')} l\u00edquido no bolso.\n`);
-  else                p.push(`Hoje fechou ${R('no vermelho')}: ${M(lucroHoje, 'r')} a menos do que entrou.\n`);
+  // ── 1. o número que importa, em destaque (recorde toma o lugar quando bate) ──
+  const _rec = recordeHoje();
+  if (_rec)                p.push(`\uD83C\uDFC6 ${M(lucroHoje, 'v')} \u2014 seu melhor dia desde que a gente se conhece! Passou o recorde anterior de ${M(_rec.melhorAnt)}.\n`);
+  else if (lucroHoje >= 0) p.push(`Voc\u00ea fechou com ${M(lucroHoje, 'v')} l\u00edquido no bolso.\n`);
+  else                     p.push(`Hoje fechou ${R('no vermelho')}: ${M(lucroHoje, 'r')} a menos do que entrou.\n`);
 
   // ── 2. a conta aberta, sem mistério ──
   if (taxaHoje > 0 && combHoje > 0)  p.push(`Entrou ${M(receitaHoje)}. Saiu ${M(taxaHoje)} de taxa e ${M(combHoje)} de combustível.`);
@@ -3873,4 +3875,28 @@ async function compartilharFechamento() {
     catch (e) { toast('Card baixado!'); }
     fecharShare();
   }, 'image/png');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   v2.4 · RECORDE PESSOAL 🏆
+   Sai 100% do histórico: melhor dia anterior vs hoje. Nunca inventa.
+   Só vale recorde se hoje PASSOU o melhor dia e há base pra comparar.
+   ═══════════════════════════════════════════════════════════════ */
+function _lucroPorDia() {
+  const hist = lerLS('historicoFinancas', []);
+  const porDia = {};
+  hist.forEach(r => { if (r.dataISO) porDia[r.dataISO] = (porDia[r.dataISO] || 0) + r.lucro; });
+  return porDia;
+}
+
+function recordeHoje() {
+  const porDia = _lucroPorDia();
+  const hoje = hojeISO();
+  const lucroHoje = porDia[hoje];
+  if (lucroHoje == null || lucroHoje <= 0) return null;       // dia zerado/negativo não é recorde
+  const anteriores = Object.keys(porDia).filter(k => k !== hoje).map(k => porDia[k]);
+  if (anteriores.length < 3) return null;                      // sem base honesta pra dizer "recorde"
+  const melhorAnt = Math.max.apply(null, anteriores);
+  if (lucroHoje > melhorAnt) return { lucroHoje, melhorAnt };  // passou o recorde
+  return null;
 }
