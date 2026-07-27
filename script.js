@@ -3512,6 +3512,10 @@ function gerarTextoCade() {
 
   const V = x => `[[v:${x}]]`, R = x => `[[r:${x}]]`, A = x => `[[a:${x}]]`;
 
+  // domingo → o fechamento abre com o balanço da semana
+  const ehDomingo = new Date().getDay() === 0;
+  const retro = ehDomingo ? textoRetrospectoSemana() : '';
+
   // apresentação: nas 3 primeiras aberturas da aba, em parágrafo próprio
   //   quer que apareça mais/menos vezes? troque o 3 aqui embaixo.
   let abertura = '';
@@ -3524,6 +3528,7 @@ function gerarTextoCade() {
   // ── sem receita registrada: não tem o que analisar, e ele diz isso ──
   if (regs.length === 0) {
     const corpo = `O dia ainda tá zerado aqui. Registra quanto entrou que eu fecho a conta contigo.`;
+    if (retro) return abertura + retro + corpo;
     return abertura ? abertura + corpo : `${saud}, ${nome}. ` + corpo;
   }
 
@@ -3608,7 +3613,7 @@ function gerarTextoCade() {
            `\uD83D\uDD12 ${A('Isso \u00e9 da vers\u00e3o Copiloto.')} Destrava e eu te mostro onde tem dinheiro escondido no seu pr\u00f3prio hist\u00f3rico.`);
   }
 
-  return abertura + p.join(' ');
+  return abertura + retro + p.join(' ');
 }
 
 
@@ -3918,4 +3923,52 @@ function recordeHoje() {
   const melhorAnt = Math.max.apply(null, anteriores);
   if (lucroHoje > melhorAnt) return { lucroHoje, melhorAnt };  // passou o recorde
   return null;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   v2.5 · RETROSPECTO DE DOMINGO 📅
+   Aos domingos o fechamento abre com o balanço da semana.
+   Sai do histórico (mesmo _lucroPorDia do recorde) — nunca inventa.
+   ═══════════════════════════════════════════════════════════════ */
+function _nomeDiaSemana(iso) {
+  const [y, m, dd] = String(iso).split('-').map(Number);
+  const d = new Date(y, m - 1, dd);
+  return d.toLocaleDateString('pt-BR', { weekday: 'long' });
+}
+
+function retrospectoSemana() {
+  const porDia = _lucroPorDia();
+  const base = new Date(); base.setHours(12, 0, 0, 0);
+  const diaISO = (off) => { const d = new Date(base); d.setDate(d.getDate() - off); return isoLocal(d); };
+
+  let totalEsta = 0, diasComDado = 0, melhorVal = -Infinity, melhorISO = null;
+  for (let i = 0; i < 7; i++) {
+    const k = diaISO(i);
+    if (porDia[k] != null) {
+      totalEsta += porDia[k]; diasComDado++;
+      if (porDia[k] > melhorVal) { melhorVal = porDia[k]; melhorISO = k; }
+    }
+  }
+  let totalPassada = 0, diasPassada = 0;
+  for (let i = 7; i < 14; i++) {
+    const k = diaISO(i);
+    if (porDia[k] != null) { totalPassada += porDia[k]; diasPassada++; }
+  }
+  if (diasComDado === 0) return null;                 // semana vazia: nada a balancear
+  return { totalEsta, totalPassada, temPassada: diasPassada > 0, melhorVal, melhorISO };
+}
+
+function textoRetrospectoSemana() {
+  const r = retrospectoSemana();
+  if (!r) return '';
+  const body = [];
+  body.push(`Somando seus últimos 7 dias, deu ${M(r.totalEsta, 'v')} líquido.`);
+  if (r.melhorISO) body.push(`Melhor dia foi ${_nomeDiaSemana(r.melhorISO)}, com ${M(r.melhorVal, 'v')}.`);
+  if (r.temPassada) {
+    const dif = r.totalEsta - r.totalPassada, absd = Math.abs(dif);
+    if (absd < 1)     body.push(`Na mesma toada da semana passada (${M(r.totalPassada)}).`);
+    else if (dif > 0) body.push(`${M(absd, 'v')} a mais que a semana passada (${M(r.totalPassada)}).`);
+    else              body.push(`${M(absd, 'a')} abaixo da semana passada (${M(r.totalPassada)}) — semana mais devagar.`);
+  }
+  return '\uD83D\uDCC5 BALANÇO DA SEMANA\n' + body.join(' ') + '\n\n';
 }
