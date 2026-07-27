@@ -482,6 +482,10 @@
         <div class="cade-balao" id="cadeBalao">
           Tô aqui pra te contar como foi seu dia. Aperta o botão abaixo.
         </div>
+        <button class="cade-share" id="cadeShareBtn" style="display:none;" onclick="abrirShareFechamento()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>
+          Compartilhar meu fechamento
+        </button>
         <div class="cade-dica">Registre sua receita do dia pra eu fechar a conta completa.</div>
       </div>
 
@@ -578,6 +582,26 @@
           </a>
           <div class="modal-botoes" style="margin-top:14px;">
             <button class="modal-btn cancelar" onclick="fecharSuporte()">Voltar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL COMPARTILHAR FECHAMENTO (v2.3) ══════════ -->
+      <div class="modal-overlay" id="modalShare">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo">📤 Compartilhar fechamento</h2>
+          <p class="modal-desc" style="margin-bottom:14px">Um card pro grupo. O dinheiro é seu — mostra o valor só se quiser.</p>
+          <div class="share-canvas-wrap"><canvas id="shareCanvas" width="1080" height="1080"></canvas></div>
+          <label class="share-toggle" id="shareToggleWrap">
+            <span class="share-toggle-txt">Mostrar o valor do dia</span>
+            <span style="display:flex;align-items:center;">
+              <input type="checkbox" id="shareToggle" checked onchange="onShareToggle(this)">
+              <span class="share-sw"></span>
+            </span>
+          </label>
+          <div class="modal-botoes" style="margin-top:14px;">
+            <button class="modal-btn cancelar" onclick="fecharShare()">Voltar</button>
+            <button class="modal-btn confirmar" onclick="compartilharFechamento()">📤 Enviar</button>
           </div>
         </div>
       </div>

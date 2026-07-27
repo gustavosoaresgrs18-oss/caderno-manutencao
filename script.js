@@ -3190,6 +3190,7 @@ navCade.addEventListener('click', () => {
   const texto = gerarTextoCade();
   document.getElementById('cadeBalao').innerHTML = cadeParaHTML(texto);
   renderCarameloCade();
+  document.getElementById('cadeShareBtn').style.display = registrosHojeFin().length ? 'inline-flex' : 'none';
   mostrarTela(telaCade);
   navCade.classList.add('ativo');
 });
@@ -3730,3 +3731,146 @@ document.addEventListener('visibilitychange', () => {
     el.querySelectorAll('*').forEach(f => { f.style.animationPlayState = parado ? 'paused' : ''; });
   });
 });
+/* ═══════════════════════════════════════════════════════════════
+   v2.3 · COMPARTILHAR FECHAMENTO
+   Lê do MESMO lugar que o balão do Isaac — nunca recalcula, nunca inventa.
+   ═══════════════════════════════════════════════════════════════ */
+let _shareLegenda = '';
+
+function dadosFechamentoHoje() {
+  const regs = registrosHojeFin();
+  if (!regs.length) return null;                 // sem receita = sem fechamento
+  const lucro = regs.reduce((t, r) => t + r.lucro, 0);
+  const horas = horasHojeVal();
+  const km    = kmRodadoHoje();                  // pode vir null (cadeia de km)
+  const ph    = horas >= 0.5 ? lucro / horas : null;
+  return { lucro, horas, km, ph };
+}
+
+function _horasCurto(h) {
+  if (!h || h <= 0) return null;
+  const H = Math.floor(h), m = Math.round((h - H) * 60);
+  if (m === 60) return (H + 1) + 'h';
+  return m ? (H + 'h' + String(m).padStart(2, '0')) : (H + 'h');
+}
+
+function _statCard(ctx, x, y, valor, rotulo) {
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#F2F6FA'; ctx.font = '700 66px Sora, sans-serif';
+  ctx.fillText(valor, x, y);
+  ctx.fillStyle = '#93A1B0'; ctx.font = '400 34px Inter, sans-serif';
+  ctx.fillText(rotulo, x, y + 82);
+}
+
+function desenharCardFechamento(mostrarValor) {
+  const d = dadosFechamentoHoje();
+  const canvas = document.getElementById('shareCanvas');
+  if (!d || !canvas) return;
+  const W = 1080, H = 1080, cx = 110;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#0B0F14'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#1C242E'; ctx.lineWidth = 2; ctx.strokeRect(44, 44, W - 88, H - 88);
+
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#00E08A'; ctx.lineWidth = 11;
+  ctx.beginPath(); ctx.arc(cx + 24, 168, 26, Math.PI * 0.8, Math.PI * 2.2); ctx.stroke();
+  ctx.strokeStyle = '#F2F6FA'; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.moveTo(cx + 24, 168); ctx.lineTo(cx + 42, 150); ctx.stroke();
+  ctx.fillStyle = '#93A1B0'; ctx.font = '700 32px Sora, sans-serif'; ctx.textBaseline = 'middle';
+  ctx.fillText('C O P I L O T O', cx + 72, 168);
+
+  const hstr = _horasCurto(d.horas);
+  let legenda;
+
+  if (mostrarValor) {
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#93A1B0'; ctx.font = '400 42px Inter, sans-serif';
+    ctx.fillText('Fechei o dia de hoje', cx, 320);
+    ctx.fillStyle = d.lucro >= 0 ? '#00E08A' : '#FF5A5F';
+    ctx.font = '800 150px Sora, sans-serif';
+    ctx.fillText(fmtBRL0(d.lucro), cx, 384);
+    ctx.fillStyle = '#93A1B0'; ctx.font = '400 42px Inter, sans-serif';
+    ctx.fillText(d.lucro >= 0 ? 'líquido no bolso' : 'no vermelho hoje', cx, 566);
+
+    ctx.strokeStyle = '#26313D'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx, 712); ctx.lineTo(W - 110, 712); ctx.stroke();
+
+    if (d.ph != null)      _statCard(ctx, cx, 760, fmtBRL0(d.ph), 'por hora');
+    else if (d.km != null) _statCard(ctx, cx, 760, d.km.toLocaleString('pt-BR'), 'km rodados');
+    if (hstr)                              _statCard(ctx, cx + 470, 760, hstr, 'rodando');
+    else if (d.km != null && d.ph != null) _statCard(ctx, cx + 470, 760, d.km.toLocaleString('pt-BR') + ' km', 'na rua');
+
+    legenda = '📊 Fechei o dia · ' + fmtBRL0(d.lucro) + ' líquido'
+            + (d.ph != null ? ' · ' + fmtBRL0(d.ph) + '/h' : '')
+            + (hstr ? ' em ' + hstr : '') + ' — feito no Copiloto';
+  } else {
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#93A1B0'; ctx.font = '400 42px Inter, sans-serif';
+    ctx.fillText('Meu ritmo de hoje', cx, 320);
+    const val = fmtBRL0(d.ph);
+    ctx.fillStyle = '#00E08A'; ctx.font = '800 150px Sora, sans-serif';
+    ctx.fillText(val, cx, 384);
+    const wv = ctx.measureText(val).width;
+    ctx.fillStyle = '#93A1B0'; ctx.font = '400 64px Sora, sans-serif';
+    ctx.fillText('/h', cx + wv + 14, 470);
+    ctx.font = '400 42px Inter, sans-serif';
+    ctx.fillText('o que meu tempo rendeu', cx, 566);
+
+    ctx.strokeStyle = '#26313D'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx, 712); ctx.lineTo(W - 110, 712); ctx.stroke();
+
+    if (hstr)         _statCard(ctx, cx, 760, hstr, 'rodando');
+    if (d.km != null) _statCard(ctx, cx + 470, 760, d.km.toLocaleString('pt-BR') + ' km', 'na rua');
+
+    legenda = '📊 Meu ritmo de hoje · ' + val + '/h'
+            + (hstr ? ' em ' + hstr : '')
+            + (d.km != null ? ' · ' + d.km.toLocaleString('pt-BR') + ' km' : '')
+            + ' — feito no Copiloto';
+  }
+
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#5C6B7A'; ctx.font = '400 32px Inter, sans-serif';
+  ctx.fillText('quanto você ganha por hora, de verdade', cx, H - 150);
+  ctx.fillStyle = '#93A1B0'; ctx.font = '600 32px Inter, sans-serif';
+  ctx.fillText('copiloto-teste.netlify.app', cx, H - 100);
+
+  _shareLegenda = legenda;
+}
+
+async function abrirShareFechamento() {
+  const d = dadosFechamentoHoje();
+  if (!d) { toast('Registre sua receita primeiro'); return; }
+  const wrap = document.getElementById('shareToggleWrap');
+  const tog  = document.getElementById('shareToggle');
+  if (wrap) wrap.style.display = (d.ph != null) ? 'flex' : 'none';
+  if (tog)  tog.checked = true;
+  document.getElementById('modalShare').style.display = 'flex';
+  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+  desenharCardFechamento(true);
+}
+
+function fecharShare()     { document.getElementById('modalShare').style.display = 'none'; }
+function onShareToggle(el) { desenharCardFechamento(el.checked); }
+
+async function compartilharFechamento() {
+  const canvas  = document.getElementById('shareCanvas');
+  const legenda = _shareLegenda || '';
+  canvas.toBlob(async (blob) => {
+    if (!blob) { toast('Não consegui gerar a imagem', 'erro'); return; }
+    const file = new File([blob], 'copiloto-fechamento.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], text: legenda }); fecharShare(); return; }
+      catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'copiloto-fechamento.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    try { await navigator.clipboard.writeText(legenda); toast('Card baixado e legenda copiada!'); }
+    catch (e) { toast('Card baixado!'); }
+    fecharShare();
+  }, 'image/png');
+}
