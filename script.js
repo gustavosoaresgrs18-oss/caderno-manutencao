@@ -3783,6 +3783,25 @@ function desenharCardFechamento(mostrarValor) {
   ctx.fillStyle = '#93A1B0'; ctx.font = '700 32px Sora, sans-serif'; ctx.textBaseline = 'middle';
   ctx.fillText('C O P I L O T O', cx + 72, 168);
 
+  // data do dia (canto superior direito) — dá credibilidade: "foi hoje"
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#5C6B7A'; ctx.font = '400 30px Inter, sans-serif'; ctx.textBaseline = 'middle';
+  ctx.fillText(new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' }), W - 110, 168);
+  ctx.textAlign = 'left';
+
+  // fitinha do recorde — só quando bate o melhor dia
+  if (recordeHoje()) {
+    ctx.font = '800 30px Inter, sans-serif';
+    const txt = '🏆 MEU MELHOR DIA';
+    const pw = ctx.measureText(txt).width + 56, ph = 56, px = cx, py = 232;
+    ctx.fillStyle = '#00E08A';
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, 28); else ctx.rect(px, py, pw, ph);
+    ctx.fill();
+    ctx.fillStyle = '#04120c'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.fillText(txt, px + 28, py + ph / 2 + 1);
+  }
+
   const hstr = _horasCurto(d.horas);
   let legenda;
 
