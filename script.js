@@ -3359,10 +3359,13 @@ function calcSimulador() {
   }
 
   document.getElementById('simLinhas').innerHTML = `
-    <div class="sim-linha"><span>🕐 Precisa render</span><span>${fmtBRL(phNecessario)}/h</span></div>${linhaRitmo}
-    <div class="sim-linha"><span>💰 Receita bruta necessária</span><span>${fmtBRL(receita)}</span></div>
-    <div class="sim-linha"><span>⛽ Deve gastar de combustível</span><span>~${fmtBRL0(combEst)} (uns ${kmEst} km)</span></div>
-    <div class="sim-linha"><span>⛽ Conta feita com o litro a</span><span>${fmtBRL(precoComb)}${comLitros.length > 0 ? ' (seu último posto)' : ' (média — registre um abastecimento!)'}</span></div>`;
+    <div class="sim-linha sim-linha-forte"><span>🕐 Precisa render</span><span>${fmtBRL(phNecessario)}/h</span></div>${linhaRitmo}
+    <details class="sim-detalhes">
+      <summary>ver a conta completa ›</summary>
+      <div class="sim-linha"><span>💰 Receita bruta necessária</span><span>${fmtBRL(receita)}</span></div>
+      <div class="sim-linha"><span>⛽ Deve gastar de combustível</span><span>~${fmtBRL0(combEst)} (uns ${kmEst} km)</span></div>
+      <div class="sim-linha"><span>⛽ Conta feita com o litro a</span><span>${fmtBRL(precoComb)}${comLitros.length > 0 ? ' (seu último posto)' : ' (média — registre um abastecimento!)'}</span></div>
+    </details>`;
   const avisoEl = document.getElementById('simAviso');
   if (aviso) { avisoEl.textContent = aviso; avisoEl.style.display = 'block'; } else { avisoEl.style.display = 'none'; }
   document.getElementById('simResultado').style.display = 'block';
