@@ -2014,6 +2014,7 @@ btnConfirmarComb.addEventListener('click', function() {
   atualizarCustoRealKm();
   modalCombustivel.style.display = 'none';
   toast('⛽ Abastecimento registrado!');
+  if (!balaoProgVisto('abastecimento')) _balaoProgPendente = 'abastecimento';   // dispara após o streak fechar
   mostrarStreak();
 });
 
@@ -2068,6 +2069,7 @@ document.querySelector('#btnSalvarTela').addEventListener('click', function() {
   const km     = numBR(document.querySelector('#inputKmTela').value) || null;
   const posto  = document.querySelector('#inputPostoTela').value.trim() || null;
   if (!valor || valor <= 0) { toast('Informe o valor gasto', 'erro'); return; }
+  const ehEdicao = !!editandoAbastId;   // só o registro NOVO dispara o balão (edição não)
   if (editandoAbastId) {
     const h = lerLS('historicoAbastecimentos', []);
     const r = h.find(x => x.id === editandoAbastId);
@@ -2089,6 +2091,7 @@ document.querySelector('#btnSalvarTela').addEventListener('click', function() {
   }
   limparCamposAbast();
   document.getElementById('modalAbastecer').style.display = 'none';
+  if (!ehEdicao) dispararBalaoProg('abastecimento');   // ensina na 1ª vez (1x só)
 });
 
 // ─── ABRIR / FECHAR MODAL DE ABASTECIMENTO ───────────────────
@@ -2685,7 +2688,13 @@ function mostrarStreak() {
   modalStreakInfo.textContent = streak + ' dias seguidos rodando! Continue assim!';
   modalStreak.style.display  = 'flex';
 }
-modalStreakBtn.addEventListener('click', () => { modalStreak.style.display = 'none'; });
+modalStreakBtn.addEventListener('click', () => {
+  modalStreak.style.display = 'none';
+  if (_balaoProgPendente) {                     // havia um balão esperando o streak sair
+    const chave = _balaoProgPendente; _balaoProgPendente = null;
+    setTimeout(() => dispararBalaoProg(chave), 220);
+  }
+});
 
 // ─── FINANÇAS ────────────────────────────────────────────────
 btnRegistrarReceita.addEventListener('click', function() {
@@ -2825,12 +2834,19 @@ btnConfirmarReceita.addEventListener('click', function() {
 //     (⚠️ no "encerrar o dia" isso encosta na cadeia de km: chamar
 //      só no finalzinho, depois de tudo gravado — nunca no meio.)
 // ═══════════════════════════════════════════════════════════════
+let _balaoProgPendente = null;   // fila leve: 1 balão que espera outro modal (ex: streak) fechar
 const BALOES_PROG = {
   receita: {
     titulo: 'Show. Mas quanto desse dinheiro é SEU?',
     texto:  'Comemorou o valor que entrou? Calma. Dali ainda sai a <b>taxa que a plataforma desconta</b> (a Uber, a 99, o iFood — quem te paga) e a <b>gasolina</b> — e o "bom dia" encolhe. '
           + '<b>Isso não tem nada a ver comigo:</b> o Copiloto não fica com um tostão seu. '
           + 'Meu trabalho é só te mostrar, todo dia que você fechar, o que sobra <b>de verdade</b> no seu bolso — não o que só passou pela sua mão.'
+  },
+  abastecimento: {
+    titulo: 'Cada litro conta duas histórias.',
+    texto:  'Uma: <b>quanto esse km te custou de verdade</b> — a gasolina que você vê, mais o desgaste que come o seu veículo calado. '
+          + 'Outra: <b>se esse posto foi amigo ou ladrão</b> — porque R$ 0,20 a mais no litro, no fim do mês, é dinheiro que sumiu. '
+          + 'A partir de agora eu vigio as duas pra você.'
   }
 };
 function balaoProgVisto(chave) {
