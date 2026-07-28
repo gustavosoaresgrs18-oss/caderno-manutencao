@@ -2828,9 +2828,9 @@ btnConfirmarReceita.addEventListener('click', function() {
 const BALOES_PROG = {
   receita: {
     titulo: 'Show. Mas quanto desse dinheiro é SEU?',
-    texto:  'Comemorou o valor que entrou? Calma. Dali ainda sai a taxa do app e a gasolina — e o "bom dia" encolhe. '
-          + 'A partir de agora, todo dia que você fechar, eu te mostro o que sobra <b>de verdade</b> no seu bolso — '
-          + 'não o que só passou pela sua mão.'
+    texto:  'Comemorou o valor que entrou? Calma. Dali ainda sai a <b>taxa que a plataforma desconta</b> (a Uber, a 99, o iFood — quem te paga) e a <b>gasolina</b> — e o "bom dia" encolhe. '
+          + '<b>Isso não tem nada a ver comigo:</b> o Copiloto não fica com um tostão seu. '
+          + 'Meu trabalho é só te mostrar, todo dia que você fechar, o que sobra <b>de verdade</b> no seu bolso — não o que só passou pela sua mão.'
   }
 };
 function balaoProgVisto(chave) {
