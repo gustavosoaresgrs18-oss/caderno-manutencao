@@ -1976,6 +1976,7 @@ function aplicarKmEFecharTurno(valor) {
   modal.style.display = 'none';
   inputKm.value = '';
   pontoA = null; pontoB = null;
+  enfileirarBalaoProg('encerrarDia');   // 1º da fila — NÃO mexe em km, só ensina (dispara após o streak)
   abrirModalCombustivel();
 }
 
@@ -2015,7 +2016,7 @@ btnConfirmarComb.addEventListener('click', function() {
   atualizarCustoRealKm();
   modalCombustivel.style.display = 'none';
   toast('⛽ Abastecimento registrado!');
-  if (!balaoProgVisto('abastecimento')) _balaoProgPendente = 'abastecimento';   // dispara após o streak fechar
+  enfileirarBalaoProg('abastecimento');   // entra na fila; dispara após o streak fechar
   mostrarStreak();
 });
 
@@ -2691,10 +2692,7 @@ function mostrarStreak() {
 }
 modalStreakBtn.addEventListener('click', () => {
   modalStreak.style.display = 'none';
-  if (_balaoProgPendente) {                     // havia um balão esperando o streak sair
-    const chave = _balaoProgPendente; _balaoProgPendente = null;
-    setTimeout(() => dispararBalaoProg(chave), 220);
-  }
+  setTimeout(processarFilaBalaoProg, 220);      // mostra o 1º da fila (encerrar → abastecimento)
 });
 
 // ─── FINANÇAS ────────────────────────────────────────────────
@@ -2835,7 +2833,7 @@ btnConfirmarReceita.addEventListener('click', function() {
 //     (⚠️ no "encerrar o dia" isso encosta na cadeia de km: chamar
 //      só no finalzinho, depois de tudo gravado — nunca no meio.)
 // ═══════════════════════════════════════════════════════════════
-let _balaoProgPendente = null;   // fila leve: 1 balão que espera outro modal (ex: streak) fechar
+let _filaBalaoProg = [];   // fila de balões esperando o momento certo (ex: streak fechar). 1 por vez.
 const BALOES_PROG = {
   receita: {
     titulo: 'Show. Mas quanto desse dinheiro é SEU?',
@@ -2854,6 +2852,12 @@ const BALOES_PROG = {
     texto:  'Peça não quebra no dia bom. Ela te espera na <b style="color:var(--danger)">pior hora — no meio da corrida</b>. '
           + 'Registrou a troca? Eu conto os km e <b style="color:var(--signal)">grito antes</b>, com folga pra <b style="color:var(--money)">resolver barato</b>. '
           + '<b style="color:var(--danger)">Quebrar na rua é caro e a pé.</b>'
+  },
+  encerrarDia: {
+    titulo: 'Fechou o dia. Mas quanto valeu sua hora?',
+    texto:  'Você rodou horas — e <b style="color:var(--signal)">agora sabe quanto cada uma rendeu</b>, coisa que quase ninguém sabe. '
+          + 'Todo dia eu separo um tiquinho na sua <b style="color:var(--signal)">reserva</b>, porque <b style="color:var(--danger)">pneu, óleo e imposto sempre chegam na pior hora</b>. '
+          + '<b style="color:var(--money)">Quando a porrada vier, você paga sem susto.</b>'
   }
 };
 function balaoProgVisto(chave) {
@@ -2878,10 +2882,21 @@ function dispararBalaoProg(chave) {
   document.getElementById('modalIsaacProg').style.display = 'flex';
   marcarBalaoProg(chave);                             // marca só quando REALMENTE mostrou
 }
+// ── fila: enfileira e mostra 1 de cada vez (nunca dois na cara) ──
+function enfileirarBalaoProg(chave) {
+  if (balaoProgVisto(chave)) return;                  // lição já dada
+  if (_filaBalaoProg.includes(chave)) return;         // já está na fila
+  _filaBalaoProg.push(chave);
+}
+function processarFilaBalaoProg() {
+  if (_filaBalaoProg.length === 0) return;
+  dispararBalaoProg(_filaBalaoProg.shift());          // o "Entendi" chama o próximo
+}
 (function ligarBotaoIsaacProg() {
   const btn = document.getElementById('btnIsaacProgOk');
   if (btn) btn.addEventListener('click', function() {
     document.getElementById('modalIsaacProg').style.display = 'none';
+    setTimeout(processarFilaBalaoProg, 180);          // encadeia o próximo da fila, se houver
   });
 })();
 
