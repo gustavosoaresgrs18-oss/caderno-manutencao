@@ -1637,6 +1637,7 @@ document.querySelector('#mntBtnTroca').addEventListener('click', function() {
   document.getElementById('modalManutencao').style.display = 'none';
   toast('🔧 Troca registrada!');
   ptsHook('manutencao', 'man:' + hojeISO());
+  dispararBalaoProg('manutencao');          // ensina na 1ª troca registrada (1x só)
 });
 document.querySelector('#mntBtnSalvarIntervalo').addEventListener('click', function() {
   if (!manutAlvo) return;
@@ -2838,15 +2839,21 @@ let _balaoProgPendente = null;   // fila leve: 1 balão que espera outro modal (
 const BALOES_PROG = {
   receita: {
     titulo: 'Show. Mas quanto desse dinheiro é SEU?',
-    texto:  'Comemorou o valor que entrou? Calma. Dali ainda sai a <b>taxa que a plataforma desconta</b> (a Uber, a 99, o iFood — quem te paga) e a <b>gasolina</b> — e o "bom dia" encolhe. '
-          + '<b>Isso não tem nada a ver comigo:</b> o Copiloto não fica com um tostão seu. '
-          + 'Meu trabalho é só te mostrar, todo dia que você fechar, o que sobra <b>de verdade</b> no seu bolso — não o que só passou pela sua mão.'
+    texto:  'Comemorou o valor que entrou? Calma. Dali ainda sai a <b style="color:var(--danger)">taxa que a plataforma desconta</b> (a Uber, a 99, o iFood — quem te paga) e a <b style="color:var(--danger)">gasolina</b> — e o "bom dia" encolhe. '
+          + 'Isso não tem nada a ver comigo: <b style="color:var(--signal)">o Copiloto não fica com um tostão seu.</b> '
+          + 'Meu trabalho é só te mostrar, todo dia que você fechar, o que <b style="color:var(--money)">sobra de verdade no seu bolso</b> — não o que só passou pela sua mão.'
   },
   abastecimento: {
     titulo: 'Cada litro conta duas histórias.',
-    texto:  'Uma: <b>quanto esse km te custou de verdade</b> — a gasolina que você vê, mais o desgaste que come o seu veículo calado. '
-          + 'Outra: <b>se esse posto foi amigo ou ladrão</b> — porque R$ 0,20 a mais no litro, no fim do mês, é dinheiro que sumiu. '
+    texto:  'Uma: <b style="color:var(--signal)">quanto esse km te custou de verdade</b> — a gasolina que você vê, mais <b style="color:var(--danger)">o desgaste que come o seu veículo calado</b>. '
+          + 'Outra: <b style="color:var(--signal)">se esse posto foi amigo ou ladrão</b> — porque R$ 0,20 a mais no litro, no fim do mês, <b style="color:var(--danger)">é dinheiro que sumiu</b>. '
           + 'A partir de agora eu vigio as duas pra você.'
+  },
+  manutencao: {
+    titulo: 'Eu aviso antes de quebrar.',
+    texto:  'Peça não quebra no dia bom. Ela te espera na <b style="color:var(--danger)">pior hora — no meio da corrida</b>. '
+          + 'Registrou a troca? Eu conto os km e <b style="color:var(--signal)">grito antes</b>, com folga pra <b style="color:var(--money)">resolver barato</b>. '
+          + '<b style="color:var(--danger)">Quebrar na rua é caro e a pé.</b>'
   }
 };
 function balaoProgVisto(chave) {
