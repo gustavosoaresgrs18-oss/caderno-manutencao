@@ -2810,8 +2810,57 @@ btnConfirmarReceita.addEventListener('click', function() {
   atualizarTelaFinancas();
   toast('✅ Receita do dia salva!');
   ptsHook('receita', 'rec:' + hojeISO());
+  dispararBalaoProg('receita');          // balão que ENSINA na 1ª receita (1x só)
 });
 
+
+// ═══════════════════════════════════════════════════════════════
+//  BALÕES PROGRESSIVOS DO ISAAC
+//  Ensinam UMA lição na 1ª vez de cada ação (receita, abastecer…).
+//  Cada balão aparece UMA vez na vida — o selo fica no localStorage,
+//  mesmo padrão do 'isacApresentacoes'. NUNCA inventa número: só fala.
+//
+//  ►► PRA ADICIONAR UM GATILHO NOVO: ponha a lição em BALOES_PROG e
+//     chame dispararBalaoProg('chave') LOGO DEPOIS do salvamento.
+//     (⚠️ no "encerrar o dia" isso encosta na cadeia de km: chamar
+//      só no finalzinho, depois de tudo gravado — nunca no meio.)
+// ═══════════════════════════════════════════════════════════════
+const BALOES_PROG = {
+  receita: {
+    titulo: 'Show. Mas quanto desse dinheiro é SEU?',
+    texto:  'Comemorou o valor que entrou? Calma. Dali ainda sai a taxa do app e a gasolina — e o "bom dia" encolhe. '
+          + 'A partir de agora, todo dia que você fechar, eu te mostro o que sobra <b>de verdade</b> no seu bolso — '
+          + 'não o que só passou pela sua mão.'
+  }
+};
+function balaoProgVisto(chave) {
+  const m = lerLS('balaoProgVistos', {});
+  return !!m[chave];
+}
+function marcarBalaoProg(chave) {
+  const m = lerLS('balaoProgVistos', {});
+  m[chave] = true;
+  salvarLS('balaoProgVistos', m);
+}
+function dispararBalaoProg(chave) {
+  const b = BALOES_PROG[chave];
+  if (!b) return;
+  if (balaoProgVisto(chave)) return;                 // essa lição já foi dada
+  // trava anti-empilhamento: não abre por cima de OUTRO modal já aberto
+  const outroModalAberto = Array.from(document.querySelectorAll('.modal-overlay'))
+    .some(m => m.id !== 'modalIsaacProg' && getComputedStyle(m).display !== 'none');
+  if (outroModalAberto) return;
+  document.getElementById('isaacProgTitulo').textContent = b.titulo;
+  document.getElementById('isaacProgTexto').innerHTML    = b.texto;
+  document.getElementById('modalIsaacProg').style.display = 'flex';
+  marcarBalaoProg(chave);                             // marca só quando REALMENTE mostrou
+}
+(function ligarBotaoIsaacProg() {
+  const btn = document.getElementById('btnIsaacProgOk');
+  if (btn) btn.addEventListener('click', function() {
+    document.getElementById('modalIsaacProg').style.display = 'none';
+  });
+})();
 
 // ═══════════════════════════════════════════════════════════════
 //  PROJEÇÃO DO MÊS — estima o fechamento com base no seu ritmo
