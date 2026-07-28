@@ -2901,6 +2901,126 @@ function processarFilaBalaoProg() {
 })();
 
 // ═══════════════════════════════════════════════════════════════
+//  AJUSTES (engrenagem) — perfil · veículos · reserva/taxa · dados
+//  Só LÊ e grava perfil/veículos pelas funções que já existem.
+//  A troca de veículo usa trocarVeiculo() (não apaga histórico).
+// ═══════════════════════════════════════════════════════════════
+function abrirAjustes() {
+  const p = getPerfil();
+  document.getElementById('ajNome').value       = p.nome || '';
+  document.getElementById('ajReservaDia').value = (p.reservaDia != null ? p.reservaDia : 20);
+  document.getElementById('ajTaxa').value       = (p.taxa != null && p.taxa > 0) ? (Math.round(p.taxa * 10) / 10) : '';
+  renderVeiculosAjustes();
+  document.getElementById('modalAjustes').style.display = 'flex';
+}
+function fecharAjustes() { document.getElementById('modalAjustes').style.display = 'none'; }
+
+function renderVeiculosAjustes() {
+  const box = document.getElementById('ajListaVeic');
+  if (!box) return;
+  const vs = lerVeiculos();
+  const at = vidAtivo();
+  if (!vs.length) { box.innerHTML = '<div class="aj-dica">Nenhum veículo cadastrado ainda.</div>'; return; }
+  box.innerHTML = vs.map(function(v) {
+    const ativo = v.id === at;
+    const placa = v.placa ? ' · ' + esc(v.placa) : '';
+    const tag   = ativo ? '<span class="aj-veic-tag">ativo</span>'
+                        : '<span class="aj-veic-tag trocar">trocar ›</span>';
+    return '<div class="aj-veic ' + (ativo ? 'ativo' : '') + '" onclick="trocarVeicAjustes(\'' + v.id + '\')">'
+         + '<span class="aj-veic-nome">' + esc(nomeVeiculo(v)) + placa + '</span>' + tag + '</div>';
+  }).join('');
+}
+function trocarVeicAjustes(vid) {
+  if (vid === vidAtivo()) return;               // já é o ativo
+  trocarVeiculo(vid);                            // troca o ativo — NÃO mexe no histórico
+  renderVeiculosAjustes();
+  if (typeof atualizarResumoDia === 'function') atualizarResumoDia();
+  toast('🔄 Agora rodando ' + nomeVeiculo(veiculoAtivo()));
+}
+
+document.getElementById('ajBtnSalvarNome').addEventListener('click', function() {
+  const nome = document.getElementById('ajNome').value.trim();
+  if (!nome) { toast('Digite seu nome', 'erro'); return; }
+  const p = getPerfil(); p.nome = nome; salvarLS('perfilUsuario', p);
+  const hSaud = document.getElementById('headerSaudacao');       // atualiza o cabeçalho na hora
+  if (hSaud) {
+    const h = new Date().getHours();
+    const saud = h < 12 ? 'Bom dia' : (h < 18 ? 'Boa tarde' : 'Boa noite');
+    hSaud.textContent = saud + ' ' + arrumarNome(nome.split(' ')[0]) + ' 👋';
+  }
+  toast('✅ Nome salvo!');
+});
+
+document.getElementById('ajBtnSalvarRT').addEventListener('click', function() {
+  const p = getPerfil();
+  const r = numBR(document.getElementById('ajReservaDia').value);
+  if (r != null && r >= 0) p.reservaDia = Math.round(r);
+  const t = numBR(document.getElementById('ajTaxa').value);
+  if (t != null && t > 0 && t < 60) p.taxa = Math.round(t * 10) / 10;
+  salvarLS('perfilUsuario', p);
+  if (typeof atualizarReserva  === 'function') atualizarReserva();
+  if (typeof atualizarResumoDia === 'function') atualizarResumoDia();
+  toast('✅ Reserva e taxa salvas!');
+});
+
+// ── BACKUP: baixa um JSON com TODO o localStorage ──
+document.getElementById('ajBtnBackup').addEventListener('click', function() {
+  try {
+    const dump = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      dump[k] = localStorage.getItem(k);
+    }
+    const payload = { _app: 'copiloto', _v: 1, _data: new Date().toISOString(), dados: dump };
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'copiloto-backup-' + hojeISO() + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast('⬇️ Backup baixado!');
+  } catch (e) { toast('Não consegui gerar o backup', 'erro'); }
+});
+
+// ── RESTAURAR: lê o JSON e repõe tudo (com confirmação) ──
+document.getElementById('ajBtnRestaurar').addEventListener('click', function() {
+  document.getElementById('ajInputRestore').click();
+});
+document.getElementById('ajInputRestore').addEventListener('change', function(ev) {
+  const file = ev.target.files && ev.target.files[0];
+  ev.target.value = '';                               // deixa reescolher o mesmo arquivo depois
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function() {
+    let payload;
+    try { payload = JSON.parse(reader.result); } catch (e) { toast('Arquivo inválido', 'erro'); return; }
+    const dados = (payload && payload.dados && typeof payload.dados === 'object') ? payload.dados : null;
+    if (!dados) { toast('Backup não reconhecido', 'erro'); return; }
+    pedirConfirmacao('Restaurar backup?',
+      'Isso substitui os dados de agora pelos do arquivo. Não dá pra desfazer.',
+      function() {
+        try {
+          localStorage.clear();
+          Object.keys(dados).forEach(function(k) { localStorage.setItem(k, dados[k]); });
+          location.reload();
+        } catch (e) { toast('Falha ao restaurar', 'erro'); }
+      });
+  };
+  reader.readAsText(file);
+});
+
+// ── APAGAR TUDO: confirmação DUPLA ──
+document.getElementById('ajBtnApagar').addEventListener('click', function() {
+  pedirConfirmacao('Apagar TUDO?',
+    'Some com lançamentos, veículos, histórico e reserva — volta como app novo. Não dá pra desfazer. O ideal é baixar um backup antes.',
+    function() {
+      pedirConfirmacao('Tem certeza mesmo?',
+        'Última chance. Isso apaga tudo pra sempre.',
+        function() { try { localStorage.clear(); } catch (e) {} location.reload(); });
+    });
+});
+
+// ═══════════════════════════════════════════════════════════════
 //  PROJEÇÃO DO MÊS — estima o fechamento com base no seu ritmo
 // ═══════════════════════════════════════════════════════════════
 function projecaoMensal() {
