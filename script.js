@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════
+]// ═══════════════════════════════════════════════════════════════
 //  NOME DO CONSULTOR (o lobo-guará)
 //  Trocou de ideia sobre o nome? Muda AQUI e o app inteiro muda:
 //  aba de baixo, título da tela, apresentação e a fala.
@@ -2908,8 +2908,6 @@ function processarFilaBalaoProg() {
 function abrirAjustes() {
   const p = getPerfil();
   document.getElementById('ajNome').value       = p.nome || '';
-  document.getElementById('ajReservaDia').value = (p.reservaDia != null ? p.reservaDia : 20);
-  document.getElementById('ajTaxa').value       = (p.taxa != null && p.taxa > 0) ? (Math.round(p.taxa * 10) / 10) : '';
   renderVeiculosAjustes();
   document.getElementById('modalAjustes').style.display = 'flex';
 }
@@ -2949,18 +2947,6 @@ document.getElementById('ajBtnSalvarNome').addEventListener('click', function() 
     hSaud.textContent = saud + ' ' + arrumarNome(nome.split(' ')[0]) + ' 👋';
   }
   toast('✅ Nome salvo!');
-});
-
-document.getElementById('ajBtnSalvarRT').addEventListener('click', function() {
-  const p = getPerfil();
-  const r = numBR(document.getElementById('ajReservaDia').value);
-  if (r != null && r >= 0) p.reservaDia = Math.round(r);
-  const t = numBR(document.getElementById('ajTaxa').value);
-  if (t != null && t > 0 && t < 60) p.taxa = Math.round(t * 10) / 10;
-  salvarLS('perfilUsuario', p);
-  if (typeof atualizarReserva  === 'function') atualizarReserva();
-  if (typeof atualizarResumoDia === 'function') atualizarResumoDia();
-  toast('✅ Reserva e taxa salvas!');
 });
 
 // ── BACKUP: baixa um JSON com TODO o localStorage ──
