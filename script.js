@@ -2836,16 +2836,16 @@ btnConfirmarReceita.addEventListener('click', function() {
 let _filaBalaoProg = [];   // fila de balões esperando o momento certo (ex: streak fechar). 1 por vez.
 const BALOES_PROG = {
   receita: {
-    titulo: 'Show. Mas quanto desse dinheiro é SEU?',
-    texto:  'Comemorou o valor que entrou? Calma. Dali ainda sai a <b style="color:var(--danger)">taxa que a plataforma desconta</b> (a Uber, a 99, o iFood — quem te paga) e a <b style="color:var(--danger)">gasolina</b> — e o "bom dia" encolhe. '
-          + 'Isso não tem nada a ver comigo: <b style="color:var(--signal)">o Copiloto não fica com um tostão seu.</b> '
-          + 'Meu trabalho é só te mostrar, todo dia que você fechar, o que <b style="color:var(--money)">sobra de verdade no seu bolso</b> — não o que só passou pela sua mão.'
+    titulo: 'Entrar dinheiro não é ganhar dinheiro.',
+    texto:  'A plataforma mostra o valor cheio. Mas dali sai a <b style="color:var(--danger)">taxa dela e a gasolina</b> — e o dia rende menos do que parece. '
+          + '<b style="color:var(--signal)">O Copiloto não fica com nada seu:</b> '
+          + 'só te mostro o que <b style="color:var(--money)">sobrou de verdade no seu bolso</b>.'
   },
   abastecimento: {
-    titulo: 'Cada litro conta duas histórias.',
-    texto:  'Uma: <b style="color:var(--signal)">quanto esse km te custou de verdade</b> — a gasolina que você vê, mais <b style="color:var(--danger)">o desgaste que come o seu veículo calado</b>. '
-          + 'Outra: <b style="color:var(--signal)">se esse posto foi amigo ou ladrão</b> — porque R$ 0,20 a mais no litro, no fim do mês, <b style="color:var(--danger)">é dinheiro que sumiu</b>. '
-          + 'A partir de agora eu vigio as duas pra você.'
+    titulo: 'Quanto custa cada km que você roda?',
+    texto:  'Rodar custa mais que a gasolina: tem o <b style="color:var(--danger)">desgaste do carro que ninguém soma</b>. '
+          + 'A maioria não sabe esse número — e é ele que diz <b style="color:var(--signal)">se o dia valeu a pena</b>. '
+          + 'Agora o Copiloto mostra pra você.'
   },
   manutencao: {
     titulo: 'Eu aviso antes de quebrar.',
@@ -2854,10 +2854,9 @@ const BALOES_PROG = {
           + '<b style="color:var(--danger)">Quebrar na rua é caro e a pé.</b>'
   },
   encerrarDia: {
-    titulo: 'Fechou o dia. Mas quanto valeu sua hora?',
-    texto:  'Você rodou horas — e <b style="color:var(--signal)">agora sabe quanto cada uma rendeu</b>, coisa que quase ninguém sabe. '
-          + 'Todo dia eu separo um tiquinho na sua <b style="color:var(--signal)">reserva</b>, porque <b style="color:var(--danger)">pneu, óleo e imposto sempre chegam na pior hora</b>. '
-          + '<b style="color:var(--money)">Quando a porrada vier, você paga sem susto.</b>'
+    titulo: 'Sua hora vale quanto?',
+    texto:  'Ganhar R$ 300 em 6 horas é bem diferente de ganhar em 12. Agora você sabe <b style="color:var(--signal)">quanto cada hora rendeu de verdade</b>. '
+          + 'E todo dia eu separo um tiquinho na sua <b style="color:var(--money)">reserva</b>, pra quando a conta grande chegar.'
   }
 };
 function balaoProgVisto(chave) {
