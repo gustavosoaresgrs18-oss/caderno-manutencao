@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════
+]// ═══════════════════════════════════════════════════════════════
 //  NOME DO CONSULTOR (o lobo-guará)
 //  Trocou de ideia sobre o nome? Muda AQUI e o app inteiro muda:
 //  aba de baixo, título da tela, apresentação e a fala.
@@ -1056,6 +1056,12 @@ const GUIA_ROTINAS = [
   { ic: '📈', cor: 'var(--money)', tit: 'Projeção do mês', hero: 'onde você vai parar',
     isaac: 'No dia 10 você não sabe como o mês fecha — e no dia 30 leva susto. Eu pego o SEU ritmo e projeto o fechamento antes. Não é chute: quanto mais roda, mais certeira fica.',
     fonte: 'estimo do seu próprio histórico — nunca invento' },
+  { ic: '🕳️', cor: 'var(--danger)', tit: 'Onde seu dinheiro some', hero: 'o buraco invisível',
+    isaac: 'A maioria dos motoristas gasta bem mais do que imagina — e nem percebe pra onde vai. Não é azar, é conta que ninguém faz. Eu faço a SUA: te mostro quanto o dia realmente custou, sem susto no fim do mês.',
+    fonte: 'eu somo o que você nem vê — do seu próprio dado' },
+  { ic: '⏳', cor: 'var(--signal)', tit: 'Trabalha de graça?', hero: 'a parte que não pagam',
+    isaac: 'Boa parte do que entra vai embora em taxa e desgaste — e tem hora do dia que você roda só pra empatar. Eu separo o que é ganho do que é só custo, pra você saber quando vale seguir e quando é hora de parar.',
+    fonte: 'eu mostro o seu ganho real por hora' },
   { ic: '🐺', cor: 'var(--purple)', tit: 'Eu, o Isaac', hero: 'a real',
     isaac: 'Todo mundo tem palpite sobre o seu dinheiro. Ninguém nunca olhou os SEUS números. Eu olho, todo dia, e falo a verdade sem passar a mão na cabeça. Foi fraco? Eu digo. Sempre comparado com o SEU normal, nunca com chute.',
     fonte: 'eu leio seus números e falo — de graça' },
