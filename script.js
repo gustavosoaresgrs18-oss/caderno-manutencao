@@ -1405,9 +1405,9 @@ function abrirAjuda(qual, ev) {
     texto  = 'Rodar 1 km gasta duas coisas suas.<br><br>'
            + '<b>A gasolina.</b> Essa você paga na hora, na bomba.<br><br>'
            + '<b>Um pedaço ' + peca + '.</b> ' + pecas + ' Você não paga hoje, mas gastou hoje. A conta chega depois.<br><br>'
-           + 'Eu somo os dois. É por isso que dá pra rodar o mês inteiro e não sobrar nada: o desgaste comeu, e ninguém viu.<br><br>'
-           + '<b>Esse pedaço do desgaste não vai pro cofrinho.</b> Ele só entra na conta, pra você saber quanto a corrida custa de verdade. '
-           + 'O cofrinho 🐷 é outra coisa: ele guarda por dia o tanto que você escolheu.';
+           + 'Eu somo os dois. É por isso que se pode rodar o mês inteiro e não sobrar nada: o desgaste consumiu, sem você perceber.<br><br>'
+           + '<b>Esse pedaço do desgaste não vai para o cofrinho.</b> Ele entra apenas na conta, para você saber quanto a corrida custa de verdade. '
+           + 'O cofrinho 🐷 é outra coisa: ele guarda por dia o valor que você definiu.';
 
     // A conta TEM que usar a mesma fonte da tira (combustivelKmMes), senão o
     // balão explica um número que não é o que está escrito na tela.
@@ -1429,14 +1429,14 @@ function abrirAjuda(qual, ev) {
   else if (qual === 'meta') {
     const meta = perfil.metaDiaria || 250;
     titulo = '💡 Progresso da meta';
-    texto  = 'Mostra o quanto falta pra bater sua meta do dia — igual uma barrinha de jogo que vai enchendo. '
+    texto  = 'Mostra o quanto falta para você atingir a meta do dia — como uma barra de progresso que vai enchendo. '
            + 'Exemplo: meta de R$ 250, você já fez R$ 200, faltam R$ 50. '
-           + 'Ter um alvo claro te dá foco e aquele gás pra fechar o dia no positivo, '
-           + 'em vez de rodar sem saber se já deu ou se precisa de mais um pouco.';
+           + 'Ter um alvo claro dá foco e ajuda a fechar o dia no positivo, '
+           + 'em vez de rodar sem saber se já foi suficiente ou se precisa de um pouco mais.';
     if (temReceita)
-      conta = `Hoje: <b>${fmtBRL0(lucro)}</b> de <b>R$ ${meta}</b>` + (lucro >= meta ? ' — <b>batida! 🎯</b>' : ` (faltam <b>${fmtBRL0((meta-lucro))}</b>)`) + '. Toque na barra pra mudar a meta.';
+      conta = `Hoje: <b>${fmtBRL0(lucro)}</b> de <b>R$ ${meta}</b>` + (lucro >= meta ? ' — <b>atingida! 🎯</b>' : ` (faltam <b>${fmtBRL0((meta-lucro))}</b>)`) + '. Toque na barra para mudar a meta.';
     else
-      conta = `Sua meta é R$ ${meta}/dia. Registre sua receita pra ver o progresso.`;
+      conta = `Sua meta é R$ ${meta}/dia. Registre sua receita para ver o progresso.`;
   }
 
   document.getElementById('ajudaTitulo').textContent = titulo;
@@ -1452,28 +1452,28 @@ function fecharAjuda() {
 const AJUDAS_CARD = {
   projecao: {
     t: '📈 Projeção do mês',
-    x: 'É meu palpite de quanto você fecha o mês, olhando o seu ritmo até agora. Quanto mais dias registrados, mais certeiro fica.',
-    e: 'Exemplo: em 10 dias rodados você lucrou <b>R$ 1.000</b> — média de R$ 100 por dia. Se continuar nesse ritmo, o mês fecha perto de <b>R$ 3.000</b>.'
+    x: 'É a minha estimativa de quanto você deve fechar o mês, com base no seu ritmo até agora. Quanto mais dias registrados, mais precisa ela fica.',
+    e: 'Exemplo: em 10 dias rodados você lucrou <b>R$ 1.000</b> — média de R$ 100 por dia. Mantido esse ritmo, o mês fecha perto de <b>R$ 3.000</b>.'
   },
   gastomes: {
     t: '⛽ Gasto no mês',
-    x: 'Tudo que você colocou de combustível neste mês, somado. Simples assim.',
+    x: 'É a soma de tudo que você registrou de combustível neste mês.',
     e: 'Exemplo: abasteceu 4 vezes de R$ 50 → gasto do mês = <b>R$ 200</b>.'
   },
   mediakm: {
     t: '⛽ Custo médio por km',
-    x: 'Quanto de combustível você gasta pra cada quilômetro rodado. Serve pra saber se o caminho tá comendo seu ganho.',
-    e: 'Exemplo: abasteceu <b>R$ 50</b> e rodou <b>100 km</b> → custo de <b>R$ 0,50 por km</b>. Numa entrega de 10 km, são R$ 5 só de combustível.'
+    x: 'Quanto de combustível você gasta a cada quilômetro rodado. Serve para saber se o trajeto está consumindo o seu ganho.',
+    e: 'Exemplo: abasteceu <b>R$ 50</b> e rodou <b>100 km</b> → custo de <b>R$ 0,50 por km</b>. Numa entrega de 10 km, são R$ 5 apenas de combustível.'
   },
   valepena: {
     t: '🧮 Vale a pena rodar?',
-    x: 'Antes de ligar a moto: me diz quantas horas você tem e sua meta de lucro. Eu calculo quanto o dia exige por hora — e comparo com o que você REALMENTE rende. Sem falso otimismo.',
-    e: 'Exemplo: meta de <b>R$ 200</b> em <b>8h</b> pede <b>R$ 25/h</b>. Se seu ritmo real é R$ 18/h, eu aviso: essa meta tá pesada pro tempo que você tem.'
+    x: 'Antes de começar o dia, me informe quantas horas você tem e a sua meta de lucro. Eu calculo quanto o dia exige por hora e comparo com o que você realmente rende — sem otimismo irreal.',
+    e: 'Exemplo: meta de <b>R$ 200</b> em <b>8h</b> pede <b>R$ 25/h</b>. Se o seu ritmo real é R$ 18/h, eu aviso que essa meta está pesada para o tempo que você tem.'
   },
   ritmo: {
     t: '📊 Seu ritmo real',
-    x: 'É quanto o seu tempo costuma render nos seus dias de trabalho — o lucro dividido pelas horas (do "Bora rodar" até o "Encerrar o dia"). Serve pra comparar sua meta com a sua realidade, sem número inventado.',
-    e: 'Exemplo: lucrou <b>R$ 210</b> em <b>7 horas</b> → <b>R$ 30/hora</b>. Se sua meta pedir R$ 125/h, eu aviso que tá pesada. (Só valem dias com slider + receita marcados juntos.)'
+    x: 'É quanto o seu tempo costuma render nos seus dias de trabalho — o lucro dividido pelas horas (do "Bora rodar" até o "Encerrar o dia"). Serve para comparar a sua meta com a sua realidade, sem número inventado.',
+    e: 'Exemplo: lucrou <b>R$ 210</b> em <b>7 horas</b> → <b>R$ 30/hora</b>. Se a sua meta pedir R$ 125/h, eu aviso que está pesada. (Só valem dias com o slider e a receita marcados juntos.)'
   }
 };
 function abrirAjudaCard(qual) {
@@ -2226,9 +2226,9 @@ function renderItensAbastecimento(elLista, registros, baseParaPadrao) {
       if (mesmoTipo.length >= 1) {
         const media = mesmoTipo.reduce((s, x) => s + numBR(x.ppl), 0) / mesmoTipo.length;
         const diff  = numBR(r.ppl) - media;
-        if (diff > 0.1)       badge = `<div class="comb-badge comb-badge-caro">⚠️ Posto caro — ${fmtBRL(diff)}/L acima do seu padrão (${r.tipo})</div>`;
-        else if (diff < -0.1) badge = `<div class="comb-badge comb-badge-barato">✅ Bom preço! ${fmtBRL(Math.abs(diff))}/L abaixo do padrão (${r.tipo})</div>`;
-        else                  badge = `<div class="comb-badge comb-badge-neutro">👌 Preço dentro do padrão (${r.tipo})</div>`;
+        if (diff > 0.1)       badge = `<div class="comb-badge comb-badge-caro">⚠️ Caro · +${fmtBRL(diff)}/L</div>`;
+        else if (diff < -0.1) badge = `<div class="comb-badge comb-badge-barato">✅ Barato · −${fmtBRL(Math.abs(diff))}/L</div>`;
+        else                  badge = `<div class="comb-badge comb-badge-neutro">👌 No padrão</div>`;
       }
     }
     return `<div class="comb-item">
@@ -2349,7 +2349,7 @@ function renderPorTipo(registros) {
     const pct = gastoTotal > 0 ? Math.round((g.gasto / gastoTotal) * 100) : 0;
     const cpk = g.km > 0 ? fmtBRL((g.gasto / g.km)) + '/km' : '—';
     const cls = TIPO_CLASSE[g.tipo] || 'gas';
-    const cor = { gas:'var(--signal)', eta:'var(--money)', flex:'var(--info)', gnv:'var(--purple)', mist:'#c78a3a' }[cls];
+    const cor = { gas:'var(--signal)', eta:'var(--money)', flex:'var(--info)', gnv:'var(--purple)', dies:'#8a95a3', mist:'#c78a3a' }[cls];
     return `
       <div class="tipo-linha">
         <div class="tipo-linha-topo">
@@ -2693,7 +2693,8 @@ function mostrarStreak() {
   const dataHoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
   modalStreakNum.textContent  = streak;
   modalStreakData.textContent = dataHoje;
-  modalStreakInfo.textContent = streak + ' dias seguidos rodando! Continue assim!';
+  const diasTxt = streak === 1 ? '1 dia seguido' : streak + ' dias seguidos';
+  modalStreakInfo.textContent = diasTxt + '. Enquanto tem gente parada, você tá construindo a sua saída.';
   modalStreak.style.display  = 'flex';
 }
 modalStreakBtn.addEventListener('click', () => {
@@ -3780,7 +3781,7 @@ function gerarTextoCade() {
 
   // ── 1. o número que importa, em destaque (recorde toma o lugar quando bate) ──
   const _rec = recordeHoje();
-  if (_rec)                p.push(`\uD83C\uDFC6 ${M(lucroHoje, 'v')} \u2014 seu melhor dia desde que a gente se conhece! Passou o recorde anterior de ${M(_rec.melhorAnt)}.\n`);
+  if (_rec)                p.push(`\uD83C\uDFC6 ${M(lucroHoje, 'v')} \u2014 o seu melhor dia até agora! Superou o recorde anterior de ${M(_rec.melhorAnt)}.\n`);
   else if (lucroHoje >= 0) p.push(`Voc\u00ea fechou com ${M(lucroHoje, 'v')} l\u00edquido no bolso.\n`);
   else                     p.push(`Hoje fechou ${R('no vermelho')}: ${M(lucroHoje, 'r')} a menos do que entrou.\n`);
 
@@ -3855,10 +3856,11 @@ function gerarTextoCade() {
       p.push(`Hoje você ficou dentro do seu normal de ${M(cmp.media)} por dia.`);
     } else {
       const _faltam = Math.max(1, 6 - _diasReceita);
+      const _dTxt = _faltam === 1 ? 'Falta 1 dia' : 'Faltam ' + _faltam + ' dias';
       if (_diasComHora < 2) {
-        p.push(`Faltam uns ${_faltam} dias pra eu saber seu normal. Marca o início e o fim do seu dia que eu já te mostro quanto vale a sua hora.`);
+        p.push(`${_dTxt} para eu saber o seu normal. Marque o início e o fim do seu dia e eu já mostro quanto vale a sua hora.`);
       } else {
-        p.push(`Faltam uns ${_faltam} dias pra eu saber o que é normal pra você.`);
+        p.push(`${_dTxt} para eu saber o que é normal para você.`);
       }
     }
   }
