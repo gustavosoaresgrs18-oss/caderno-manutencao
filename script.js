@@ -1,4 +1,4 @@
-]// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════
 //  NOME DO CONSULTOR (o lobo-guará)
 //  Trocou de ideia sobre o nome? Muda AQUI e o app inteiro muda:
 //  aba de baixo, título da tela, apresentação e a fala.
