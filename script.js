@@ -3796,7 +3796,21 @@ function gerarTextoCade() {
   } else if (cmp && Math.abs(cmp.diff) >= cmp.media * 0.08) {
     p.push(`${M(Math.abs(cmp.diff), cmp.diff > 0 ? 'v' : 'a')} ${cmp.diff > 0 ? 'acima' : 'abaixo'} do seu normal, que é ${M(cmp.media)} por dia nos últimos ${D(cmp.n + ' dias', cmp.n + ' dias')} que você rodou.`);
   } else {
-    p.push(`Ainda tô juntando seus dias pra saber o que é normal pra você.`);
+    const _histF = lerLS('historicoFinancas', []);
+    const _diasReceita = new Set(_histF.filter(r => r.dataISO).map(r => r.dataISO)).size;
+    const _horasMap = lerLS('horasPorDia', {});
+    const _diasComHora = Object.keys(_horasMap).filter(k => (_horasMap[k] || 0) >= 0.5).length;
+    if (cmp) {
+      // já tem base, mas hoje ficou perto da média — diz isso, não "ainda tô juntando"
+      p.push(`Hoje você ficou dentro do seu normal de ${M(cmp.media)} por dia.`);
+    } else {
+      const _faltam = Math.max(1, 6 - _diasReceita);
+      if (_diasComHora < 2) {
+        p.push(`Faltam uns ${_faltam} dias pra eu saber seu normal. Marca o início e o fim do seu dia que eu já te mostro quanto vale a sua hora.`);
+      } else {
+        p.push(`Faltam uns ${_faltam} dias pra eu saber o que é normal pra você.`);
+      }
+    }
   }
 
   if (intel.suficiente && intel.total >= 3) {
