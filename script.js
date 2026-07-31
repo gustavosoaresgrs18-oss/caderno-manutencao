@@ -1421,7 +1421,7 @@ function abrirAjuda(qual, ev) {
       const gasTela = Number(combKmAj.toFixed(2));
       const desTela = Number(reservaKm.toFixed(2));
       const totTela = gasTela + desTela;
-      conta = `${escopo}: gasolina ${fmtBRL(gasTela)} + desgaste ${fmtBRL(desTela)} = <b>${fmtBRL(totTela)} por km</b>. Corrida de 10 km: <b>${fmtBRL((totTela*10))}</b>.`;
+      conta = `${escopo}: combustível ${fmtBRL(gasTela)} + desgaste ${fmtBRL(desTela)} = <b>${fmtBRL(totTela)} por km</b>. Corrida de 10 km: <b>${fmtBRL((totTela*10))}</b>.`;
     } else {
       conta = `Por enquanto só o desgaste: <b>${fmtBRL(reservaKm)} por km</b>. A gasolina entra na conta quando você registrar <b>valor + km</b> ao abastecer.`;
     }
@@ -1996,10 +1996,21 @@ function abrirModalCombustivel() {
   combPreviewVal.textContent = '— /km';
   modalCombustivel.style.display = 'flex';
 }
-btnSimAbasteceu.addEventListener('click', function() { etapaAbasteceu.style.display = 'none'; etapaFormComb.style.display = 'block'; });
+btnSimAbasteceu.addEventListener('click', function() { etapaAbasteceu.style.display = 'none'; etapaFormComb.style.display = 'block'; tipoSelecionado = aplicarUltimoTipo('#etapaFormComb'); });
 btnNaoAbasteceu.addEventListener('click', function() { modalCombustivel.style.display = 'none'; mostrarStreak(); });
 btnCancelarComb.addEventListener('click', function() { modalCombustivel.style.display = 'none'; mostrarStreak(); });
 
+// aplica o último combustível usado (destaca o botão certo e devolve o nome)
+function aplicarUltimoTipo(containerSel) {
+  const alvo = lerLS('ultimoTipoComb', 'Gasolina');
+  let achou = null;
+  document.querySelectorAll(containerSel + ' .tipo-btn').forEach(b => {
+    b.classList.remove('ativo');
+    if (b.textContent.trim() === alvo) achou = b;
+  });
+  if (achou) achou.classList.add('ativo');
+  return achou ? alvo : 'Gasolina';
+}
 ['tipoGasolina','tipoEtanol','tipoFlex','tipoGNV','tipoDiesel','tipoMisto'].forEach(id => {
   document.querySelector('#' + id).addEventListener('click', function() {
     document.querySelectorAll('#etapaFormComb .tipo-btn').forEach(b => b.classList.remove('ativo'));
@@ -2019,6 +2030,7 @@ btnConfirmarComb.addEventListener('click', function() {
   const cpm = kmTurnoAtual > 0 ? (valor / kmTurnoAtual).toFixed(2) : null;
   // km desconhecido não vira zero: vira "não sei" — e fica fora da média
   salvarAbastecimento(tipoSelecionado, valor, litros, kmTurnoAtual || null, cpm, posto);
+  salvarLS('ultimoTipoComb', tipoSelecionado);   // lembra pro próximo abastecimento
   atualizarCustoRealKm();
   modalCombustivel.style.display = 'none';
   toast('⛽ Abastecimento registrado!');
@@ -2094,6 +2106,7 @@ document.querySelector('#btnSalvarTela').addEventListener('click', function() {
   } else {
     const cpm = (valor && km) ? (valor / km).toFixed(2) : null;
     salvarAbastecimento(tipoSelecionadoTela, valor, litros, km, cpm, posto);
+    salvarLS('ultimoTipoComb', tipoSelecionadoTela);   // lembra pro próximo
     atualizarCustoRealKm();
     toast('⛽ Abastecimento registrado!');
   }
@@ -2107,6 +2120,7 @@ document.getElementById('btnAbrirAbastecer').addEventListener('click', function(
   editandoAbastId = null;
   document.querySelector('#btnSalvarTela').textContent = '✅ Registrar';
   limparCamposAbast();
+  tipoSelecionadoTela = aplicarUltimoTipo('#modalAbastecer');
   document.getElementById('modalAbastecer').style.display = 'flex';
 });
 document.getElementById('btnCancelarAbastecer').addEventListener('click', function() {
