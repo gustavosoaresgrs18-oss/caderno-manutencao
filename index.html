@@ -946,7 +946,26 @@
           <div class="aj-sec">
             <div class="aj-sec-tit">🚗 Meus veículos</div>
             <div id="ajListaVeic"></div>
-            <div class="aj-dica">Toque num veículo pra passar a rodar nele. Trocar nunca apaga histórico. Pra <b>adicionar</b> um veículo novo, é só registrar o km dele ao fechar o dia — o app pergunta na hora.</div>
+            <button class="modal-btn" id="ajBtnAddVeic" style="width:100%; margin-top:4px;">+ Adicionar veículo</button>
+            <div id="ajAddVeicForm" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--line);">
+              <div style="display:flex; gap:8px; margin-bottom:8px;">
+                <button type="button" class="aj-tipo-btn" id="ajTipoMoto">🏍️ Moto</button>
+                <button type="button" class="aj-tipo-btn" id="ajTipoCarro">🚗 Carro</button>
+              </div>
+              <label class="aj-label" for="ajVeicModelo">Modelo</label>
+              <input type="text" id="ajVeicModelo" class="aj-input" placeholder="Ex: Honda CG 160" autocomplete="off">
+              <label class="aj-label" for="ajVeicPlaca" style="margin-top:8px;">Placa (opcional)</label>
+              <input type="text" id="ajVeicPlaca" class="aj-input" placeholder="ABC1D23" autocomplete="off">
+              <label class="aj-label" for="ajVeicKm" style="margin-top:8px;">Km do painel agora (opcional)</label>
+              <input type="text" inputmode="numeric" id="ajVeicKm" class="aj-input" placeholder="Ex: 42000" autocomplete="off">
+              <div class="aj-dica">O km deixa o primeiro dia nesse veículo já sair certinho. Pode pular se não souber.</div>
+              <div id="ajAddVeicErro" style="display:none; color:var(--danger); font-size:12px; margin-top:6px;"></div>
+              <div style="display:flex; gap:8px; margin-top:10px;">
+                <button class="modal-btn cancelar" id="ajAddVeicCancelar" style="flex:1;">Cancelar</button>
+                <button class="modal-btn confirmar" id="ajAddVeicSalvar" style="flex:1;">Salvar</button>
+              </div>
+            </div>
+            <div class="aj-dica">Toque num veículo pra passar a rodar nele. Trocar e adicionar nunca apagam histórico.</div>
           </div>
 
           <div class="aj-sec">

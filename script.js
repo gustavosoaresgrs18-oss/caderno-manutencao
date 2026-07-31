@@ -2935,6 +2935,50 @@ function trocarVeicAjustes(vid) {
   toast('🔄 Agora rodando ' + nomeVeiculo(veiculoAtivo()));
 }
 
+// ── + ADICIONAR VEÍCULO (só cria na garagem; NÃO fecha dia, não toca no km) ──
+let _ajAddTipo = 'moto';
+function ajSelTipo(t) {
+  _ajAddTipo = (t === 'carro') ? 'carro' : 'moto';
+  document.getElementById('ajTipoMoto').classList.toggle('ativo', _ajAddTipo === 'moto');
+  document.getElementById('ajTipoCarro').classList.toggle('ativo', _ajAddTipo === 'carro');
+}
+(function ligarAddVeic() {
+  const btnAbrir = document.getElementById('ajBtnAddVeic');
+  if (!btnAbrir) return;
+  const form = document.getElementById('ajAddVeicForm');
+  const erro = document.getElementById('ajAddVeicErro');
+  btnAbrir.addEventListener('click', function() {
+    btnAbrir.style.display = 'none';
+    form.style.display = 'block';
+    document.getElementById('ajVeicModelo').value = '';
+    document.getElementById('ajVeicPlaca').value  = '';
+    document.getElementById('ajVeicKm').value      = '';
+    erro.style.display = 'none';
+    ajSelTipo('moto');
+  });
+  document.getElementById('ajTipoMoto').addEventListener('click',  () => ajSelTipo('moto'));
+  document.getElementById('ajTipoCarro').addEventListener('click', () => ajSelTipo('carro'));
+  document.getElementById('ajAddVeicCancelar').addEventListener('click', function() {
+    form.style.display = 'none'; btnAbrir.style.display = '';
+  });
+  document.getElementById('ajAddVeicSalvar').addEventListener('click', function() {
+    const modelo = document.getElementById('ajVeicModelo').value.trim();
+    if (!modelo) { erro.textContent = 'Informe o modelo.'; erro.style.display = 'block'; return; }
+    const placa = document.getElementById('ajVeicPlaca').value;
+    const kmRaw = document.getElementById('ajVeicKm').value.trim();
+    let odo = null;
+    if (kmRaw) {
+      const k = numBR(kmRaw);
+      if (k == null || k < 0) { erro.textContent = 'Km inválido. Deixe em branco se não souber.'; erro.style.display = 'block'; return; }
+      odo = Math.round(k);
+    }
+    const novo = criarVeiculo(_ajAddTipo, modelo, placa, odo);   // só cria — NÃO fecha dia
+    form.style.display = 'none'; btnAbrir.style.display = '';
+    renderVeiculosAjustes();
+    toast('✅ ' + nomeVeiculo(novo) + ' na garagem. Toque nele pra rodar.');
+  });
+})();
+
 document.getElementById('ajBtnSalvarNome').addEventListener('click', function() {
   const nome = document.getElementById('ajNome').value.trim();
   if (!nome) { toast('Digite seu nome', 'erro'); return; }

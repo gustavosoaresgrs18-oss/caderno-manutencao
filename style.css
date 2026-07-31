@@ -1094,3 +1094,8 @@ h2.tela-h{ font-size:20px; font-weight:800; margin-bottom:16px; }
 .aj-veic-tag { font-size:11px; padding:3px 9px; border-radius:20px; background:var(--money);
   color:#00160E; font-weight:700; white-space:nowrap; }
 .aj-veic-tag.trocar { background:transparent; border:1px solid var(--line); color:var(--dim); font-weight:600; }
+
+/* botões moto/carro no + adicionar veículo (engrenagem) */
+.aj-tipo-btn { flex:1; padding:9px; border-radius:10px; border:1px solid var(--line);
+  background:var(--elev); color:var(--dim); font-size:14px; font-weight:600; cursor:pointer; }
+.aj-tipo-btn.ativo { border-color:var(--money); color:var(--text); }
