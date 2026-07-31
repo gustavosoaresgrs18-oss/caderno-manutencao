@@ -1036,7 +1036,7 @@ function pintarKmHoje() {
 // ═══════════════════════════════════════════════════════════════
 const GUIA_ROTINAS = [
   { ic: '🎯', cor: 'var(--signal)', tit: 'Lucro de hoje', hero: '300 → 190',
-    isaac: 'Comemorou os R$ 300? Calma. Tira a taxa do app, a gasolina, o resto — e o "bom dia" era R$ 190. Eu te mostro o que sobra de verdade, não o que passou pela sua mão.',
+    isaac: 'Comemorou os R$ 300? Espera. A Uber, a 99, o iFood já descontam a parte deles, e ainda tem a gasolina — sobra bem menos. O app te mostra o que fica de verdade no seu bolso.',
     fonte: 'eu monto sozinho — você só diz quanto entrou' },
   { ic: '⛽', cor: 'var(--signal)', tit: 'Custo real por km', hero: 'além da gasolina',
     isaac: 'A gasolina é só parte da conta. O desgaste do carro é o custo que ninguém soma. O app junta tudo e mostra seu gasto real.',
