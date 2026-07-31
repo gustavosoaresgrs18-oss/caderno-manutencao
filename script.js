@@ -1036,7 +1036,7 @@ function pintarKmHoje() {
 // ═══════════════════════════════════════════════════════════════
 const GUIA_ROTINAS = [
   { ic: '🎯', cor: 'var(--signal)', tit: 'Lucro de hoje', hero: '300 → 190',
-    isaac: 'Comemorou os R$ 300? Espera. A Uber, a 99, o iFood já descontam a parte deles, e ainda tem a gasolina — sobra bem menos. O app te mostra o que fica de verdade no seu bolso.',
+    isaac: 'Entrar dinheiro não é ganhar dinheiro. A plataforma desconta a parte dela e a gasolina come o resto. O app mostra quanto sobrou mesmo pra você.',
     fonte: 'eu monto sozinho — você só diz quanto entrou' },
   { ic: '⛽', cor: 'var(--signal)', tit: 'Custo real por km', hero: 'além da gasolina',
     isaac: 'A gasolina é só parte da conta. O desgaste do carro é o custo que ninguém soma. O app junta tudo e mostra seu gasto real.',
@@ -4066,7 +4066,7 @@ function desenharCardFechamento(mostrarValor) {
   ctx.fillStyle = '#5C6B7A'; ctx.font = '400 32px Inter, sans-serif';
   ctx.fillText('quanto você ganha por hora, de verdade', cx, H - 150);
   ctx.fillStyle = '#93A1B0'; ctx.font = '600 32px Inter, sans-serif';
-  ctx.fillText('copiloto-teste.netlify.app', cx, H - 100);
+  ctx.fillText('Copiloto', cx, H - 100);
 
   _shareLegenda = legenda;
 }
