@@ -1036,13 +1036,13 @@ function pintarKmHoje() {
 // ═══════════════════════════════════════════════════════════════
 const GUIA_ROTINAS = [
   { ic: '🎯', cor: 'var(--signal)', tit: 'Lucro de hoje', hero: '300 → 190',
-    isaac: 'Entrar dinheiro não é ganhar dinheiro. A plataforma desconta a parte dela e a gasolina come o resto. O app mostra quanto sobrou mesmo pra você.',
+    isaac: 'Entrar dinheiro não é ganhar dinheiro. A plataforma tira a parte dela e a gasolina come o resto. Eu te mostro quanto sobrou mesmo no seu bolso.',
     fonte: 'eu monto sozinho — você só diz quanto entrou' },
   { ic: '⛽', cor: 'var(--signal)', tit: 'Custo real por km', hero: 'além da gasolina',
-    isaac: 'A gasolina é só parte da conta. O desgaste do carro é o custo que ninguém soma. O app junta tudo e mostra seu gasto real.',
+    isaac: 'A gasolina é só parte da conta. O desgaste do carro é o custo que ninguém soma. Eu junto tudo e te mostro seu gasto real.',
     fonte: 'o app calcula do seu combustível, sem digitação' },
   { ic: '🐷', cor: 'var(--money)', tit: 'Cofrinho', hero: 'a conta sempre volta',
-    isaac: 'O carro quebra quando você menos espera. Sem reserva, vira dívida. O app separa um pouco a cada dia pra você estar preparado.',
+    isaac: 'O carro quebra quando você menos espera. Sem reserva, vira dívida. Eu separo um pouco a cada dia pra você estar preparado.',
     fonte: 'o app guarda o tanto que você escolher, por dia' },
   { ic: '🔧', cor: 'var(--signal)', tit: 'Manutenção', hero: 'dia perdido',
     isaac: 'Corrente arrebentada no meio da corrida é dia perdido, guincho e conta dobrada. Trocar na hora é barato; quebrar na rua é caro e humilhante. Eu grito ANTES do prejuízo, não depois.',
