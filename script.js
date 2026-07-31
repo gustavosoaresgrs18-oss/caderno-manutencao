@@ -2556,7 +2556,13 @@ function atualizarDocumentosDashboard() {
   const docs = lerLS('documentos', {});
   let maisUrgente = null, menosDias = Infinity;
   let alertaCount = 0;                  // quantos docs vencidos ou faltando <=15 dias
-  DOCS_TIPOS.forEach(tipo => {
+  // varre TODOS os documentos: os padrão (DOCS_TIPOS) E os personalizados que o motorista criou
+  const _todosDocs = [
+    ...DOCS_TIPOS.map(t => ({ id: t.id, nome: t.nome })),
+    ...Object.keys(docs).filter(k => !DOCS_TIPOS.find(t => t.id === k))
+      .map(k => ({ id: k, nome: (docs[k] && docs[k].nome) || k }))
+  ];
+  _todosDocs.forEach(tipo => {
     const d = docs[tipo.id];
     if (d && d.vencimento) {
       const dias = diasAteVencer(d.vencimento);
