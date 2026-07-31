@@ -70,7 +70,7 @@ body{
 }
 
 /* faixa de mini-métricas (ganho/hora · custo/km · meta) */
-.hero-strip{ display:flex; gap:9px; margin-top:14px; position:relative; z-index:1; }
+.hero-strip{ display:flex; gap:9px; margin-top:10px; position:relative; z-index:1; }
 .hero-m{ flex:1; background:rgba(255,255,255,.03); border:1px solid var(--line); border-radius:12px; padding:9px 10px; }
 .hero-m .v{ font-family:'Sora'; font-size:16px; font-weight:800; color:var(--text); }
 .hero-m .k{ font-size:10px; color:var(--faint); font-weight:600; margin-top:2px; }
@@ -647,7 +647,7 @@ h2.tela-h{ font-size:20px; font-weight:800; margin-bottom:16px; }
    PAINEL DE INSTRUMENTOS (dashboard v3)
    ══════════════════════════════════════════════════════════ */
 /* velocímetro do lucro */
-.gauge-card{ background:linear-gradient(180deg,#10231b 0%,#121820 70%); border:1px solid rgba(0,224,138,.32); border-radius:20px; padding:12px 13px 10px; margin-bottom:9px; position:relative; overflow:hidden; text-align:center; }
+.gauge-card{ background:linear-gradient(180deg,#10231b 0%,#121820 70%); border:1px solid rgba(0,224,138,.32); border-radius:20px; padding:12px 13px 10px; margin-bottom:6px; position:relative; overflow:hidden; text-align:center; }
 .gauge-card::after{ content:""; position:absolute; left:50%; top:-70px; transform:translateX(-50%); width:280px; height:190px; background:radial-gradient(ellipse,rgba(0,224,138,.13),transparent 65%); pointer-events:none; }
 .gc-label{ font-size:10px; font-weight:800; letter-spacing:.1em; color:#5f8f78; text-transform:uppercase; position:relative; z-index:1; }
 .gauge-wrap{ position:relative; margin-top:4px; z-index:1; }
@@ -659,7 +659,7 @@ h2.tela-h{ font-size:20px; font-weight:800; margin-bottom:16px; }
 .gc-breakdown{ font-size:11px; color:var(--dim); text-align:center; margin-top:5px; position:relative; z-index:1; }
 .gc-meta{ display:inline-block; margin-top:6px; font-size:10.5px; color:var(--signal); background:rgba(255,176,32,.1); border:1px solid rgba(255,176,32,.3); border-radius:16px; padding:4px 12px; font-weight:700; cursor:pointer; position:relative; z-index:1; }
 .gc-meta .int{ opacity:.65; font-size:9px; }
-.gauge-card .hero-strip{ margin-top:12px; }
+.gauge-card .hero-strip{ margin-top:8px; }
 .gc-substrip{ font-size:9.5px; color:var(--faint); margin-top:7px; position:relative; z-index:1; }
 
 /* odômetro + tanque */
@@ -682,12 +682,12 @@ h2.tela-h{ font-size:20px; font-weight:800; margin-bottom:16px; }
 .tq-sub{ text-align:center; font-size:8.5px; color:var(--faint); margin-top:2px; }
 
 /* luzes de manutenção */
-.luzes{ background:var(--elev); border:1px solid var(--line); border-radius:14px; padding:9px 12px; margin-bottom:9px; }
-.luzes-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.luzes{ background:var(--elev); border:1px solid var(--line); border-radius:14px; padding:9px 12px; margin-bottom:6px; }
+.luzes-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:7px; }
 .luzes-t{ font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--dim); }
 .luzes-dica{ font-size:10px; color:var(--faint); }
 .luzes-row{ display:flex; gap:10px; }
-.luz{ flex:1; background:#0d141c; border:1px solid var(--line); border-radius:11px; padding:8px 6px; text-align:center; cursor:pointer; }
+.luz{ flex:1; background:#0d141c; border:1px solid var(--line); border-radius:11px; padding:6px 6px; text-align:center; cursor:pointer; }
 .luz .lz-ic svg{ width:26px; height:26px; display:block; margin:0 auto 5px; }
 .luz .lz-nome{ font-size:9px; color:var(--dim); font-weight:600; line-height:1.2; }
 .luz .lz-st{ font-size:9.5px; font-weight:800; margin-top:2px; color:var(--faint); }
