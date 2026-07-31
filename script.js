@@ -1994,7 +1994,7 @@ btnSimAbasteceu.addEventListener('click', function() { etapaAbasteceu.style.disp
 btnNaoAbasteceu.addEventListener('click', function() { modalCombustivel.style.display = 'none'; mostrarStreak(); });
 btnCancelarComb.addEventListener('click', function() { modalCombustivel.style.display = 'none'; mostrarStreak(); });
 
-['tipoGasolina','tipoEtanol','tipoFlex','tipoGNV','tipoMisto'].forEach(id => {
+['tipoGasolina','tipoEtanol','tipoFlex','tipoGNV','tipoDiesel','tipoMisto'].forEach(id => {
   document.querySelector('#' + id).addEventListener('click', function() {
     document.querySelectorAll('#etapaFormComb .tipo-btn').forEach(b => b.classList.remove('ativo'));
     this.classList.add('ativo');
@@ -2021,7 +2021,7 @@ btnConfirmarComb.addEventListener('click', function() {
 });
 
 // ─── TELA COMBUSTÍVEL ────────────────────────────────────────
-['tipoGasolinaTela','tipoEtanolTela','tipoFlexTela','tipoGNVTela','tipoMistoTela'].forEach(id => {
+['tipoGasolinaTela','tipoEtanolTela','tipoFlexTela','tipoGNVTela','tipoDieselTela','tipoMistoTela'].forEach(id => {
   document.querySelector('#' + id).addEventListener('click', function() {
     document.querySelectorAll('#modalAbastecer .tipo-btn').forEach(b => b.classList.remove('ativo'));
     this.classList.add('ativo');
@@ -2311,7 +2311,7 @@ function renderExtrato() {
 // ═══════════════════════════════════════════════════════════════
 //  BLOCO "POR TIPO DE COMBUSTÍVEL" — comparador que gera insight
 // ═══════════════════════════════════════════════════════════════
-const TIPO_CLASSE = { 'Gasolina':'gas', 'Etanol':'eta', 'Flex':'flex', 'GNV':'gnv', '50/50':'mist' };
+const TIPO_CLASSE = { 'Gasolina':'gas', 'Etanol':'eta', 'Flex':'flex', 'GNV':'gnv', 'Diesel':'dies', '50/50':'mist' };
 function renderPorTipo(registros) {
   const bloco  = document.getElementById('tiposBloco');
   const lista  = document.getElementById('tiposLista');

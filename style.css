@@ -534,7 +534,7 @@ h2.tela-h{ font-size:20px; font-weight:800; margin-bottom:16px; }
 .tipo-linha-topo{ display:flex; justify-content:space-between; align-items:baseline; font-size:12.5px; margin-bottom:5px; }
 .tipo-linha-nome{ display:flex; align-items:center; gap:6px; color:var(--text); font-weight:700; }
 .tipo-linha-nome .dot{ width:9px; height:9px; border-radius:50%; }
-.tipo-linha-nome .dot.gas{ background:var(--signal); } .tipo-linha-nome .dot.eta{ background:var(--money); } .tipo-linha-nome .dot.flex{ background:var(--info); } .tipo-linha-nome .dot.gnv{ background:var(--purple); } .tipo-linha-nome .dot.mist{ background:#c78a3a; }
+.tipo-linha-nome .dot.gas{ background:var(--signal); } .tipo-linha-nome .dot.eta{ background:var(--money); } .tipo-linha-nome .dot.flex{ background:var(--info); } .tipo-linha-nome .dot.gnv{ background:var(--purple); } .tipo-linha-nome .dot.dies{ background:#8a95a3; } .tipo-linha-nome .dot.mist{ background:#c78a3a; }
 .tipo-linha-val{ color:var(--dim); font-family:'Sora'; font-weight:600; }
 .tipo-linha-val b{ color:var(--text); font-weight:800; }
 .tipo-linha-bar{ height:6px; border-radius:4px; background:#0e1620; overflow:hidden; }
