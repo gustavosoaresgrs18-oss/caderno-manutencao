@@ -2022,11 +2022,14 @@ function calcCustoPorKm() {
   const v = numBR(inputValorComb.value), k = kmTurnoAtual;
   combPreviewVal.textContent = (v > 0 && k > 0) ? fmtBRL((v/k)) + '/km' : '— /km';
 }
+let _lockSalvar = false;   // trava anti-clique-duplo dos botões de salvar
 btnConfirmarComb.addEventListener('click', function() {
   const valor  = numBR(inputValorComb.value);
   const litros = numBR(inputLitrosComb.value) || null;
   const posto  = document.querySelector('#inputPostoComb').value.trim() || null;
   if (!valor || valor <= 0) { toast('Informe o valor gasto', 'erro'); return; }
+  if (_lockSalvar) return;
+  _lockSalvar = true; setTimeout(() => { _lockSalvar = false; }, 800);
   const cpm = kmTurnoAtual > 0 ? (valor / kmTurnoAtual).toFixed(2) : null;
   // km desconhecido não vira zero: vira "não sei" — e fica fora da média
   salvarAbastecimento(tipoSelecionado, valor, litros, kmTurnoAtual || null, cpm, posto);
@@ -2089,6 +2092,8 @@ document.querySelector('#btnSalvarTela').addEventListener('click', function() {
   const km     = numBR(document.querySelector('#inputKmTela').value) || null;
   const posto  = document.querySelector('#inputPostoTela').value.trim() || null;
   if (!valor || valor <= 0) { toast('Informe o valor gasto', 'erro'); return; }
+  if (_lockSalvar) return;
+  _lockSalvar = true; setTimeout(() => { _lockSalvar = false; }, 800);
   const ehEdicao = !!editandoAbastId;   // só o registro NOVO dispara o balão (edição não)
   if (editandoAbastId) {
     const h = lerLS('historicoAbastecimentos', []);
@@ -2813,6 +2818,8 @@ function aprenderTaxa(bruto, liquido) {
 btnConfirmarReceita.addEventListener('click', function() {
   const valor = numBR(document.getElementById('inputReceita').value);
   if (!valor || valor <= 0) { toast('Informe o valor recebido', 'erro'); return; }
+  if (_lockSalvar) return;
+  _lockSalvar = true; setTimeout(() => { _lockSalvar = false; }, 800);
   const brutoOpc = 0;   // campo de bruto opcional removido (modo simples)
   const combHoje = combustívelHoje();
   const c = contaReceita(valor, brutoOpc);
