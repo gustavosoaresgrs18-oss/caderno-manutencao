@@ -308,8 +308,9 @@
           </div>
           <div class="comb-field"><label>Valor gasto (R$)</label><input type="text" inputmode="decimal" id="inputValorTela" placeholder="Ex: 45,00" oninput="calcCustoPorKmTela()"></div>
           <div class="comb-field destaque-km">
-            <label>Km rodados hoje <b>· importante</b></label>
-            <input type="text" inputmode="numeric" id="inputKmTela" placeholder="Ex: 87" oninput="calcCustoPorKmTela()">
+            <label>Km desde o último abastecimento <span style="color:var(--dim);font-weight:400;">(opcional)</span></label>
+            <input type="text" inputmode="numeric" id="inputKmTela" placeholder="Ex: 320" oninput="calcCustoPorKmTela()">
+            <div style="font-size:11.5px;color:var(--dim);margin-top:5px;">Se souber, eu calculo o rendimento desse tanque. Pode deixar em branco.</div>
             <div class="campo-dica">é isso que calcula seu custo por km — não confunda com litros</div>
           </div>
           <div class="linha-dupla">
@@ -835,7 +836,7 @@
           <div class="modal-streak-label">dias seguidos!</div>
           <div class="modal-streak-data" id="modalStreakData"></div>
           <div class="modal-streak-info" id="modalStreakInfo"></div>
-          <button class="modal-streak-btn" id="modalStreakBtn">Arrasou! Continuar 🏍️</button>
+          <button class="modal-streak-btn" id="modalStreakBtn">Continuar 🏍️</button>
         </div>
       </div>
 
