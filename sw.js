@@ -6,7 +6,7 @@
    O cache aqui serve so pra ele nao ficar na mao sem sinal.
    ============================================================ */
 
-const CACHE = 'copiloto-v2';
+const CACHE = 'copiloto-v3';
 
 const ESSENCIAIS = [
   './',
@@ -14,8 +14,8 @@ const ESSENCIAIS = [
   './style.css',
   './script.js',
   './manifest.json',
-  './icone192.png',
-  './icone512.png'
+  './icone-192.png',
+  './icone-512.png'
 ];
 
 // Instala: guarda uma copia de reserva pro offline
