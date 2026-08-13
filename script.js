@@ -682,7 +682,74 @@ function finalizarCadastro() {
   // salvarLS('guiaPendente', true);
   iniciarApp(perfil);
   abrirPresenteCaramelo(perfil.nome.split(' ')[0]);   // ganha o filhote de boas-vindas
+
+  // Supabase (Fatia 1): cria a conta em paralelo. Se falhar (sem internet, e-mail
+  // já em uso, CDN bloqueado) o cadastro local já está feito — o app não trava
+  // esperando a nuvem. A migração sobe o histórico assim que o login é confirmado.
+  if (typeof sbCadastrar === 'function' && perfil.email && perfil.senha) {
+    sbCadastrar(perfil.email, perfil.senha).then(function (r) {
+      if (r.ok && r.usuario && typeof migrarMotoristaAntigo === 'function') {
+        migrarMotoristaAntigo(r.usuario.id);
+      }
+    }).catch(function () {});
+  }
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  LOGIN (Supabase — Fatia 1)
+//  Só existe pra um caso: motorista que já tem conta e trocou de
+//  celular/navegador (o localStorage local está vazio). Depois de
+//  entrar, puxa os dados da nuvem e abre o app normalmente.
+//  Nunca aparece pra quem já tem perfilUsuario local — esse caminho
+//  continua 100% o mesmo de sempre, sem tocar no Supabase na hora.
+// ═══════════════════════════════════════════════════════════════
+function abrirLoginExistente() {
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginSenha').value = '';
+  document.getElementById('loginErro').style.display = 'none';
+  document.getElementById('modalLogin').style.display = 'flex';
+}
+function toggleSenhaLogin() {
+  const inp = document.getElementById('loginSenha');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+document.getElementById('btnCancelarLogin').addEventListener('click', function () {
+  document.getElementById('modalLogin').style.display = 'none';
+});
+document.getElementById('btnConfirmarLogin').addEventListener('click', async function () {
+  const btn   = this;
+  const email = document.getElementById('loginEmail').value.trim();
+  const senha = document.getElementById('loginSenha').value.trim();
+  const erro  = document.getElementById('loginErro');
+  if (!email || !senha) { erro.textContent = 'Preencha e-mail e senha.'; erro.style.display = 'block'; return; }
+  if (typeof sbEntrar !== 'function') { erro.textContent = 'Sem conexão com a nuvem agora. Tente de novo em instantes.'; erro.style.display = 'block'; return; }
+  erro.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Entrando...';
+  const r = await sbEntrar(email, senha);
+  if (!r.ok) {
+    btn.disabled = false; btn.textContent = 'Entrar';
+    erro.textContent = 'E-mail ou senha incorretos.'; erro.style.display = 'block';
+    return;
+  }
+  btn.textContent = 'Puxando seus dados...';
+  let restaurou = { ok: false };
+  if (typeof restaurarDoSupabase === 'function') {
+    restaurou = await restaurarDoSupabase(r.usuario.id);
+  }
+  btn.disabled = false; btn.textContent = 'Entrar';
+  document.getElementById('modalLogin').style.display = 'none';
+  const perfil = lerLS('perfilUsuario', null);
+  if (restaurou.ok && perfil && perfil.nome) {
+    toast('☁️ Dados restaurados da nuvem!');
+    document.getElementById('telaCadastro').style.display = 'none';
+    iniciarApp(perfil);
+  } else {
+    // logou certinho, mas essa conta ainda não tem nada salvo na nuvem
+    // (ex: criou a conta e nunca chegou a migrar). Não trava o motorista.
+    erro.textContent = 'Login feito, mas não achei dados salvos na nuvem pra essa conta ainda.';
+    erro.style.display = 'block';
+  }
+});
 
 // ═══════════════════════════════════════════════════════════════
 //  PRESENTE DE BOAS-VINDAS: o cara ganha o Caramelo filhote
@@ -823,6 +890,16 @@ window.addEventListener('DOMContentLoaded', function () {
   const perfil = lerLS('perfilUsuario', null);
   if (perfil && perfil.nome) iniciarApp(perfil);
   else document.getElementById('telaCadastro').style.display = 'block';
+
+  // Supabase (Fatia 1): inicia em paralelo — se estiver offline ou o CDN falhar,
+  // o app segue 100% funcional local (é só a nuvem que fica pra depois).
+  if (typeof inicializarSupabase === 'function') {
+    inicializarSupabase(function (evento, usuario) {
+      if (evento === 'SIGNED_IN' && usuario && typeof migrarMotoristaAntigo === 'function') {
+        migrarMotoristaAntigo(usuario.id);
+      }
+    }).catch(function (e) { console.warn('[Copiloto] Supabase indisponível agora:', e); });
+  }
 });
 
 // ─── SELETORES ───────────────────────────────────────────────
@@ -1921,7 +1998,12 @@ function aplicarVeiculoNaTela() {
 
 // ─── GRAVA O KM E FECHA O DIA ────────────────────────────────
 function aplicarKmEFecharTurno(valor) {
-  const hoje    = new Date().toLocaleDateString();
+  // ⚠️ CORREÇÃO (auditoria): era `new Date().toLocaleDateString()` sem locale
+  // — o formato depende do idioma do aparelho (en-US, pt-BR, etc dão strings
+  // diferentes pro mesmo dia). Era o ÚNICO lugar do app que não usava
+  // hojeISO(). Se o motorista mudasse o idioma do celular entre dois
+  // fechamentos, a comparação de "mesmo dia" quebrava silenciosamente.
+  const hoje    = hojeISO();
   const vidUsar = vidAtivo();
   const registroAtual = lerLS('registroHoje', null);
 
@@ -1993,6 +2075,9 @@ function abrirModalCombustivel() {
   inputValorComb.value = '';
   inputLitrosComb.value = '';
   document.querySelector('#inputPostoComb').value = '';
+  // pré-preenche com o km que acabou de fechar no turno — visível e editável,
+  // igual ao campo da aba Combustível (antes ficava escondido e não dava pra corrigir)
+  document.querySelector('#inputKmComb').value = kmTurnoAtual > 0 ? kmTurnoAtual : '';
   combPreviewVal.textContent = '— /km';
   modalCombustivel.style.display = 'flex';
 }
@@ -2019,20 +2104,22 @@ function aplicarUltimoTipo(containerSel) {
   });
 });
 function calcCustoPorKm() {
-  const v = numBR(inputValorComb.value), k = kmTurnoAtual;
+  const v = numBR(inputValorComb.value);
+  const k = numBR(document.querySelector('#inputKmComb').value);
   combPreviewVal.textContent = (v > 0 && k > 0) ? fmtBRL((v/k)) + '/km' : '— /km';
 }
 let _lockSalvar = false;   // trava anti-clique-duplo dos botões de salvar
 btnConfirmarComb.addEventListener('click', function() {
   const valor  = numBR(inputValorComb.value);
+  const km     = numBR(document.querySelector('#inputKmComb').value) || null;
   const litros = numBR(inputLitrosComb.value) || null;
   const posto  = document.querySelector('#inputPostoComb').value.trim() || null;
   if (!valor || valor <= 0) { toast('Informe o valor gasto', 'erro'); return; }
   if (_lockSalvar) return;
   _lockSalvar = true; setTimeout(() => { _lockSalvar = false; }, 800);
-  const cpm = kmTurnoAtual > 0 ? (valor / kmTurnoAtual).toFixed(2) : null;
+  const cpm = (valor && km) ? (valor / km).toFixed(2) : null;
   // km desconhecido não vira zero: vira "não sei" — e fica fora da média
-  salvarAbastecimento(tipoSelecionado, valor, litros, kmTurnoAtual || null, cpm, posto);
+  salvarAbastecimento(tipoSelecionado, valor, litros, km, cpm, posto);
   salvarLS('ultimoTipoComb', tipoSelecionado);   // lembra pro próximo abastecimento
   atualizarCustoRealKm();
   modalCombustivel.style.display = 'none';
@@ -2082,6 +2169,9 @@ function excluirAbastecimento(id) {
     let h = lerLS('historicoAbastecimentos', []);
     h = h.filter(r => r.id !== id);
     salvarLS('historicoAbastecimentos', h);
+    if (typeof excluirRegistroHibrido === 'function') {
+      excluirRegistroHibrido('abastecimentos', 'id', id).catch(function () {});
+    }
     refreshAposAbast();
     toast('Abastecimento apagado');
   });
@@ -2103,6 +2193,12 @@ document.querySelector('#btnSalvarTela').addEventListener('click', function() {
       r.ppl = (valor && litros) ? (valor / litros).toFixed(2) : null;
       r.cpm = (valor && km)     ? (valor / km).toFixed(2)     : null;
       salvarLS('historicoAbastecimentos', h);
+      if (typeof salvarRegistroHibrido === 'function') {
+        salvarRegistroHibrido('abastecimentos', {
+          id: r.id, data_iso: r.dataISO, tipo: r.tipo, valor: r.valor,
+          litros: r.litros, km: r.km, cpm: r.cpm, posto: r.posto
+        }, 'id').catch(function () {});
+      }
       refreshAposAbast();
     }
     editandoAbastId = null;
@@ -2145,15 +2241,24 @@ function migrarIdsAbastecimento() {
 function salvarAbastecimento(tipo, valor, litros, km, cpm, posto) {
   const ppl = (valor && litros) ? (valor / litros).toFixed(2) : null;
   let historico = lerLS('historicoAbastecimentos', []);
-  historico.unshift({
+  const registro = {
     data: new Date().toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' }),
     id: gerarIdAbast(),
     dataISO: hojeISO(),   // data completa pra filtrar por mês/semana no extrato
     vid: vidAtivo(),      // de QUAL veículo é esse combustível (a média não mistura)
     tipo, valor, litros, km, cpm, ppl, posto: posto || null
-  });
+  };
+  historico.unshift(registro);
   if (historico.length > 1000) historico = historico.slice(0, 1000);   // guarda bastante coisa
   salvarLS('historicoAbastecimentos', historico);
+  // Supabase (Fatia 1): sobe em paralelo — nunca trava a UI, offline vira fila.
+  if (typeof salvarRegistroHibrido === 'function') {
+    salvarRegistroHibrido('abastecimentos', {
+      id: registro.id, data_iso: registro.dataISO, tipo: registro.tipo,
+      valor: registro.valor, litros: registro.litros, km: registro.km,
+      cpm: registro.cpm, posto: registro.posto
+    }, 'id').catch(function () {});
+  }
   refreshAposAbast();
 }
 function refreshAposAbast() {
@@ -2669,6 +2774,9 @@ function excluirDoc(tipoId) {
     const docs = lerLS('documentos', {});
     delete docs[tipoId];
     salvarLS('documentos', docs);
+    if (typeof excluirRegistroHibrido === 'function') {
+      excluirRegistroHibrido('documentos', 'tipo_id', tipoId).catch(function () {});
+    }
     atualizarTelaDocumentos();
     atualizarDocumentosDashboard();
     toast('Documento removido.');
@@ -2684,6 +2792,9 @@ document.querySelector('#btnSalvarDoc').addEventListener('click', function() {
   const docs = lerLS('documentos', {});
   docs[tipoId] = { vencimento: venc, obs, nome };
   salvarLS('documentos', docs);
+  if (typeof salvarRegistroHibrido === 'function') {
+    salvarRegistroHibrido('documentos', { tipo_id: tipoId, nome, vencimento: venc, obs }, 'usuario_id,tipo_id').catch(function () {});
+  }
   document.getElementById('modalDoc').style.display = 'none';
   atualizarTelaDocumentos();
   atualizarDocumentosDashboard();
@@ -2707,6 +2818,9 @@ document.querySelector('#btnSalvarNovoDoc').addEventListener('click', function()
   const docs = lerLS('documentos', {});
   docs[id]   = { vencimento: venc, obs, nome, icone: '📋' };
   salvarLS('documentos', docs);
+  if (typeof salvarRegistroHibrido === 'function') {
+    salvarRegistroHibrido('documentos', { tipo_id: id, nome, vencimento: venc, obs }, 'usuario_id,tipo_id').catch(function () {});
+  }
   document.getElementById('modalNovoDoc').style.display = 'none';
   atualizarTelaDocumentos();
   atualizarDocumentosDashboard();
@@ -2846,6 +2960,13 @@ btnConfirmarReceita.addEventListener('click', function() {
     odo: kmAtual, kmDia: kmRodadoHoje(), vid: vidAtivo()
   });
   salvarLS('historicoFinancas', historicoF);
+  // Supabase (Fatia 1): sobe em paralelo. onConflict por data — 1 linha por dia, igual ao local.
+  if (typeof salvarRegistroHibrido === 'function') {
+    salvarRegistroHibrido('financas', {
+      data_iso: hojeISO(), receita: c.bruto, liquido: lucro,
+      taxa_real: c.taxa, km_dia: kmRodadoHoje(), despesas: desp
+    }, 'usuario_id,data_iso').catch(function () {});
+  }
   atualizarBannerLucro();
   modalReceita.style.display = 'none';
   atualizarResumoDia();       // atualiza ganho/hora e meta no dashboard
@@ -3200,6 +3321,11 @@ function adicionarDespesa() {
   if (!despCatSel) return;
   const valor = numBR(document.getElementById('despInputValor').value);
   if (!valor || valor <= 0) { toast('Informe um valor', 'erro'); return; }
+  // trava anti-clique-duplo (mesmo BUG-001 da v3.16) — aqui faltava. Despesa usa
+  // lista.push (soma), diferente de documento/manutenção que sobrescrevem por
+  // chave, então um duplo-toque aqui realmente duplicava o lançamento.
+  if (_lockSalvar) return;
+  _lockSalvar = true; setTimeout(() => { _lockSalvar = false; }, 800);
   const lista = lerDespesasDia(hojeISO());
   lista.push({
     id: 'dp' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
