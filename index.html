@@ -994,7 +994,7 @@
             <div class="aj-sec-tit">👤 Perfil</div>
             <label class="aj-label" for="ajNome">Seu nome</label>
             <input type="text" id="ajNome" class="aj-input" placeholder="Seu nome" autocomplete="off">
-            <button class="modal-btn confirmar" id="ajBtnSalvarNome" style="margin-top:10px; width:100%;">Salvar nome</button>
+            <button class="modal-btn cancelar" id="ajBtnSalvarNome" style="margin-top:10px; width:100%;">Salvar nome</button>
           </div>
 
           <div class="aj-sec">
@@ -1024,13 +1024,14 @@
 
           <div class="aj-sec">
             <div class="aj-sec-tit">💾 Dados</div>
-            <button class="modal-btn confirmar" id="ajBtnBackup" style="width:100%; margin-bottom:8px;">⬇️ Baixar backup</button>
-            <button class="modal-btn cancelar" id="ajBtnRestaurar" style="width:100%; margin-bottom:8px;">⬆️ Restaurar backup</button>
+            <button class="modal-btn cancelar" id="ajBtnSair" style="width:100%; display:none;">Sair da conta</button>
+            <div class="aj-dica" id="ajSairDica" style="display:none; margin-bottom:12px;">Você pode entrar de novo quando quiser.</div>
+            <button class="modal-btn cancelar" id="ajBtnApagar" style="width:100%; color:var(--danger); border-color:var(--danger);">Apagar tudo</button>
             <input type="file" id="ajInputRestore" accept="application/json,.json" style="display:none;">
-            <button class="modal-btn cancelar" id="ajBtnApagar" style="width:100%; color:var(--danger); border-color:var(--danger);">🗑️ Apagar tudo</button>
-            <div class="aj-dica">O backup salva tudo num arquivo, aqui no seu aparelho. É a sua rede de segurança mesmo sem internet.</div>
-            <button class="modal-btn cancelar" id="ajBtnSair" style="width:100%; margin-top:14px; display:none;">🚪 Sair da conta</button>
-            <div class="aj-dica" id="ajSairDica" style="display:none;">Você pode entrar de novo quando quiser.</div>
+            <div style="display:flex; gap:16px; justify-content:center; margin-top:16px;">
+              <button id="ajBtnBackup" class="aj-link">Baixar cópia</button>
+              <button id="ajBtnRestaurar" class="aj-link">Restaurar cópia</button>
+            </div>
           </div>
         </div>
       </div>
