@@ -758,6 +758,9 @@ function abrirLoginExistente(emailSugerido) {
   document.getElementById('loginErro').style.display = 'none';
   document.getElementById('modalLogin').style.display = 'flex';
 }
+document.getElementById('btnFecharLogin').addEventListener('click', function () {
+  document.getElementById('modalLogin').style.display = 'none';
+});
 document.getElementById('btnEsqueciSenha').addEventListener('click', async function () {
   const btn   = this;
   const email = document.getElementById('loginEmail').value.trim();
@@ -768,11 +771,11 @@ document.getElementById('btnEsqueciSenha').addEventListener('click', async funct
   const r = await sbRecuperarSenha(email);
   btn.disabled = false; btn.textContent = 'Esqueci minha senha';
   if (r.ok) {
-    erro.style.color = 'var(--money)';
-    erro.textContent = 'Enviei um e-mail para ' + email + '. Abra o link para criar uma senha nova.';
-    erro.style.display = 'block';
+    // Sucesso NÃO usa a caixa de erro: texto verde dentro de caixa vermelha
+    // se contradiz e faz parecer que deu errado.
+    erro.style.display = 'none';
+    toast('📧 Enviei um e-mail para você criar uma senha nova');
   } else {
-    erro.style.color = '';
     erro.textContent = r.limite
       ? 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.'
       : 'Não consegui enviar agora. Confira o e-mail e tente de novo.';
@@ -1704,6 +1707,7 @@ function configurarManutencaoPorVeiculo(veiculo) {
 }
 // NOVO: salva as trocas no localStorage (antes elas sumiam ao recarregar!)
 function salvarManutencao() {
+  if (bloquearSemLogin()) return;   // sem entrar na conta, nao lanca
   const salvos = lerManutVeic();
   [1, 2, 3].forEach(n => {
     const it = manutencoes['item' + n];
@@ -2170,7 +2174,14 @@ function abrirModalCombustivel() {
   modalCombustivel.style.display = 'flex';
 }
 btnSimAbasteceu.addEventListener('click', function() { etapaAbasteceu.style.display = 'none'; etapaFormComb.style.display = 'block'; tipoSelecionado = aplicarUltimoTipo('#etapaFormComb'); });
-btnNaoAbasteceu.addEventListener('click', function() { modalCombustivel.style.display = 'none'; mostrarStreak(); });
+btnNaoAbasteceu.addEventListener('click', function() {
+  modalCombustivel.style.display = 'none';
+  mostrarStreak();
+  // Fechou o turno e não abasteceu: o turno JÁ foi registrado (cortesia),
+  // então aqui o login é pedido depois, sem travar nada. Sem isto, quem
+  // nunca abastece nunca seria lembrado de entrar.
+  setTimeout(exigirLoginSePreciso, 1200);   // deixa o streak aparecer primeiro
+});
 btnCancelarComb.addEventListener('click', function() { modalCombustivel.style.display = 'none'; mostrarStreak(); });
 
 // aplica o último combustível usado (destaca o botão certo e devolve o nome)
@@ -2203,6 +2214,7 @@ btnConfirmarComb.addEventListener('click', function() {
   const litros = numBR(inputLitrosComb.value) || null;
   const posto  = document.querySelector('#inputPostoComb').value.trim() || null;
   if (!valor || valor <= 0) { toast('Informe o valor gasto', 'erro'); return; }
+  if (bloquearSemLogin()) return;   // sem entrar na conta, nao lanca
   if (_lockSalvar) return;
   _lockSalvar = true; setTimeout(() => { _lockSalvar = false; }, 800);
   const cpm = (valor && km) ? (valor / km).toFixed(2) : null;
@@ -2270,6 +2282,7 @@ document.querySelector('#btnSalvarTela').addEventListener('click', function() {
   const km     = numBR(document.querySelector('#inputKmTela').value) || null;
   const posto  = document.querySelector('#inputPostoTela').value.trim() || null;
   if (!valor || valor <= 0) { toast('Informe o valor gasto', 'erro'); return; }
+  if (bloquearSemLogin()) return;   // sem entrar na conta, nao lanca
   if (_lockSalvar) return;
   _lockSalvar = true; setTimeout(() => { _lockSalvar = false; }, 800);
   const ehEdicao = !!editandoAbastId;   // só o registro NOVO dispara o balão (edição não)
@@ -2348,7 +2361,6 @@ function salvarAbastecimento(tipo, valor, litros, km, cpm, posto) {
     }, 'id').catch(function () {});
   }
   refreshAposAbast();
-  exigirLoginSePreciso();
 }
 function refreshAposAbast() {
   ressincronizarReceitaHoje();
@@ -2878,6 +2890,7 @@ document.querySelector('#btnSalvarDoc').addEventListener('click', function() {
   const venc   = document.getElementById('inputDocVencimento').value;
   const obs    = document.getElementById('inputDocObs').value.trim();
   if (!venc) { toast('Informe a data de vencimento', 'erro'); return; }
+  if (bloquearSemLogin()) return;   // sem entrar na conta, nao lanca
   const docs = lerLS('documentos', {});
   docs[tipoId] = { vencimento: venc, obs, nome };
   salvarLS('documentos', docs);
@@ -2903,6 +2916,7 @@ document.querySelector('#btnSalvarNovoDoc').addEventListener('click', function()
   const obs  = document.getElementById('inputNovoDocObs').value.trim();
   if (!nome) { toast('Informe o nome do documento', 'erro'); return; }
   if (!venc) { toast('Informe a data de vencimento', 'erro'); return; }
+  if (bloquearSemLogin()) return;   // sem entrar na conta, nao lanca
   const id   = 'custom_' + Date.now();
   const docs = lerLS('documentos', {});
   docs[id]   = { vencimento: venc, obs, nome, icone: '📋' };
@@ -3021,6 +3035,7 @@ function aprenderTaxa(bruto, liquido) {
 btnConfirmarReceita.addEventListener('click', function() {
   const valor = numBR(document.getElementById('inputReceita').value);
   if (!valor || valor <= 0) { toast('Informe o valor recebido', 'erro'); return; }
+  if (bloquearSemLogin()) return;   // sem entrar na conta, nao lanca
   if (_lockSalvar) return;
   _lockSalvar = true; setTimeout(() => { _lockSalvar = false; }, 800);
   const brutoOpc = 0;   // campo de bruto opcional removido (modo simples)
@@ -3063,7 +3078,6 @@ btnConfirmarReceita.addEventListener('click', function() {
   toast('✅ Receita do dia salva!');
   ptsHook('receita', 'rec:' + hojeISO());
   dispararBalaoProg('receita');          // balão que ENSINA na 1ª receita (1x só)
-  exigirLoginSePreciso();
 });
 
 
@@ -3161,13 +3175,15 @@ function abrirAjustes() {
   document.getElementById('modalAjustes').style.display = 'flex';
 }
 document.getElementById('ajBtnSair').addEventListener('click', function () {
+  // Fecha os Ajustes ANTES de pedir a confirmação: senão a confirmação sobe
+  // atrás do painel e o motorista precisa fechar um pra ver o outro.
+  document.getElementById('modalAjustes').style.display = 'none';
   pedirConfirmacao(
     '🚪 Sair da conta',
-    'Seus lançamentos continuam salvos aqui no aparelho. Para voltar a salvar suas alterações, é só entrar de novo. Quer sair?',
+    'Você vai precisar entrar de novo para salvar suas alterações. Quer sair?',
     async function () {
       if (typeof sbSair === 'function') await sbSair();
       _pediuLogin = false;                 // volta a poder pedir login no próximo lançamento
-      document.getElementById('modalAjustes').style.display = 'none';
       toast('Você saiu da conta');
     }
   );
@@ -3181,15 +3197,40 @@ document.getElementById('ajBtnSair').addEventListener('click', function () {
 //      é PWA — tem que funcionar sem sinal. Salva local e sobe depois;
 //   3. quem nunca criou conta não é incomodado;
 //   4. pede uma vez por sessão, não a cada clique.
+// ─── Login exigido ao lançar ──────────────────────────────────
+// Regra combinada com o dono do produto:
+//   • Bora rodar (encerrar turno) → deixa fechar e pede login DEPOIS.
+//     É o momento mais crítico do dia: ele rodou o turno inteiro e está
+//     fechando o km. Interromper aqui seria o pior lugar possível.
+//   • Receita, abastecimento, despesa, manutenção, documento → login ANTES
+//     de registrar. Sem entrar, não lança.
+//   • Sem internet → tudo passa. Não há como entrar sem sinal, e o app é
+//     PWA: tem que funcionar em túnel, estrada, chip sem dados.
+//   • Quem nunca criou conta não é incomodado.
+function precisaLogin() {
+  if (!navigator.onLine) return false;
+  if (typeof usuarioLogado !== 'function' || typeof getSB !== 'function') return false;
+  if (usuarioLogado()) return false;
+  const p = lerLS('perfilUsuario', null);
+  return !!(p && p.email);
+}
+
+// Telas que BLOQUEIAM: quem chama faz `if (bloquearSemLogin()) return;`
+// ANTES de salvar — o lançamento não acontece sem entrar.
+function bloquearSemLogin() {
+  if (!precisaLogin()) return false;
+  const p = lerLS('perfilUsuario', null);
+  abrirLoginExistente(p && p.email);
+  return true;
+}
+
+// Só no fecha-turno: o registro já aconteceu, o login vem depois.
 function exigirLoginSePreciso() {
   if (_pediuLogin) return;
-  if (!navigator.onLine) return;
-  if (typeof usuarioLogado !== 'function' || typeof getSB !== 'function') return;
-  if (usuarioLogado()) return;
-  const p = lerLS('perfilUsuario', null);
-  if (!p || !p.email) return;
+  if (!precisaLogin()) return;
   _pediuLogin = true;
-  abrirLoginExistente(p.email);
+  const p = lerLS('perfilUsuario', null);
+  abrirLoginExistente(p && p.email);
 }
 function fecharAjustes() { document.getElementById('modalAjustes').style.display = 'none'; }
 
@@ -3447,6 +3488,7 @@ function adicionarDespesa() {
   if (!despCatSel) return;
   const valor = numBR(document.getElementById('despInputValor').value);
   if (!valor || valor <= 0) { toast('Informe um valor', 'erro'); return; }
+  if (bloquearSemLogin()) return;   // sem entrar na conta, nao lanca
   // trava anti-clique-duplo (mesmo BUG-001 da v3.16) — aqui faltava. Despesa usa
   // lista.push (soma), diferente de documento/manutenção que sobrescrevem por
   // chave, então um duplo-toque aqui realmente duplicava o lançamento.

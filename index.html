@@ -574,7 +574,8 @@
 
       <!-- ══════════ MODAL LOGIN (Supabase — Fatia 1) ══════════ -->
       <div class="modal-overlay" id="modalLogin">
-        <div class="modal-caixa">
+        <div class="modal-caixa" style="position:relative;">
+          <button id="btnFecharLogin" style="position:absolute;top:10px;right:14px;background:none;border:none;color:var(--dim);font-size:24px;line-height:1;cursor:pointer;padding:4px 8px;">×</button>
           <h2 class="modal-titulo">🔑 Entrar na sua conta</h2>
           <p class="modal-desc" style="margin-bottom:14px">Usa o e-mail e a senha que você cadastrou.</p>
           <div class="cad-field"><label>E-mail</label><input type="email" id="loginEmail" name="email" autocomplete="username" placeholder="Ex: gustavo@email.com"></div>
@@ -1029,7 +1030,7 @@
             <button class="modal-btn cancelar" id="ajBtnApagar" style="width:100%; color:var(--danger); border-color:var(--danger);">🗑️ Apagar tudo</button>
             <div class="aj-dica">O backup salva tudo num arquivo, aqui no seu aparelho. É a sua rede de segurança mesmo sem internet.</div>
             <button class="modal-btn cancelar" id="ajBtnSair" style="width:100%; margin-top:14px; display:none;">🚪 Sair da conta</button>
-            <div class="aj-dica" id="ajSairDica" style="display:none;">Seus lançamentos continuam aqui no aparelho. Para voltar a salvar suas alterações, é só entrar de novo.</div>
+            <div class="aj-dica" id="ajSairDica" style="display:none;">Você pode entrar de novo quando quiser.</div>
           </div>
         </div>
       </div>
