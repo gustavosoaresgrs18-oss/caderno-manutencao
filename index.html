@@ -41,11 +41,11 @@
             <div class="cad-step-title">Seus dados</div>
             <div class="cad-step-sub">Só o essencial pra começar</div>
             <div class="cad-field"><label>Nome completo</label><input type="text" id="cadNome" placeholder="Ex: Gustavo Silva"></div>
-            <div class="cad-field"><label>E-mail</label><input type="email" id="cadEmail" placeholder="Ex: gustavo@email.com"></div>
+            <div class="cad-field"><label>E-mail</label><input type="email" id="cadEmail" name="email" autocomplete="username" placeholder="Ex: gustavo@email.com"></div>
             <div class="cad-field">
               <label>Senha</label>
               <div class="senha-wrap">
-                <input type="password" id="cadSenha" placeholder="Mínimo 6 caracteres">
+                <input type="password" id="cadSenha" name="new-password" autocomplete="new-password" placeholder="Mínimo 6 caracteres">
                 <button class="senha-olho" onclick="toggleSenha()">👁️</button>
               </div>
             </div>
@@ -577,11 +577,11 @@
         <div class="modal-caixa">
           <h2 class="modal-titulo">🔑 Entrar na sua conta</h2>
           <p class="modal-desc" style="margin-bottom:14px">Usa o e-mail e a senha que você cadastrou.</p>
-          <div class="cad-field"><label>E-mail</label><input type="email" id="loginEmail" placeholder="Ex: gustavo@email.com"></div>
+          <div class="cad-field"><label>E-mail</label><input type="email" id="loginEmail" name="email" autocomplete="username" placeholder="Ex: gustavo@email.com"></div>
           <div class="cad-field">
             <label>Senha</label>
             <div class="senha-wrap">
-              <input type="password" id="loginSenha" placeholder="Sua senha">
+              <input type="password" id="loginSenha" name="password" autocomplete="current-password" placeholder="Sua senha">
               <button class="senha-olho" onclick="toggleSenhaLogin()">👁️</button>
             </div>
           </div>
@@ -1001,13 +1001,6 @@
             <div class="aj-dica">Toque num veículo pra passar a rodar nele. Trocar e adicionar nunca apagam histórico.</div>
           </div>
 
-          <div class="aj-sec">
-            <div class="aj-sec-tit">☁️ Minha conta</div>
-            <div id="ajContaStatus" class="aj-dica" style="margin-top:0; margin-bottom:8px;">Verificando...</div>
-            <button class="modal-btn confirmar" id="ajBtnEntrar" style="width:100%; margin-bottom:8px; display:none;">🔑 Entrar na minha conta</button>
-            <button class="modal-btn cancelar" id="ajBtnSair" style="width:100%; display:none;">Sair da conta</button>
-            <div class="aj-dica">Com a conta conectada, seus dados ficam salvos na nuvem. Se trocar de celular, é só entrar de novo.</div>
-          </div>
           <div class="aj-sec">
             <div class="aj-sec-tit">💾 Dados</div>
             <button class="modal-btn confirmar" id="ajBtnBackup" style="width:100%; margin-bottom:8px;">⬇️ Baixar backup</button>

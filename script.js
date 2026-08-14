@@ -704,7 +704,7 @@ function finalizarCadastro() {
 function avisarEmailJaCadastrado() {
   pedirConfirmacao(
     '📧 Esse e-mail já tem conta',
-    'Você já se cadastrou antes com esse e-mail. Seus dados de hoje estão salvos aqui no aparelho, mas para guardá-los na nuvem é preciso entrar na sua conta. Quer entrar agora?',
+    'Você já se cadastrou antes com esse e-mail. O que você registrou hoje está salvo aqui, mas é preciso entrar na sua conta para continuar salvando as suas alterações. Quer entrar agora?',
     function () { abrirLoginExistente(); }
   );
 }
@@ -736,7 +736,7 @@ document.getElementById('btnConfirmarLogin').addEventListener('click', async fun
   const senha = document.getElementById('loginSenha').value.trim();
   const erro  = document.getElementById('loginErro');
   if (!email || !senha) { erro.textContent = 'Preencha e-mail e senha.'; erro.style.display = 'block'; return; }
-  if (typeof sbEntrar !== 'function') { erro.textContent = 'Sem conexão com a nuvem agora. Tente de novo em instantes.'; erro.style.display = 'block'; return; }
+  if (typeof sbEntrar !== 'function') { erro.textContent = 'Sem conexão agora. Tente de novo em instantes.'; erro.style.display = 'block'; return; }
   erro.style.display = 'none';
   btn.disabled = true; btn.textContent = 'Entrando...';
   const r = await sbEntrar(email, senha);
@@ -758,8 +758,7 @@ document.getElementById('btnConfirmarLogin').addEventListener('click', async fun
     if (typeof sincronizarFilaOffline === 'function') await sincronizarFilaOffline();
     btn.disabled = false; btn.textContent = 'Entrar';
     document.getElementById('modalLogin').style.display = 'none';
-    if (typeof atualizarStatusConta === 'function') atualizarStatusConta();
-    toast('☁️ Conta conectada! Seus dados estão salvos.');
+    toast('✅ Pronto! Suas alterações estão sendo salvas.');
     return;
   }
 
@@ -772,13 +771,13 @@ document.getElementById('btnConfirmarLogin').addEventListener('click', async fun
   document.getElementById('modalLogin').style.display = 'none';
   const perfil = lerLS('perfilUsuario', null);
   if (restaurou.ok && perfil && perfil.nome) {
-    toast('☁️ Dados restaurados da nuvem!');
+    toast('✅ Tudo certo! Seus dados voltaram.');
     document.getElementById('telaCadastro').style.display = 'none';
     iniciarApp(perfil);
   } else {
     // logou certinho, mas essa conta ainda não tem nada salvo na nuvem
     // (ex: criou a conta e nunca chegou a migrar). Não trava o motorista.
-    erro.textContent = 'Login feito, mas não achei dados salvos na nuvem pra essa conta ainda.';
+    erro.textContent = 'Entrou certinho, mas essa conta ainda não tem dados salvos.';
     erro.style.display = 'block';
   }
 });
@@ -2292,6 +2291,7 @@ function salvarAbastecimento(tipo, valor, litros, km, cpm, posto) {
     }, 'id').catch(function () {});
   }
   refreshAposAbast();
+  avisarSessaoSePreciso();
 }
 function refreshAposAbast() {
   ressincronizarReceitaHoje();
@@ -3006,6 +3006,7 @@ btnConfirmarReceita.addEventListener('click', function() {
   toast('✅ Receita do dia salva!');
   ptsHook('receita', 'rec:' + hojeISO());
   dispararBalaoProg('receita');          // balão que ENSINA na 1ª receita (1x só)
+  avisarSessaoSePreciso();
 });
 
 
@@ -3095,49 +3096,32 @@ function abrirAjustes() {
   const p = getPerfil();
   document.getElementById('ajNome').value       = p.nome || '';
   renderVeiculosAjustes();
-  atualizarStatusConta();
   document.getElementById('modalAjustes').style.display = 'flex';
 }
 
-// ─── Seção "Minha conta" dos Ajustes ──────────────────────────
-// Existe por um motivo concreto: quem já usava o Copiloto antes da nuvem
-// nunca mais vê a tela de cadastro, então não tinha NENHUM caminho pra
-// conectar a conta. Aqui ele vê o status e resolve.
-function atualizarStatusConta() {
-  const box    = document.getElementById('ajContaStatus');
-  const btnIn  = document.getElementById('ajBtnEntrar');
-  const btnOut = document.getElementById('ajBtnSair');
-  if (!box) return;
-
-  if (typeof usuarioLogado !== 'function' || typeof getSB !== 'function') {
-    box.textContent = 'Nuvem indisponível agora. Seus dados seguem salvos no aparelho.';
-    btnIn.style.display = 'none'; btnOut.style.display = 'none';
-    return;
-  }
-  const u = usuarioLogado();
-  if (u && u.email) {
-    box.innerHTML = '✅ Conectado como <b>' + esc(u.email) + '</b>';
-    btnIn.style.display = 'none'; btnOut.style.display = 'block';
-  } else {
-    box.textContent = '⚠️ Você não está conectado. Seus dados estão só neste aparelho.';
-    btnIn.style.display = 'block'; btnOut.style.display = 'none';
-  }
-}
-document.getElementById('ajBtnEntrar').addEventListener('click', function () {
-  document.getElementById('modalAjustes').style.display = 'none';
-  abrirLoginExistente();
-});
-document.getElementById('ajBtnSair').addEventListener('click', function () {
+// ─── Aviso de sessão expirada ─────────────────────────────────
+// O motorista não deve precisar caçar isso nas configurações: o app
+// avisa na hora em que ele registra algo. Regras que não se quebram:
+//   1. o dado JÁ foi salvo antes deste aviso — nunca trava o registro;
+//   2. "Depois" é uma saída legítima: fica na fila e sobe ao entrar;
+//   3. só avisa uma vez por sessão, pra não virar praga a cada clique;
+//   4. não avisa quem está offline (não é sessão expirada, é internet)
+//      nem quem nunca teve conta.
+let _avisouSessao = false;
+function avisarSessaoSePreciso() {
+  if (_avisouSessao) return;
+  if (!navigator.onLine) return;
+  if (typeof usuarioLogado !== 'function' || typeof getSB !== 'function') return;
+  if (usuarioLogado()) return;                       // logado: nada a avisar
+  const p = lerLS('perfilUsuario', null);
+  if (!p || !p.email) return;                        // nunca teve conta: não enche o saco
+  _avisouSessao = true;
   pedirConfirmacao(
-    'Sair da conta',
-    'Seus dados continuam salvos aqui no aparelho. Você só para de sincronizar com a nuvem até entrar de novo. Quer sair?',
-    async function () {
-      if (typeof sbSair === 'function') await sbSair();
-      atualizarStatusConta();
-      toast('Você saiu da conta');
-    }
+    '🔑 Entre de novo',
+    'Sua sessão expirou. Entre de novo para continuar salvando as suas alterações.',
+    function () { abrirLoginExistente(); }
   );
-});
+}
 function fecharAjustes() { document.getElementById('modalAjustes').style.display = 'none'; }
 
 function renderVeiculosAjustes() {
