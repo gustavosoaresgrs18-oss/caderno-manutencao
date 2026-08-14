@@ -3219,6 +3219,11 @@ function precisaLogin() {
 // ANTES de salvar — o lançamento não acontece sem entrar.
 function bloquearSemLogin() {
   if (!precisaLogin()) return false;
+  // Fecha o que estiver aberto antes de subir o login: senão ele aparece
+  // ATRÁS do formulário e o motorista não entende o que aconteceu.
+  document.querySelectorAll('.modal-overlay, .modal-streak').forEach(function (m) {
+    if (m.id !== 'modalLogin') m.style.display = 'none';
+  });
   const p = lerLS('perfilUsuario', null);
   abrirLoginExistente(p && p.email);
   return true;
@@ -3229,6 +3234,9 @@ function exigirLoginSePreciso() {
   if (_pediuLogin) return;
   if (!precisaLogin()) return;
   _pediuLogin = true;
+  document.querySelectorAll('.modal-overlay, .modal-streak').forEach(function (m) {
+    if (m.id !== 'modalLogin') m.style.display = 'none';
+  });
   const p = lerLS('perfilUsuario', null);
   abrirLoginExistente(p && p.email);
 }
