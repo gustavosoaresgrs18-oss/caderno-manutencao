@@ -6,7 +6,7 @@
    O cache aqui serve so pra ele nao ficar na mao sem sinal.
    ============================================================ */
 
-const CACHE = 'copiloto-v3';
+const CACHE = 'copiloto-v4';
 
 const ESSENCIAIS = [
   './',

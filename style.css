@@ -191,6 +191,11 @@ h2.tela-h{ font-size:20px; font-weight:800; margin-bottom:16px; }
 
 /* ── MODAIS ── */
 .modal-overlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.78); justify-content:center; align-items:center; z-index:50; padding:16px; }
+/* Login e senha nova ficam ACIMA de qualquer outro modal: eles interrompem o
+   que o motorista estava fazendo, então precisam aparecer na frente. Sem isto
+   empatam em z-index 50 com os demais e o navegador desempata pela ordem do
+   HTML — o login acabava escondido atrás do formulário. */
+#modalLogin, #modalNovaSenha{ z-index:150; }
 .modal-caixa{ background:var(--elev); border:1px solid var(--line); border-radius:20px; padding:24px; width:100%; max-width:340px; max-height:90vh; overflow-y:auto; }
 .modal-titulo{ font-size:17px; font-weight:800; margin-bottom:12px; text-align:center; }
 .modal-desc{ font-size:12.5px; color:var(--dim); text-align:center; }
