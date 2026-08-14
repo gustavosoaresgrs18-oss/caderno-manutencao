@@ -683,16 +683,30 @@ function finalizarCadastro() {
   iniciarApp(perfil);
   abrirPresenteCaramelo(perfil.nome.split(' ')[0]);   // ganha o filhote de boas-vindas
 
-  // Supabase (Fatia 1): cria a conta em paralelo. Se falhar (sem internet, e-mail
-  // já em uso, CDN bloqueado) o cadastro local já está feito — o app não trava
-  // esperando a nuvem. A migração sobe o histórico assim que o login é confirmado.
+  // Supabase (Fatia 1): cria a conta em paralelo. Se falhar por falta de
+  // internet, o cadastro local já está feito e a fila sincroniza depois —
+  // o app não trava esperando a nuvem. MAS se o e-mail já tiver conta, isso
+  // precisa ser dito: senão o motorista acha que está na nuvem e não está,
+  // e só descobre quando perder o celular (o pior momento possível).
   if (typeof sbCadastrar === 'function' && perfil.email && perfil.senha) {
     sbCadastrar(perfil.email, perfil.senha).then(function (r) {
       if (r.ok && r.usuario && typeof migrarMotoristaAntigo === 'function') {
         migrarMotoristaAntigo(r.usuario.id);
+      } else if (r.jaExiste) {
+        avisarEmailJaCadastrado();
       }
     }).catch(function () {});
   }
+}
+
+// Esse e-mail já tem conta na nuvem. Em vez de deixar o motorista achando
+// que sincronizou, mostra o caminho certo: entrar com a senha que ele já tem.
+function avisarEmailJaCadastrado() {
+  pedirConfirmacao(
+    '📧 Esse e-mail já tem conta',
+    'Você já se cadastrou antes com esse e-mail. Seus dados de hoje estão salvos aqui no aparelho, mas para guardá-los na nuvem é preciso entrar na sua conta. Quer entrar agora?',
+    function () { abrirLoginExistente(); }
+  );
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -732,6 +746,24 @@ document.getElementById('btnConfirmarLogin').addEventListener('click', async fun
     return;
   }
   btn.textContent = 'Puxando seus dados...';
+  const perfilLocal = lerLS('perfilUsuario', null);
+  const temDadosAqui = !!(perfilLocal && perfilLocal.nome);
+
+  if (temDadosAqui) {
+    // ⚠️ Caso do motorista que JÁ usa o app e só agora conectou a conta.
+    // Aqui NÃO se puxa nada da nuvem: o aparelho é a fonte da verdade, e
+    // sobrescrever apagaria o que ele registrou hoje. Sobe o que está aqui
+    // e destrava a fila que ficou esperando sessão.
+    if (typeof migrarMotoristaAntigo === 'function') await migrarMotoristaAntigo(r.usuario.id);
+    if (typeof sincronizarFilaOffline === 'function') await sincronizarFilaOffline();
+    btn.disabled = false; btn.textContent = 'Entrar';
+    document.getElementById('modalLogin').style.display = 'none';
+    if (typeof atualizarStatusConta === 'function') atualizarStatusConta();
+    toast('☁️ Conta conectada! Seus dados estão salvos.');
+    return;
+  }
+
+  // Aparelho zerado (trocou de celular / limpou o navegador): puxa da nuvem.
   let restaurou = { ok: false };
   if (typeof restaurarDoSupabase === 'function') {
     restaurou = await restaurarDoSupabase(r.usuario.id);
@@ -3063,8 +3095,49 @@ function abrirAjustes() {
   const p = getPerfil();
   document.getElementById('ajNome').value       = p.nome || '';
   renderVeiculosAjustes();
+  atualizarStatusConta();
   document.getElementById('modalAjustes').style.display = 'flex';
 }
+
+// ─── Seção "Minha conta" dos Ajustes ──────────────────────────
+// Existe por um motivo concreto: quem já usava o Copiloto antes da nuvem
+// nunca mais vê a tela de cadastro, então não tinha NENHUM caminho pra
+// conectar a conta. Aqui ele vê o status e resolve.
+function atualizarStatusConta() {
+  const box    = document.getElementById('ajContaStatus');
+  const btnIn  = document.getElementById('ajBtnEntrar');
+  const btnOut = document.getElementById('ajBtnSair');
+  if (!box) return;
+
+  if (typeof usuarioLogado !== 'function' || typeof getSB !== 'function') {
+    box.textContent = 'Nuvem indisponível agora. Seus dados seguem salvos no aparelho.';
+    btnIn.style.display = 'none'; btnOut.style.display = 'none';
+    return;
+  }
+  const u = usuarioLogado();
+  if (u && u.email) {
+    box.innerHTML = '✅ Conectado como <b>' + esc(u.email) + '</b>';
+    btnIn.style.display = 'none'; btnOut.style.display = 'block';
+  } else {
+    box.textContent = '⚠️ Você não está conectado. Seus dados estão só neste aparelho.';
+    btnIn.style.display = 'block'; btnOut.style.display = 'none';
+  }
+}
+document.getElementById('ajBtnEntrar').addEventListener('click', function () {
+  document.getElementById('modalAjustes').style.display = 'none';
+  abrirLoginExistente();
+});
+document.getElementById('ajBtnSair').addEventListener('click', function () {
+  pedirConfirmacao(
+    'Sair da conta',
+    'Seus dados continuam salvos aqui no aparelho. Você só para de sincronizar com a nuvem até entrar de novo. Quer sair?',
+    async function () {
+      if (typeof sbSair === 'function') await sbSair();
+      atualizarStatusConta();
+      toast('Você saiu da conta');
+    }
+  );
+});
 function fecharAjustes() { document.getElementById('modalAjustes').style.display = 'none'; }
 
 function renderVeiculosAjustes() {

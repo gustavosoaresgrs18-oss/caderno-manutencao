@@ -47,6 +47,11 @@ function usuarioId() {
   return _usuarioAtual?.id || null;
 }
 
+// Quem está logado agora (ou null). Usado pela seção "Minha conta" dos Ajustes.
+function usuarioLogado() {
+  return _usuarioAtual || null;
+}
+
 function estaLogado() {
   return !!_usuarioAtual;
 }
@@ -257,10 +262,32 @@ window.addEventListener('online', () => {
 async function sbCadastrar(email, senha) {
   try {
     const { data, error } = await getSB().auth.signUp({ email, password: senha });
-    if (error) return { ok: false, erro: error.message };
+
+    if (error) {
+      // Separa o que o app precisa CONTAR pro motorista do que ele pode
+      // resolver sozinho depois:
+      //  - jaExiste  → tem que avisar: o cara acha que criou conta e não criou
+      //  - offline   → segue a vida, a fila sincroniza quando a internet voltar
+      const msg = (error.message || '').toLowerCase();
+      const jaExiste = msg.includes('already registered')
+                    || msg.includes('already been registered')
+                    || msg.includes('user already exists');
+      const offline  = msg.includes('fetch') || msg.includes('network') || !navigator.onLine;
+      return { ok: false, jaExiste, offline, erro: error.message };
+    }
+
+    // ⚠️ Quando "Confirm email" está DESLIGADO e o e-mail já existe, o Supabase
+    // não devolve erro: por privacidade (não vazar quem tem conta), ele responde
+    // sucesso com um usuário "fantasma", sem identities. Sem esta checagem o app
+    // acha que criou a conta e segue calado — que é exatamente o bug relatado.
+    const semIdentidade = data?.user && Array.isArray(data.user.identities) && data.user.identities.length === 0;
+    if (semIdentidade) {
+      return { ok: false, jaExiste: true, erro: 'E-mail já cadastrado' };
+    }
+
     return { ok: true, usuario: data.user };
   } catch (e) {
-    return { ok: false, erro: e.message };
+    return { ok: false, offline: true, erro: e.message };
   }
 }
 
