@@ -591,6 +591,7 @@ let currentX        = 0;
 let pontoA          = null;
 let pontoB          = null;
 let kmTurnoAtual    = 0;
+let _pediuLogin     = false;   // já pedimos login neste uso do app? (1x por sessão)
 let tipoSelecionado = 'Gasolina';
 let tipoSelecionadoTela = 'Gasolina';
 let tipoReceita     = 'liquido';
@@ -717,12 +718,67 @@ function avisarEmailJaCadastrado() {
 //  Nunca aparece pra quem já tem perfilUsuario local — esse caminho
 //  continua 100% o mesmo de sempre, sem tocar no Supabase na hora.
 // ═══════════════════════════════════════════════════════════════
-function abrirLoginExistente() {
-  document.getElementById('loginEmail').value = '';
+function toggleNovaSenha() {
+  const inp = document.getElementById('novaSenhaInput');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+document.getElementById('btnSalvarNovaSenha').addEventListener('click', async function () {
+  const btn   = this;
+  const senha = document.getElementById('novaSenhaInput').value.trim();
+  const erro  = document.getElementById('novaSenhaErro');
+  if (senha.length < 6) { erro.textContent = 'A senha precisa ter no mínimo 6 caracteres.'; erro.style.display = 'block'; return; }
+  if (typeof sbTrocarSenha !== 'function') { erro.textContent = 'Sem conexão agora. Tente de novo em instantes.'; erro.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Salvando...';
+  const r = await sbTrocarSenha(senha);
+  btn.disabled = false; btn.textContent = 'Salvar senha';
+  if (r.ok) {
+    document.getElementById('modalNovaSenha').style.display = 'none';
+    _pediuLogin = false;
+    toast('✅ Senha alterada! Você já está conectado.');
+  } else {
+    erro.textContent = 'Não consegui salvar. O link pode ter expirado — peça um novo.';
+    erro.style.display = 'block';
+  }
+});
+
+// Quando o motorista volta do link do e-mail, o Supabase avisa por este
+// evento. É a deixa para pedir a senha nova.
+function tratarRecuperacaoSenha(evento) {
+  if (evento === 'PASSWORD_RECOVERY') {
+    document.getElementById('modalNovaSenha').style.display = 'flex';
+  }
+}
+
+function abrirLoginExistente(emailSugerido) {
+  const p = lerLS('perfilUsuario', null);
+  // O app já sabe o e-mail do motorista: não faz sentido obrigar a digitar
+  // de novo. Ele só precisa da senha.
+  document.getElementById('loginEmail').value = emailSugerido || (p && p.email) || '';
   document.getElementById('loginSenha').value = '';
   document.getElementById('loginErro').style.display = 'none';
   document.getElementById('modalLogin').style.display = 'flex';
 }
+document.getElementById('btnEsqueciSenha').addEventListener('click', async function () {
+  const btn   = this;
+  const email = document.getElementById('loginEmail').value.trim();
+  const erro  = document.getElementById('loginErro');
+  if (!email) { erro.textContent = 'Escreva seu e-mail acima primeiro.'; erro.style.display = 'block'; return; }
+  if (typeof sbRecuperarSenha !== 'function') { erro.textContent = 'Sem conexão agora. Tente de novo em instantes.'; erro.style.display = 'block'; return; }
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  const r = await sbRecuperarSenha(email);
+  btn.disabled = false; btn.textContent = 'Esqueci minha senha';
+  if (r.ok) {
+    erro.style.color = 'var(--money)';
+    erro.textContent = 'Enviei um e-mail para ' + email + '. Abra o link para criar uma senha nova.';
+    erro.style.display = 'block';
+  } else {
+    erro.style.color = '';
+    erro.textContent = r.limite
+      ? 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.'
+      : 'Não consegui enviar agora. Confira o e-mail e tente de novo.';
+    erro.style.display = 'block';
+  }
+});
 function toggleSenhaLogin() {
   const inp = document.getElementById('loginSenha');
   inp.type = inp.type === 'password' ? 'text' : 'password';
@@ -929,6 +985,7 @@ window.addEventListener('DOMContentLoaded', function () {
       if (evento === 'SIGNED_IN' && usuario && typeof migrarMotoristaAntigo === 'function') {
         migrarMotoristaAntigo(usuario.id);
       }
+      tratarRecuperacaoSenha(evento);
     }).catch(function (e) { console.warn('[Copiloto] Supabase indisponível agora:', e); });
   }
 });
@@ -2291,7 +2348,7 @@ function salvarAbastecimento(tipo, valor, litros, km, cpm, posto) {
     }, 'id').catch(function () {});
   }
   refreshAposAbast();
-  avisarSessaoSePreciso();
+  exigirLoginSePreciso();
 }
 function refreshAposAbast() {
   ressincronizarReceitaHoje();
@@ -3006,7 +3063,7 @@ btnConfirmarReceita.addEventListener('click', function() {
   toast('✅ Receita do dia salva!');
   ptsHook('receita', 'rec:' + hojeISO());
   dispararBalaoProg('receita');          // balão que ENSINA na 1ª receita (1x só)
-  avisarSessaoSePreciso();
+  exigirLoginSePreciso();
 });
 
 
@@ -3096,31 +3153,43 @@ function abrirAjustes() {
   const p = getPerfil();
   document.getElementById('ajNome').value       = p.nome || '';
   renderVeiculosAjustes();
+  // Botão "Sair" só aparece pra quem está logado — quem não está não tem
+  // de onde sair, e o botão só confundiria.
+  const logado = (typeof usuarioLogado === 'function') && !!usuarioLogado();
+  document.getElementById('ajBtnSair').style.display  = logado ? 'block' : 'none';
+  document.getElementById('ajSairDica').style.display = logado ? 'block' : 'none';
   document.getElementById('modalAjustes').style.display = 'flex';
 }
+document.getElementById('ajBtnSair').addEventListener('click', function () {
+  pedirConfirmacao(
+    '🚪 Sair da conta',
+    'Seus lançamentos continuam salvos aqui no aparelho. Para voltar a salvar suas alterações, é só entrar de novo. Quer sair?',
+    async function () {
+      if (typeof sbSair === 'function') await sbSair();
+      _pediuLogin = false;                 // volta a poder pedir login no próximo lançamento
+      document.getElementById('modalAjustes').style.display = 'none';
+      toast('Você saiu da conta');
+    }
+  );
+});
 
-// ─── Aviso de sessão expirada ─────────────────────────────────
-// O motorista não deve precisar caçar isso nas configurações: o app
-// avisa na hora em que ele registra algo. Regras que não se quebram:
-//   1. o dado JÁ foi salvo antes deste aviso — nunca trava o registro;
-//   2. "Depois" é uma saída legítima: fica na fila e sobe ao entrar;
-//   3. só avisa uma vez por sessão, pra não virar praga a cada clique;
-//   4. não avisa quem está offline (não é sessão expirada, é internet)
-//      nem quem nunca teve conta.
-let _avisouSessao = false;
-function avisarSessaoSePreciso() {
-  if (_avisouSessao) return;
+// ─── Login exigido ao lançar ──────────────────────────────────
+// Quem saiu (ou teve a sessão expirada) precisa entrar de novo para que os
+// lançamentos voltem a ser salvos. Regras que NÃO se quebram:
+//   1. o lançamento JÁ foi salvo aqui antes desta tela — nada se perde;
+//   2. offline não pede login: sem internet não há como entrar, e o app
+//      é PWA — tem que funcionar sem sinal. Salva local e sobe depois;
+//   3. quem nunca criou conta não é incomodado;
+//   4. pede uma vez por sessão, não a cada clique.
+function exigirLoginSePreciso() {
+  if (_pediuLogin) return;
   if (!navigator.onLine) return;
   if (typeof usuarioLogado !== 'function' || typeof getSB !== 'function') return;
-  if (usuarioLogado()) return;                       // logado: nada a avisar
+  if (usuarioLogado()) return;
   const p = lerLS('perfilUsuario', null);
-  if (!p || !p.email) return;                        // nunca teve conta: não enche o saco
-  _avisouSessao = true;
-  pedirConfirmacao(
-    '🔑 Entre de novo',
-    'Sua sessão expirou. Entre de novo para continuar salvando as suas alterações.',
-    function () { abrirLoginExistente(); }
-  );
+  if (!p || !p.email) return;
+  _pediuLogin = true;
+  abrirLoginExistente(p.email);
 }
 function fecharAjustes() { document.getElementById('modalAjustes').style.display = 'none'; }
 

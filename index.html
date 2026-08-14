@@ -587,8 +587,28 @@
           </div>
           <div class="cad-erro" id="loginErro" style="display:none;"></div>
           <div class="modal-botoes" style="margin-top:6px;">
-            <button class="modal-btn cancelar" id="btnCancelarLogin">Cancelar</button>
+            <button class="modal-btn cancelar" id="btnCancelarLogin">Agora não</button>
             <button class="modal-btn confirmar" id="btnConfirmarLogin">Entrar</button>
+          </div>
+          <button id="btnEsqueciSenha" style="width:100%;margin-top:10px;background:none;border:none;color:var(--dim);font-size:13px;text-decoration:underline;cursor:pointer;">Esqueci minha senha</button>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL NOVA SENHA (volta do link do e-mail) ══════════ -->
+      <div class="modal-overlay" id="modalNovaSenha">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo">🔒 Criar senha nova</h2>
+          <p class="modal-desc" style="margin-bottom:14px">Escolha uma senha nova para a sua conta.</p>
+          <div class="cad-field">
+            <label>Senha nova</label>
+            <div class="senha-wrap">
+              <input type="password" id="novaSenhaInput" autocomplete="new-password" placeholder="Mínimo 6 caracteres">
+              <button class="senha-olho" onclick="toggleNovaSenha()">👁️</button>
+            </div>
+          </div>
+          <div class="cad-erro" id="novaSenhaErro" style="display:none;"></div>
+          <div class="modal-botoes" style="margin-top:6px;">
+            <button class="modal-btn confirmar" id="btnSalvarNovaSenha" style="width:100%;">Salvar senha</button>
           </div>
         </div>
       </div>
@@ -1008,6 +1028,8 @@
             <input type="file" id="ajInputRestore" accept="application/json,.json" style="display:none;">
             <button class="modal-btn cancelar" id="ajBtnApagar" style="width:100%; color:var(--danger); border-color:var(--danger);">🗑️ Apagar tudo</button>
             <div class="aj-dica">O backup salva tudo num arquivo, aqui no seu aparelho. É a sua rede de segurança mesmo sem internet.</div>
+            <button class="modal-btn cancelar" id="ajBtnSair" style="width:100%; margin-top:14px; display:none;">🚪 Sair da conta</button>
+            <div class="aj-dica" id="ajSairDica" style="display:none;">Seus lançamentos continuam aqui no aparelho. Para voltar a salvar suas alterações, é só entrar de novo.</div>
           </div>
         </div>
       </div>

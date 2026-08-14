@@ -302,6 +302,40 @@ async function sbEntrar(email, senha) {
   }
 }
 
+// Manda o e-mail de "esqueci minha senha". O link volta pro próprio app
+// (o endereço configurado em Authentication → URL Configuration).
+// ⚠️ No plano grátis, o servidor de e-mail do Supabase é limitado a poucos
+// envios por hora. Antes de abrir pra motoristas de verdade, plugar um
+// serviço próprio (ex: Resend) em Authentication → SMTP Settings.
+async function sbRecuperarSenha(email) {
+  try {
+    const { error } = await getSB().auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + window.location.pathname
+    });
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) {
+    const msg = (e.message || '').toLowerCase();
+    return {
+      ok: false,
+      limite: msg.includes('rate limit') || msg.includes('too many'),
+      erro: e.message
+    };
+  }
+}
+
+// Define a senha nova. Só funciona logo depois do link de recuperação,
+// quando o Supabase já criou uma sessão temporária a partir do e-mail.
+async function sbTrocarSenha(novaSenha) {
+  try {
+    const { error } = await getSB().auth.updateUser({ password: novaSenha });
+    if (error) throw error;
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, erro: e.message };
+  }
+}
+
 async function sbSair() {
   try {
     await getSB().auth.signOut();
