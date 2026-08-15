@@ -1714,6 +1714,23 @@ function salvarManutencao() {
     if (it.key) salvos[it.key] = { kmUltima: it.kmUltima, intervalo: it.intervalo };
   });
   salvarManutVeic(salvos);
+  // Supabase: uma linha por item de manutenção do veículo. A identidade é
+  // veículo + tipo (não o id numérico da tabela), porque é assim que o app
+  // pensa: cada veículo tem a sua troca de óleo, o seu rodízio de pneus.
+  if (typeof salvarRegistroHibrido === 'function') {
+    const vid = vidAtivo();
+    [1, 2, 3].forEach(n => {
+      const it = manutencoes['item' + n];
+      if (!it.key || it.kmUltima == null) return;
+      salvarRegistroHibrido('manutencao', {
+        veiculo_id:  vid,
+        tipo:        it.key,
+        data_ultima: hojeISO(),
+        km_ultimo:   it.kmUltima,
+        km_proximo:  (it.kmUltima != null && it.intervalo) ? (it.kmUltima + it.intervalo) : null
+      }, 'usuario_id,veiculo_id,tipo').catch(function () {});
+    });
+  }
 }
 // toque no velocímetro = atalho pra registrar a receita (a ação nº 1 do app)
 function gaugeClique() {
@@ -3508,6 +3525,14 @@ function adicionarDespesa() {
     cat: despCatSel, icon: CATS_DESPESA[despCatSel].icon, label: CATS_DESPESA[despCatSel].label, valor
   });
   salvarDespesasDia(hojeISO(), lista);
+  // Supabase: a despesa recém-criada é a última da lista
+  const nova = lista[lista.length - 1];
+  if (typeof salvarRegistroHibrido === 'function') {
+    salvarRegistroHibrido('despesas', {
+      id: nova.id, data_iso: hojeISO(),
+      descricao: nova.label, valor: nova.valor
+    }, 'id').catch(function () {});
+  }
   refreshAposDespesa();
   document.getElementById('despInputRow').style.display = 'none';
   document.querySelectorAll('#despChips .desp-chip').forEach(c => c.classList.remove('ativo'));
@@ -3520,6 +3545,9 @@ function removerDespesa(id) {
   let lista = lerDespesasDia(hojeISO());
   lista = lista.filter(d => d.id !== id);
   salvarDespesasDia(hojeISO(), lista);
+  if (typeof excluirRegistroHibrido === 'function') {
+    excluirRegistroHibrido('despesas', 'id', id).catch(function () {});
+  }
   renderDespesas();
   refreshAposDespesa();
 }

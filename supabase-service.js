@@ -485,7 +485,44 @@ async function migrarMotoristaAntigo(userId) {
       if (error) erros.push('doc ' + tipoId + ': ' + error.message);
     }
 
-    // 6. RESULTADO
+    // 6. MANUTENÇÃO (por veículo)
+    // Estrutura local: { vid: { oleo: {kmUltima, intervalo}, pneus: {...} } }
+    const manutTodos = lerLS('manutPorVeiculo', {}) || {};
+    for (const vid in manutTodos) {
+      const itens = manutTodos[vid] || {};
+      for (const tipo in itens) {
+        const it = itens[tipo];
+        if (!it || it.kmUltima == null) continue;
+        const { error } = await getSB().from('manutencao').upsert({
+          usuario_id:  userId,
+          veiculo_id:  vid,
+          tipo:        tipo,
+          data_ultima: null,   // o app não guarda a data da troca, só o km
+          km_ultimo:   it.kmUltima,
+          km_proximo:  it.intervalo ? (it.kmUltima + it.intervalo) : null
+        }, { onConflict: 'usuario_id,veiculo_id,tipo' });
+        if (error) erros.push('manutenção ' + tipo + ': ' + error.message);
+      }
+    }
+
+    // 7. DESPESAS
+    // Estrutura local: { '2026-08-14': [ {id, cat, label, valor}, ... ] }
+    const despTodas = lerLS('despesasPorDia', {}) || {};
+    for (const dia in despTodas) {
+      for (const d of (despTodas[dia] || [])) {
+        if (!d.id) continue;
+        const { error } = await getSB().from('despesas').upsert({
+          id:         d.id,
+          usuario_id: userId,
+          data_iso:   dia,
+          descricao:  d.label || d.cat || '',
+          valor:      d.valor || 0
+        }, { onConflict: 'id' });
+        if (error) erros.push('despesa ' + dia + ': ' + error.message);
+      }
+    }
+
+    // 8. RESULTADO
     if (erros.length === 0) {
       salvarLS('supaMigradoV1', true);
       console.log('[Copiloto] ✓ Migração concluída com sucesso!');
@@ -594,6 +631,40 @@ async function restaurarDoSupabase(userId) {
       const mapa = {};
       docs.forEach(d => { mapa[d.tipo_id] = { nome: d.nome, vencimento: d.vencimento, obs: d.obs }; });
       salvarLS('documentos', mapa);
+    }
+
+    // 6. MANUTENÇÃO — remonta { vid: { tipo: {kmUltima, intervalo} } }
+    const { data: manuts } = await sb.from('manutencao').select('*').eq('usuario_id', userId);
+    if (manuts && manuts.length) {
+      achouAlgo = true;
+      const porVeic = {};
+      manuts.forEach(m => {
+        if (!m.veiculo_id || !m.tipo) return;
+        porVeic[m.veiculo_id] = porVeic[m.veiculo_id] || {};
+        porVeic[m.veiculo_id][m.tipo] = {
+          kmUltima:  m.km_ultimo,
+          // o intervalo não é guardado na nuvem: é a diferença entre as duas marcas
+          intervalo: (m.km_proximo != null && m.km_ultimo != null)
+                     ? (m.km_proximo - m.km_ultimo) : null
+        };
+      });
+      salvarLS('manutPorVeiculo', porVeic);
+    }
+
+    // 7. DESPESAS — remonta { '2026-08-14': [ {...} ] }
+    const { data: desps } = await sb.from('despesas').select('*').eq('usuario_id', userId);
+    if (desps && desps.length) {
+      achouAlgo = true;
+      const porDia = {};
+      desps.forEach(d => {
+        if (!d.data_iso) return;
+        porDia[d.data_iso] = porDia[d.data_iso] || [];
+        porDia[d.data_iso].push({
+          id: d.id, cat: 'outros', icon: '💸',
+          label: d.descricao || 'Despesa', valor: d.valor || 0
+        });
+      });
+      salvarLS('despesasPorDia', porDia);
     }
 
     if (achouAlgo) salvarLS('supaMigradoV1', true);   // já tem base na nuvem: não roda a migração de novo
