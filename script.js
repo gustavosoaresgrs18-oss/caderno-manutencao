@@ -2407,6 +2407,21 @@ function ressincronizarReceitaHoje() {
     }
   });
   salvarLS('historicoFinancas', hist);
+  // ⚠️ A nuvem TAMBÉM precisa ser atualizada aqui. Antes, só o localStorage era
+  // corrigido: quem registrava a receita e DEPOIS abastecia ou lançava despesa
+  // ficava com o número velho no Supabase para sempre (receita, lucro, despesas
+  // e km_dia congelados no instante do registro). Foi o que apareceu no teste.
+  const rHoje = hist.find(r => r.dataISO === hojeISO());
+  if (rHoje && typeof salvarRegistroHibrido === 'function') {
+    salvarRegistroHibrido('financas', {
+      data_iso:  hojeISO(),
+      receita:   rHoje.receita || 0,
+      liquido:   rHoje.lucro   || 0,
+      taxa_real: (rHoje.taxa != null) ? rHoje.taxa : null,
+      km_dia:    kmRodadoHoje(),
+      despesas:  rHoje.desp    || 0
+    }, 'usuario_id,data_iso').catch(function () {});
+  }
 }
 
 // atualiza o banner de lucro do dashboard a partir dos registros de hoje
