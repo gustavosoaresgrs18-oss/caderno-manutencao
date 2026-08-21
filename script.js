@@ -3243,9 +3243,9 @@ function travarNaTelaDeLogin() {
   document.querySelectorAll('.modal-overlay, .modal-streak').forEach(function (m) {
     if (m.id !== 'modalLogin') m.style.display = 'none';
   });
-  ['telaInicio','telaManutencao','telaCombustivel','telaFinancas','telaDocumentos','telaCade']
+  ['telaInicio','telaManutencao','telaCombustivel','telaFinancas','telaDocumentos','telaCade','telaExtrato','telaExtratoFin','telaDespesas']
     .forEach(function (id) { const t = document.getElementById(id); if (t) t.style.display = 'none'; });
-  const nav = document.querySelector('.nav-inferior');
+  const nav = document.getElementById('navInferior');
   if (nav) nav.style.display = 'none';
   const p = lerLS('perfilUsuario', null);
   abrirLoginExistente(p && p.email);
@@ -3255,11 +3255,17 @@ function travarNaTelaDeLogin() {
 
 // Devolve o app depois que ele entra de novo.
 function destravarDaTelaDeLogin() {
-  const nav = document.querySelector('.nav-inferior');
-  if (nav) nav.style.display = '';
+  // ⚠️ mostrarTela() espera o ELEMENTO, não o id em texto — passar string
+  // quebra na hora de aplicar o display e o app não voltaria após o login.
+  const nav = document.getElementById('navInferior');
+  if (nav) nav.style.display = 'flex';
   document.getElementById('btnFecharLogin').style.display = '';
   document.getElementById('btnCancelarLogin').style.display = '';
-  mostrarTela('telaInicio');
+  if (typeof telaInicio !== 'undefined' && telaInicio) {
+    mostrarTela(telaInicio);
+    if (typeof navInicio !== 'undefined' && navInicio) navInicio.classList.add('ativo');
+    initDashboard();
+  }
 }
 
 // ─── Login exigido ao lançar ──────────────────────────────────

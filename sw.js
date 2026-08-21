@@ -6,13 +6,14 @@
    O cache aqui serve so pra ele nao ficar na mao sem sinal.
    ============================================================ */
 
-const CACHE = 'copiloto-v4';
+const CACHE = 'copiloto-v5';
 
 const ESSENCIAIS = [
   './',
   './index.html',
   './style.css',
   './script.js',
+  './supabase-service.js',
   './manifest.json',
   './icone-192.png',
   './icone-512.png'
