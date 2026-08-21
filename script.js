@@ -689,6 +689,7 @@ function finalizarCadastro() {
   // o app não trava esperando a nuvem. MAS se o e-mail já tiver conta, isso
   // precisa ser dito: senão o motorista acha que está na nuvem e não está,
   // e só descobre quando perder o celular (o pior momento possível).
+  salvarLS('contaCriada', true);   // marca que este motorista TEM conta (usado pra exigir login depois)
   if (typeof sbCadastrar === 'function' && perfil.email && perfil.senha) {
     sbCadastrar(perfil.email, perfil.senha).then(function (r) {
       if (r.ok && r.usuario && typeof migrarMotoristaAntigo === 'function') {
@@ -805,6 +806,7 @@ document.getElementById('btnConfirmarLogin').addEventListener('click', async fun
     return;
   }
   btn.textContent = 'Puxando seus dados...';
+  salvarLS('contaCriada', true);   // entrou: daqui pra frente o app sabe que existe conta
   const perfilLocal = lerLS('perfilUsuario', null);
   const temDadosAqui = !!(perfilLocal && perfilLocal.nome);
 
@@ -817,6 +819,8 @@ document.getElementById('btnConfirmarLogin').addEventListener('click', async fun
     if (typeof sincronizarFilaOffline === 'function') await sincronizarFilaOffline();
     btn.disabled = false; btn.textContent = 'Entrar';
     document.getElementById('modalLogin').style.display = 'none';
+    localStorage.removeItem('saiuDaConta');
+    destravarDaTelaDeLogin();          // devolve o app se ele tinha saído da conta
     toast('✅ Pronto! Suas alterações estão sendo salvas.');
     return;
   }
@@ -989,6 +993,14 @@ window.addEventListener('DOMContentLoaded', function () {
         migrarMotoristaAntigo(usuario.id);
       }
       tratarRecuperacaoSenha(evento);
+    }).then(function () {
+      // Saiu da conta e fechou o app? Volta travado na tela de login (opção A).
+      // Exceção: offline — sem internet não há como entrar, e travar deixaria
+      // o motorista sem o app justamente quando ele mais precisa dele.
+      if (lerLS('saiuDaConta', false) && navigator.onLine
+          && typeof usuarioLogado === 'function' && !usuarioLogado()) {
+        travarNaTelaDeLogin();
+      }
     }).catch(function (e) { console.warn('[Copiloto] Supabase indisponível agora:', e); });
   }
 });
@@ -3215,11 +3227,40 @@ document.getElementById('ajBtnSair').addEventListener('click', function () {
     'Você vai precisar entrar de novo para salvar suas alterações. Quer sair?',
     async function () {
       if (typeof sbSair === 'function') await sbSair();
-      _pediuLogin = false;                 // volta a poder pedir login no próximo lançamento
-      toast('Você saiu da conta');
+      salvarLS('saiuDaConta', true);   // se fechar o app, continua travado ao reabrir
+      _pediuLogin = false;
+      // Sair significa sair: o app trava na tela de login (opção A). Os dados
+      // continuam no aparelho — entrando de novo, tudo volta do jeito que estava.
+      travarNaTelaDeLogin();
     }
   );
 });
+
+// Esconde o app e deixa só o login na frente. Usado ao sair da conta.
+// ⚠️ NÃO dá pra esconder o .dashboard inteiro: o modal de login mora dentro
+// dele. Esconde as telas e a navegação, que é o que o motorista veria.
+function travarNaTelaDeLogin() {
+  document.querySelectorAll('.modal-overlay, .modal-streak').forEach(function (m) {
+    if (m.id !== 'modalLogin') m.style.display = 'none';
+  });
+  ['telaInicio','telaManutencao','telaCombustivel','telaFinancas','telaDocumentos','telaCade']
+    .forEach(function (id) { const t = document.getElementById(id); if (t) t.style.display = 'none'; });
+  const nav = document.querySelector('.nav-inferior');
+  if (nav) nav.style.display = 'none';
+  const p = lerLS('perfilUsuario', null);
+  abrirLoginExistente(p && p.email);
+  document.getElementById('btnFecharLogin').style.display = 'none';   // sem X: não dá pra escapar
+  document.getElementById('btnCancelarLogin').style.display = 'none';
+}
+
+// Devolve o app depois que ele entra de novo.
+function destravarDaTelaDeLogin() {
+  const nav = document.querySelector('.nav-inferior');
+  if (nav) nav.style.display = '';
+  document.getElementById('btnFecharLogin').style.display = '';
+  document.getElementById('btnCancelarLogin').style.display = '';
+  mostrarTela('telaInicio');
+}
 
 // ─── Login exigido ao lançar ──────────────────────────────────
 // Quem saiu (ou teve a sessão expirada) precisa entrar de novo para que os
@@ -3243,8 +3284,12 @@ function precisaLogin() {
   if (!navigator.onLine) return false;
   if (typeof usuarioLogado !== 'function' || typeof getSB !== 'function') return false;
   if (usuarioLogado()) return false;
+  // ⚠️ Antes isto exigia `perfil.email`, que só existe pra quem se cadastrou
+  // NESTE aparelho. Quem restaurou da nuvem (ou já teve sessão) não tem esse
+  // campo — e o bloqueio nunca disparava. Agora a marca de que existe conta é
+  // o `contaCriada`, gravado tanto no cadastro quanto no login.
   const p = lerLS('perfilUsuario', null);
-  return !!(p && p.email);
+  return !!(lerLS('contaCriada', false) || (p && p.email));
 }
 
 // Telas que BLOQUEIAM: quem chama faz `if (bloquearSemLogin()) return;`
