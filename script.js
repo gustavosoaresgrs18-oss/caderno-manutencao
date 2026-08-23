@@ -2189,6 +2189,126 @@ function aplicarKmEFecharTurno(valor) {
   abrirModalCombustivel();
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  CORRIGIR O KM (toque no odômetro)
+//  ─────────────────────────────────────────────────────────────
+//  Existe porque o motorista digita errado — e até aqui não havia
+//  NENHUMA forma de desfazer. O número errado virava a base de
+//  todas as contas seguintes (custo/km, manutenção, km do dia).
+//
+//  REGRAS (a cadeia de km é a parte mais frágil do app):
+//   • Corrige APENAS o último registro. Dias antigos não se mexem:
+//     cada dia depende do anterior, e recalcular a corrente inteira
+//     é convite a bug pior que o original.
+//   • NUNCA empurra pro registroAnterior. Isso é EDIÇÃO do último
+//     fechamento, não um fechamento novo — mexer na régua aqui
+//     inventaria um dia de trabalho que não existiu.
+//   • Não aceita valor menor que o registro anterior (daria km
+//     negativo) nem salto absurdo — os mesmos limites do fechamento.
+//   • Recalcula kmPorDia do dia daquele registro e ressincroniza
+//     tudo que depende dele, inclusive a nuvem.
+// ═══════════════════════════════════════════════════════════════
+function abrirCorrigirKm() {
+  const rh = lerLS('registroHoje', null);
+  const ra = lerLS('registroAnterior', null);
+  const vAt = veiculoAtivo();
+  const ref = document.getElementById('corrKmRef');
+
+  if (!rh && (!vAt || vAt.odo == null)) {
+    // nunca registrou nada: não há o que corrigir
+    toast('Ainda não há km registrado pra corrigir');
+    return;
+  }
+  const atual = rh ? rh.km : vAt.odo;
+  const quando = rh ? (rh.data === hojeISO() ? 'hoje' : 'em ' + new Date(rh.data + 'T12:00:00').toLocaleDateString('pt-BR')) : '';
+  let txt = 'Último registro' + (quando ? ' (' + quando + ')' : '') + ': <b class="num">' + fmtKm(atual) + ' km</b>.';
+  if (ra && (ra.vid || null) === (rh && rh.vid || vidAtivo())) {
+    txt += '<br>Antes dele: <b class="num">' + fmtKm(ra.km) + ' km</b>.';
+  }
+  ref.innerHTML = txt;
+  document.getElementById('corrKmInput').value = atual;
+  document.getElementById('corrKmErro').style.display = 'none';
+  document.getElementById('corrKmPreview').style.display = 'none';
+  document.getElementById('modalCorrigirKm').style.display = 'flex';
+  previewCorrecaoKm();
+}
+
+// mostra ao vivo quantos km o dia passa a ter com o número digitado
+function previewCorrecaoKm() {
+  const rh = lerLS('registroHoje', null);
+  const ra = lerLS('registroAnterior', null);
+  const box = document.getElementById('corrKmPreview');
+  const valor = numBR(document.getElementById('corrKmInput').value);
+  const mesmoVeic = rh && ra && (rh.vid || null) === (ra.vid || null);
+  if (!valor || !mesmoVeic) { box.style.display = 'none'; return; }
+  const kmDia = valor - ra.km;
+  box.style.display = 'block';
+  if (kmDia < 0) {
+    box.classList.add('neutro');
+    box.innerHTML = 'Esse número é <b>menor</b> que o registro anterior.';
+  } else {
+    box.classList.remove('neutro');
+    box.innerHTML = 'O dia passa a contar <b class="num">' + fmtKm(kmDia) + ' km</b> rodados';
+  }
+}
+
+document.getElementById('btnCorrKmCancelar').addEventListener('click', function () {
+  document.getElementById('modalCorrigirKm').style.display = 'none';
+});
+document.getElementById('btnCorrKmSalvar').addEventListener('click', function () {
+  const valor = numBR(document.getElementById('corrKmInput').value);
+  const erro  = document.getElementById('corrKmErro');
+  if (!valor || valor <= 0) { erro.textContent = 'Digite o km do painel.'; erro.style.display = 'block'; return; }
+
+  const rh = lerLS('registroHoje', null);
+  const ra = lerLS('registroAnterior', null);
+  // não pode ficar abaixo do registro anterior do MESMO veículo (km negativo)
+  if (rh && ra && (rh.vid || null) === (ra.vid || null) && valor < ra.km) {
+    erro.innerHTML = 'Não dá: o registro anterior desse veículo é <b>' + fmtKm(ra.km) + ' km</b>. O painel não anda pra trás.';
+    erro.style.display = 'block'; return;
+  }
+  erro.style.display = 'none';
+  aplicarCorrecaoKm(valor);
+  document.getElementById('modalCorrigirKm').style.display = 'none';
+  toast('🛣️ Km corrigido!');
+});
+
+// Grava a correção e refaz TUDO que dependia do número errado.
+function aplicarCorrecaoKm(valor) {
+  const vidUsar = vidAtivo();
+  const rh = lerLS('registroHoje', null);
+
+  if (rh) {
+    rh.km = valor;                      // edita o registro — NÃO empurra pro anterior
+    salvarLS('registroHoje', rh);
+  }
+  setOdoVeiculo(vidUsar, valor);
+  kmAtual = valor;
+
+  // recalcula o km rodado do dia daquele registro
+  const diaAlvo = rh ? rh.data : hojeISO();
+  const ra = lerLS('registroAnterior', null);
+  const mapa = lerLS('kmPorDia', {});
+  if (rh && ra && (rh.vid || null) === (ra.vid || null)) {
+    const kmD = valor - ra.km;
+    if (kmD > 0) mapa[diaAlvo] = { km: kmD, vid: vidUsar };
+    else         delete mapa[diaAlvo];   // sem km conhecido é melhor que km errado
+  } else {
+    delete mapa[diaAlvo];                // sem base de comparação: o app não inventa
+  }
+  salvarLS('kmPorDia', mapa);
+
+  // repinta tudo que usava o número velho
+  pintarKmHoje();
+  renderOdometro();
+  atualizarTodosAlertas();
+  atualizarTelaManutencao();
+  atualizarCustoRealKm();
+  atualizarResumoDia();
+  ressincronizarReceitaHoje();   // leva o km_dia corrigido pra nuvem também
+  if (document.getElementById('telaFinancas')) atualizarTelaFinancas();
+}
+
 // ─── MODAL COMBUSTÍVEL (após finalizar turno) ────────────────
 function abrirModalCombustivel() {
   etapaAbasteceu.style.display = 'block';

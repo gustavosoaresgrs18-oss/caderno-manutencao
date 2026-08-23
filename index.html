@@ -16,10 +16,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=330">
+    <link rel="stylesheet" href="style.css?v=331">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=330"></script>
+    <script src="supabase-service.js?v=331"></script>
   </head>
   <body>
     <div class="dashboard">
@@ -152,8 +152,8 @@
 
         <!-- ═══ ODÔMETRO + TANQUE DO MÊS ═══ -->
         <div class="odo-row">
-          <div class="odo-card">
-            <div class="odo-label">🛣️ Odômetro</div>
+          <div class="odo-card" onclick="abrirCorrigirKm()" style="cursor:pointer;">
+            <div class="odo-label">🛣️ Odômetro <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0;">· toque p/ corrigir</span></div>
             <div class="odo" id="odoDigitos"></div>
             <div class="odo-hoje num" id="odoHoje">+<span class="num" id="kmHojeValor">0 km</span> hoje</div>
             <span style="display:none" id="odometroTotal"></span>
@@ -569,6 +569,22 @@
           </div>
 
           <button class="modal-btn confirmar guia-fechar" id="guiaBtn" onclick="fecharGuia()">Bora começar</button>
+        </div>
+      </div>
+
+      <!-- ══════════ MODAL CORRIGIR KM (odômetro) ══════════ -->
+      <div class="modal-overlay" id="modalCorrigirKm">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo">🛣️ Corrigir o km</h2>
+          <p class="modal-desc" id="corrKmRef" style="margin-bottom:12px"></p>
+          <input type="text" inputmode="numeric" class="modal-input" id="corrKmInput" placeholder="Km do painel" oninput="previewCorrecaoKm()">
+          <div id="corrKmPreview" class="km-gps" style="display:none;"></div>
+          <div class="km-erro" id="corrKmErro" style="display:none;"></div>
+          <div class="modal-botoes" style="margin-top:12px;">
+            <button class="modal-btn cancelar" id="btnCorrKmCancelar">Cancelar</button>
+            <button class="modal-btn confirmar" id="btnCorrKmSalvar">Salvar</button>
+          </div>
+          <div class="aj-dica" style="text-align:center;">Isso corrige o último registro. O km rodado no dia é recalculado.</div>
         </div>
       </div>
 
@@ -1052,7 +1068,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=330"></script>
+    <script src="script.js?v=331"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       if ('serviceWorker' in navigator) {
