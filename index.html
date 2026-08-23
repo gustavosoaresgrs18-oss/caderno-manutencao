@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=346">
+    <link rel="stylesheet" href="style.css?v=347">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=346"></script>
+    <script src="supabase-service.js?v=347"></script>
   </head>
   <body>
     <div class="dashboard">
@@ -318,8 +318,7 @@
             <label>Km desde o último abastecimento <span style="color:var(--dim);font-weight:400;">(opcional)</span></label>
             <input type="text" inputmode="numeric" id="inputKmTela" placeholder="Ex: 320" oninput="calcCustoPorKmTela()">
             <div id="dicaKmTurno" style="display:none;font-size:11.5px;color:var(--money);margin-top:5px;">Já preenchi com o km que você acabou de rodar. Ajuste se precisar.</div>
-            <div style="font-size:11.5px;color:var(--dim);margin-top:5px;">Se souber, eu calculo o rendimento desse tanque. Pode deixar em branco.</div>
-            <div class="campo-dica">é isso que calcula seu custo por km — não confunda com litros</div>
+            <div id="dicaKmNormal" style="font-size:11.5px;color:var(--dim);margin-top:5px;">Se souber, eu calculo o rendimento desse tanque. Pode deixar em branco.</div>
           </div>
           <div class="linha-dupla">
             <div class="comb-field"><label>Litros <span style="color:var(--faint)">· opcional</span></label><input type="text" inputmode="decimal" id="inputLitrosTela" placeholder="Ex: 7,5" oninput="calcCustoPorKmTela()"></div>
@@ -1052,7 +1051,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=346"></script>
+    <script src="script.js?v=347"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       if ('serviceWorker' in navigator) {

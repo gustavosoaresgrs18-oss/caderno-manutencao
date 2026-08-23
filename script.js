@@ -2583,8 +2583,12 @@ function abrirFormAbastecimento(kmSugerido) {
   limparCamposAbast();
   if (kmSugerido) document.querySelector('#inputKmTela').value = kmSugerido;
   // dica do km so aparece quando veio do turno (senao confunde quem abre pela aba)
-  const dica = document.querySelector('#dicaKmTurno');
-  if (dica) dica.style.display = _abastDoTurno ? 'block' : 'none';
+  // uma dica de cada vez: se o km ja veio preenchido, explicar "pode deixar em
+  // branco" so confunde
+  const dicaT = document.querySelector('#dicaKmTurno');
+  const dicaN = document.querySelector('#dicaKmNormal');
+  if (dicaT) dicaT.style.display = _abastDoTurno ? 'block' : 'none';
+  if (dicaN) dicaN.style.display = _abastDoTurno ? 'none' : 'block';
   tipoSelecionadoTela = aplicarUltimoTipo('#modalAbastecer');
   calcCustoPorKmTela();
   document.getElementById('modalAbastecer').style.display = 'flex';
@@ -2650,7 +2654,17 @@ function avisarPrecoDoPosto(reg) {
   const msg = dif > 0
     ? '\u26a0\ufe0f Esse litro saiu ' + fmtBRL(dif) + ' mais caro que ' + qtd
     : '\u2705 Boa! ' + fmtBRL(Math.abs(dif)) + ' mais barato por litro que ' + qtd;
-  setTimeout(function () { toast(msg); }, 2400);   // depois do toast de "registrado"
+  // Se o streak estiver na frente, espera ele sair — senao o aviso passa por
+  // baixo da tela cheia e o motorista nem le (foi o que aconteceu no teste).
+  const streakAberto = () => {
+    const m = document.getElementById('modalStreak');
+    return m && getComputedStyle(m).display !== 'none';
+  };
+  const mostrar = () => {
+    if (streakAberto()) { setTimeout(mostrar, 800); return; }   // tenta de novo depois
+    toast(msg);
+  };
+  setTimeout(mostrar, 2400);
 }
 
 function refreshAposAbast() {
