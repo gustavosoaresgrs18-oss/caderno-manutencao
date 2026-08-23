@@ -2882,15 +2882,29 @@ function renderPorTipo(registros) {
   if (vidS && registros) registros = registros.filter(r => r.vid === vidS);
   if (!registros || registros.length === 0) { bloco.style.display = 'none'; return; }
 
+  // ⚠️ Registro com km furado fica de fora do COMPARATIVO. Sem isto o app
+  // afirmava coisas falsas ("gasolina 91% mais barata por km") a partir de um
+  // dado que ele mesmo já sabia estar errado. O gasto continua aparecendo
+  // (o dinheiro saiu do bolso de verdade) — o que sai é o custo por km.
+  const kmFurado = r => {
+    if (!(r.km > 0 && r.valor > 0)) return false;
+    const cpk = r.valor / r.km;
+    const kpl = r.litros ? (r.km / r.litros) : null;
+    return cpk > 3 || (kpl !== null && kpl < 2);
+  };
+  const temFurado = registros.some(kmFurado);
+
   // agrupa por tipo
   const grupos = {};
   registros.forEach(r => {
     const t = r.tipo || 'Outro';
     if (!grupos[t]) grupos[t] = { tipo: t, gasto: 0, km: 0, litros: 0, n: 0 };
     grupos[t].gasto  += r.valor || 0;
-    grupos[t].km     += r.km || 0;
     grupos[t].litros += r.litros || 0;
     grupos[t].n++;
+    // km furado nao entra na conta de custo/km (mas o gasto acima entra:
+    // o dinheiro saiu do bolso de verdade)
+    if (!kmFurado(r)) { grupos[t].km += r.km || 0; grupos[t].gastoKm = (grupos[t].gastoKm || 0) + (r.valor || 0); }
   });
   const tipos = Object.values(grupos);
   // só faz sentido mostrar se tiver mais de um tipo
@@ -2902,7 +2916,7 @@ function renderPorTipo(registros) {
 
   lista.innerHTML = tipos.map(g => {
     const pct = gastoTotal > 0 ? Math.round((g.gasto / gastoTotal) * 100) : 0;
-    const cpk = g.km > 0 ? fmtBRL((g.gasto / g.km)) + '/km' : '—';
+    const cpk = g.km > 0 ? fmtBRL(((g.gastoKm || 0) / g.km)) + '/km' : '—';
     const cls = TIPO_CLASSE[g.tipo] || 'gas';
     const cor = { gas:'var(--signal)', eta:'var(--money)', flex:'var(--info)', gnv:'var(--purple)', dies:'#8a95a3', mist:'#c78a3a' }[cls];
     return `
@@ -2917,18 +2931,25 @@ function renderPorTipo(registros) {
   }).join('');
 
   // veredicto: qual tipo tá saindo MAIS BARATO por km
-  const comCpk = tipos.filter(g => g.km > 0).map(g => ({ tipo: g.tipo, cpk: g.gasto / g.km }));
+  const comCpk = tipos.filter(g => g.km > 0).map(g => ({ tipo: g.tipo, cpk: (g.gastoKm || 0) / g.km }));
   if (comCpk.length >= 2) {
     comCpk.sort((a, b) => a.cpk - b.cpk);   // menor cpk primeiro (melhor)
     const melhor = comCpk[0], pior = comCpk[comCpk.length - 1];
     const diff   = Math.round(((pior.cpk - melhor.cpk) / pior.cpk) * 100);
+    const nota = temFurado
+      ? '<br><span style="font-size:11px;color:var(--faint)">Deixei de fora um abastecimento com o km errado — corrija pra conta ficar completa.</span>'
+      : '';
     if (diff >= 5) {
       verBox.style.display = 'block';
-      verBox.innerHTML = `🟢 Neste período, o <b>${melhor.tipo}</b> saiu <b>${diff}% mais barato por km</b> que o ${pior.tipo}. Vale mirar nesse pra render mais.`;
+      verBox.innerHTML = `🟢 Neste período, o <b>${melhor.tipo}</b> saiu <b>${diff}% mais barato por km</b> que o ${pior.tipo}. Vale mirar nesse pra render mais.` + nota;
     } else {
       verBox.style.display = 'block';
-      verBox.innerHTML = `⚖️ Os tipos usados custaram parecido por km (diferença de ${diff}%). Vai no que for mais fácil de achar no posto.`;
+      verBox.innerHTML = `⚖️ Os tipos usados custaram parecido por km (diferença de ${diff}%). Vai no que for mais fácil de achar no posto.` + nota;
     }
+  } else if (temFurado) {
+    // nao da pra comparar porque o unico dado do outro tipo esta furado — diz isso
+    verBox.style.display = 'block';
+    verBox.innerHTML = '⚠️ Não consigo comparar os tipos: um abastecimento está com o km errado. Corrija que eu faço a conta.';
   } else {
     verBox.style.display = 'none';
   }
