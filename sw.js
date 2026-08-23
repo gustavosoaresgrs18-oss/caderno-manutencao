@@ -6,7 +6,7 @@
    O cache aqui serve so pra ele nao ficar na mao sem sinal.
    ============================================================ */
 
-const CACHE = 'copiloto-v5';
+const CACHE = 'copiloto-v6';
 
 const ESSENCIAIS = [
   './',
@@ -47,8 +47,16 @@ self.addEventListener('fetch', evento => {
   if (req.method !== 'GET') return;
   if (new URL(req.url).origin !== self.location.origin) return;
 
+  // ⚠️ O index.html NUNCA pode vir do cache do navegador. É ele que diz qual
+  // versao do script.js/style.css carregar (?v=NNN). Se o HTML vier velho, ele
+  // pede a versao velha dos arquivos e NENHUMA correcao chega no motorista —
+  // foi o que travou varios testes.
+  const ehHTML = req.mode === 'navigate' ||
+                 (req.headers.get('accept') || '').includes('text/html');
+  const pedido = ehHTML ? new Request(req.url, { cache: 'no-store' }) : req;
+
   evento.respondWith(
-    fetch(req)
+    fetch(pedido)
       .then(resposta => {
         // deu certo na rede: atualiza a reserva e entrega
         const copia = resposta.clone();
