@@ -1394,13 +1394,17 @@ function atualizarCustoRealKm() {
   // fonte única: mesma média da aba Combustível (não o último abastecimento isolado, que é ruído)
   const combKm = combustivelKmMes();
   const real = combKm + reservaKm;
-  const mostra = combKm > 0 ? real : reservaKm;
+  const suspeito = combKm > 3;   // R$3+/km de combustível não existe: km errado
 
-  custoPorKmValor.textContent = fmtBRL(mostra);
-  custoKmStrip.textContent    = fmtBRL(mostra);
-  if (combKm > 3) {
-    // custo/km altíssimo = quase sempre km digitado errado (ou litros no lugar de km)
-    custoRealSub.textContent = '⚠️ valor estranho — confere se o km tá certo';
+  // ⚠️ Número que o app SABE estar errado não vai pra tela. Antes ele aparecia
+  // em destaque com um aviso do lado — e o motorista pode decidir uma corrida
+  // olhando esse número. Regra do projeto: faltou dado confiável, avisa e cala.
+  const mostra = suspeito ? null : (combKm > 0 ? real : reservaKm);
+  custoPorKmValor.textContent = mostra === null ? '—' : fmtBRL(mostra);
+  custoKmStrip.textContent    = mostra === null ? '—' : fmtBRL(mostra);
+
+  if (suspeito) {
+    custoRealSub.textContent = '⚠️ km de algum abastecimento está errado — toque em Combustível pra corrigir';
     custoRealSub.style.color = 'var(--signal)';
   } else {
     custoRealSub.style.color = '';
@@ -1764,6 +1768,13 @@ function atualizarAlerta(idStatus, idAlerta, idBarra, item) {
     if (barra) barra.style.width = '0%';
     return;
   }
+  // referência acima do odômetro atual (km corrigido / veículo trocado):
+  // não dá pra contar km a partir de um número que não existe mais
+  if (item.kmUltima > kmAtual) {
+    st.textContent = 'toque p/ registrar';
+    if (barra) barra.style.width = '0%';
+    return;
+  }
   const usado    = kmAtual - item.kmUltima;
   const restante = item.intervalo - usado;
   const pctUsado = Math.max(0, Math.min(100, (usado / item.intervalo) * 100));
@@ -1785,6 +1796,15 @@ function atualizarTelaManutencao() {
 
     if (!it.kmUltima) {                       // troca ainda não registrada
       rest.textContent = 'registrar'; rest.style.color = 'var(--signal)';
+      if (barra) { barra.style.width = '0%'; barra.style.background = 'var(--signal)'; }
+      return;
+    }
+    // ⚠️ Última troca registrada ACIMA do odômetro atual: acontece quando o km
+    // foi corrigido (ou o veículo trocado). A referência não vale mais — o app
+    // pede pra registrar de novo em vez de mostrar "faltam 105.877.613 km".
+    if (it.kmUltima > kmAtual) {
+      rest.textContent = 'registrar de novo'; rest.style.color = 'var(--signal)';
+      document.getElementById('kmUltimaItem' + n).textContent = 'km corrigido';
       if (barra) { barra.style.width = '0%'; barra.style.background = 'var(--signal)'; }
       return;
     }
@@ -1819,15 +1839,19 @@ function abrirManutencao(n) {
   document.getElementById('mntIcone').textContent = MNT_ICONES[it.key] || '🔧';
   document.getElementById('mntNome').textContent  = it.nome;
   const st = document.getElementById('mntStatus');
+  const orfao = it.kmUltima && it.kmUltima > kmAtual;   // referência acima do odômetro atual
   if (!it.kmUltima) { st.textContent = 'registre a 1ª troca'; st.className = 'mnt-status num c-amar'; }
+  else if (orfao)   { st.textContent = 'registre de novo';    st.className = 'mnt-status num c-amar'; }
   else {
     st.textContent = restante <= 0 ? 'Vencida — troque logo!' : 'faltam ' + restante + ' km';
     st.className = 'mnt-status num ' + (restPct <= 0.2 ? 'c-verm' : restPct <= 0.8 ? 'c-amar' : 'c-verde');
   }
-  document.getElementById('mntBarra').style.width = pctUsado + '%';
-  document.getElementById('mntUltima').textContent   = it.kmUltima ? 'em ' + it.kmUltima.toLocaleString('pt-BR') + ' km' : 'não registrada';
+  document.getElementById('mntBarra').style.width = (orfao ? 0 : pctUsado) + '%';
+  document.getElementById('mntUltima').textContent   = !it.kmUltima ? 'não registrada'
+                                                     : orfao ? 'km corrigido — registre de novo'
+                                                     : 'em ' + it.kmUltima.toLocaleString('pt-BR') + ' km';
   document.getElementById('mntIntervalo').textContent = it.intervalo.toLocaleString('pt-BR') + ' km';
-  document.getElementById('mntProxima').textContent   = it.kmUltima ? 'em ' + (it.kmUltima + it.intervalo).toLocaleString('pt-BR') + ' km' : 'após registrar';
+  document.getElementById('mntProxima').textContent   = (it.kmUltima && !orfao) ? 'em ' + (it.kmUltima + it.intervalo).toLocaleString('pt-BR') + ' km' : 'após registrar';
   document.getElementById('mntInputIntervalo').value  = it.intervalo;
   document.getElementById('modalManutencao').style.display = 'flex';
 }
@@ -2080,6 +2104,17 @@ function veicCorrigirGuardado() {
 
   fecharTrocaVeic();
   aplicarKmEFecharTurno(valor);
+  // Se a manutenção estava ancorada no km antigo, ela perde a referência.
+  // Melhor dizer agora do que ele descobrir sozinho vendo "registrar de novo".
+  const perdeuManut = [1,2,3].some(n => {
+    const it = manutencoes['item' + n];
+    return it && it.kmUltima && it.kmUltima > valor;
+  });
+  if (perdeuManut) {
+    setTimeout(function () {
+      toast('🔧 Registre as manutenções de novo — elas usavam o km antigo');
+    }, 2600);
+  }
   toast('🛣️ Corrigido! A contagem de km recomeça a partir daqui.');
 }
 
@@ -2626,9 +2661,12 @@ function atualizarTelaCombustivel() {
   // Custo médio/km = só o veículo ATIVO (é o número que decide corrida).
   const bc     = baseCombustivel();
   const cKmMes = combustivelKmMes();
-  document.querySelector('#custoMedioVal').textContent = cKmMes > 0 ? fmtBRL(cKmMes) : '—';
+  // mesma regra da tela Início: número que o app sabe estar errado vira '—'
+  const cmSuspeito = cKmMes > 3;
+  document.querySelector('#custoMedioVal').textContent = (cKmMes > 0 && !cmSuspeito) ? fmtBRL(cKmMes) : '—';
   let subCm;
-  if (cKmMes > 0) subCm = (bc.escopo === 'mes' ? 'média do mês' : 'média de todos os registros') + ' · ' + nomeVeiculo(veiculoAtivo());
+  if (cmSuspeito) subCm = '⚠️ algum abastecimento está com o km errado — toque no lápis pra corrigir';
+  else if (cKmMes > 0) subCm = (bc.escopo === 'mes' ? 'média do mês' : 'média de todos os registros') + ' · ' + nomeVeiculo(veiculoAtivo());
   else {
     const n = abastDoVeiculoAtivo().length;
     subCm = n > 0 ? 'aprendendo ' + nomeVeiculo(veiculoAtivo()) + ' · registre o km ao abastecer'
