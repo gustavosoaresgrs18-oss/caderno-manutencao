@@ -2658,7 +2658,28 @@ function salvarAbastecimento(tipo, valor, litros, km, cpm, posto) {
     }, 'id').catch(function () {});
   }
   refreshAposAbast();
+  avisarPrecoDoPosto(registro);   // ele ainda esta no posto: da tempo de lembrar pra proxima
 }
+
+// Compara o preco que ele acabou de pagar com os 4 abastecimentos anteriores do
+// MESMO tipo (mesma regra do selinho do extrato). Avisa na hora, enquanto ele
+// ainda esta no posto — no extrato ele so veria dias depois, sem serventia.
+function avisarPrecoDoPosto(reg) {
+  if (!reg || !reg.ppl) return;
+  const anteriores = lerLS('historicoAbastecimentos', [])
+    .filter(x => x.id !== reg.id && x.ppl && x.tipo === reg.tipo)
+    .slice(0, 4);
+  if (anteriores.length < 1) return;          // sem base: nao inventa comparacao
+  const media = anteriores.reduce((t, x) => t + numBR(x.ppl), 0) / anteriores.length;
+  const dif   = Number((numBR(reg.ppl) - media).toFixed(2));
+  if (Math.abs(dif) < 0.1) return;            // diferenca irrelevante: nao enche o saco
+  const qtd = anteriores.length === 1 ? 'o anterior' : 'os ' + anteriores.length + ' anteriores';
+  const msg = dif > 0
+    ? '\u26a0\ufe0f Esse litro saiu ' + fmtBRL(dif) + ' mais caro que ' + qtd
+    : '\u2705 Boa! ' + fmtBRL(Math.abs(dif)) + ' mais barato por litro que ' + qtd;
+  setTimeout(function () { toast(msg); }, 2400);   // depois do toast de "registrado"
+}
+
 function refreshAposAbast() {
   ressincronizarReceitaHoje();
   atualizarTelaCombustivel();
