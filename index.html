@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=339">
+    <link rel="stylesheet" href="style.css?v=340">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=339"></script>
+    <script src="supabase-service.js?v=340"></script>
   </head>
   <body>
     <div class="dashboard">
@@ -736,9 +736,10 @@
               <input type="text" inputmode="numeric" id="inputKmComb" placeholder="Ex: 320" oninput="calcCustoPorKm()">
               <div style="font-size:11.5px;color:var(--dim);margin-top:5px;">Já preenchi com o km que você acabou de rodar. Ajuste se precisar.</div>
             </div>
-            <div class="comb-field"><label>Litros <span style="color:var(--faint)">· opcional</span></label><input type="text" inputmode="decimal" id="inputLitrosComb" placeholder="Ex: 7,5"></div>
+            <div class="comb-field"><label>Litros <span style="color:var(--faint)">· opcional</span></label><input type="text" inputmode="decimal" id="inputLitrosComb" placeholder="Ex: 7,5" oninput="calcCustoPorKm()"></div>
             <div class="comb-field"><label>Nome do posto <span style="color:var(--faint)">· opcional</span></label><input type="text" id="inputPostoComb" placeholder="Ex: Posto Mineiro"></div>
             <div class="comb-preview"><span class="comb-preview-label">Custo do combustível por km</span><span class="comb-preview-val num" id="combPreviewVal">— /km</span></div>
+            <div class="km-erro" id="combAvisoPos" style="display:none; color:var(--signal); border-color:rgba(255,176,32,.4); background:rgba(255,176,32,.1);"></div>
             <div class="modal-botoes"><button class="modal-btn cancelar" id="btnCancelarComb">Pular</button><button class="modal-btn confirmar" id="btnConfirmarComb">✅ Salvar</button></div>
           </div>
         </div>
@@ -1072,7 +1073,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=339"></script>
+    <script src="script.js?v=340"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       if ('serviceWorker' in navigator) {

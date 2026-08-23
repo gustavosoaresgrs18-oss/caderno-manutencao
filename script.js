@@ -2470,10 +2470,36 @@ function aplicarUltimoTipo(containerSel) {
     tipoSelecionado = this.textContent;
   });
 });
+// Texto de aviso do formulario de abastecimento. Funcao UNICA porque existem
+// DUAS telas que registram abastecimento (pos-turno e aba Combustivel) — foi
+// exatamente por elas terem codigo separado que o campo de km ficou faltando
+// numa delas por muito tempo.
+function avisoAbastecimento(v, k, l) {
+  const ehCarro = tipoVeiculoAtivo() === 'carro';
+  const faixa   = ehCarro ? '8 a 14 km por litro' : '25 a 40 km por litro';
+  if (v > 0 && k > 0 && l > 0 && (k / l) < 2) {
+    return '\u26a0\ufe0f ' + l + 'L para ' + fmtKm(k) + ' km daria so ' + (k/l).toFixed(1) +
+           ' km por litro. ' + (ehCarro ? 'Um carro faz ' : 'Uma moto faz ') + faixa +
+           ' \u2014 esse km parece baixo demais. Confira no painel.';
+  }
+  if (v > 0 && k > 0 && (v / k) > 3) {
+    return '\u26a0\ufe0f ' + fmtBRL(v/k) + ' de combustivel por km e muito acima do normal ' +
+           '(o comum fica entre R$ 0,20 e R$ 0,80). Provavelmente o km esta baixo demais.';
+  }
+  return '';
+}
+function pintarAviso(idBox, elValor, msg) {
+  const box = document.querySelector(idBox);
+  if (box) { box.textContent = msg; box.style.display = msg ? 'block' : 'none'; }
+  if (elValor) elValor.style.color = msg ? 'var(--signal)' : '';
+}
+
 function calcCustoPorKm() {
   const v = numBR(inputValorComb.value);
   const k = numBR(document.querySelector('#inputKmComb').value);
+  const l = numBR(inputLitrosComb.value);
   combPreviewVal.textContent = (v > 0 && k > 0) ? fmtBRL((v/k)) + '/km' : '— /km';
+  pintarAviso('#combAvisoPos', combPreviewVal, avisoAbastecimento(v, k, l));
 }
 let _lockSalvar = false;   // trava anti-clique-duplo dos botões de salvar
 btnConfirmarComb.addEventListener('click', function() {
@@ -2510,28 +2536,7 @@ function calcCustoPorKmTela() {
   const l = numBR(document.querySelector('#inputLitrosTela').value);
   const el = document.querySelector('#combPreviewValTela');
   el.textContent = (v > 0 && k > 0) ? fmtBRL((v/k)) + '/km' : '— /km';
-  // Avisa ANTES de salvar: melhor evitar o erro do que consertar depois.
-  // Mesma régua do detector — consumo abaixo de 2 km/L ou custo acima de R$3/km
-  // não existe na vida real, é km digitado errado.
-  const box = document.querySelector('#combAvisoTela');
-  if (!box) return;
-  // Número sozinho não ensina nada: "1.8 km por litro" só diz algo pra quem já
-  // conhece o consumo do próprio veículo. O aviso dá a REFERÊNCIA do que é
-  // normal e sugere o que fazer.
-  const ehCarro = tipoVeiculoAtivo() === 'carro';
-  const faixa   = ehCarro ? '8 a 14 km por litro' : '25 a 40 km por litro';
-  let msg = '';
-  if (v > 0 && k > 0 && l > 0 && (k / l) < 2) {
-    msg = '⚠️ ' + l + 'L para ' + fmtKm(k) + ' km daria só ' + (k/l).toFixed(1) +
-          ' km por litro. ' + (ehCarro ? 'Um carro faz ' : 'Uma moto faz ') + faixa +
-          ' — esse km parece baixo demais. Confira no painel.';
-  } else if (v > 0 && k > 0 && (v / k) > 3) {
-    msg = '⚠️ ' + fmtBRL(v/k) + ' de combustível por km é muito acima do normal ' +
-          '(o comum fica entre R$ 0,20 e R$ 0,80). Provavelmente o km está baixo demais.';
-  }
-  box.textContent = msg;
-  box.style.display = msg ? 'block' : 'none';
-  el.style.color = msg ? 'var(--signal)' : '';
+  pintarAviso('#combAvisoTela', el, avisoAbastecimento(v, k, l));   // mesma regra da tela pos-turno
 }
 function limparCamposAbast() {
   document.querySelector('#inputValorTela').value = '';
