@@ -591,8 +591,8 @@ let currentX        = 0;
 let pontoA          = null;
 let pontoB          = null;
 let kmTurnoAtual    = 0;
+let _abastDoTurno   = false;   // formulario aberto pelo fecha-turno? (muda o que acontece ao salvar)
 let _pediuLogin     = false;   // já pedimos login neste uso do app? (1x por sessão)
-let tipoSelecionado = 'Gasolina';
 let tipoSelecionadoTela = 'Gasolina';
 let tipoReceita     = 'liquido';
 let iconeVeiculo    = '🏍️';
@@ -1049,14 +1049,8 @@ const kmVivo           = document.querySelector('#kmVivo');
 const kmErro           = document.querySelector('#kmErro');
 const modalCombustivel = document.querySelector('#modalCombustivel');
 const etapaAbasteceu   = document.querySelector('#etapaAbasteceu');
-const etapaFormComb    = document.querySelector('#etapaFormComb');
 const btnSimAbasteceu  = document.querySelector('#btnSimAbasteceu');
 const btnNaoAbasteceu  = document.querySelector('#btnNaoAbasteceu');
-const btnConfirmarComb = document.querySelector('#btnConfirmarComb');
-const btnCancelarComb  = document.querySelector('#btnCancelarComb');
-const inputValorComb   = document.querySelector('#inputValorComb');
-const inputLitrosComb  = document.querySelector('#inputLitrosComb');
-const combPreviewVal   = document.querySelector('#combPreviewVal');
 const btnRegistrarReceita = document.querySelector('#btnRegistrarReceita');
 const modalReceita        = document.querySelector('#modalReceita');
 const btnCancelarReceita  = document.querySelector('#btnCancelarReceita');
@@ -2431,26 +2425,16 @@ function aplicarCorrecaoKm(valor) {
 // ─── MODAL COMBUSTÍVEL (após finalizar turno) ────────────────
 function abrirModalCombustivel() {
   etapaAbasteceu.style.display = 'block';
-  etapaFormComb.style.display  = 'none';
-  inputValorComb.value = '';
-  inputLitrosComb.value = '';
-  document.querySelector('#inputPostoComb').value = '';
-  // pré-preenche com o km que acabou de fechar no turno — visível e editável,
-  // igual ao campo da aba Combustível (antes ficava escondido e não dava pra corrigir)
-  document.querySelector('#inputKmComb').value = kmTurnoAtual > 0 ? kmTurnoAtual : '';
-  combPreviewVal.textContent = '— /km';
   modalCombustivel.style.display = 'flex';
 }
-btnSimAbasteceu.addEventListener('click', function() { etapaAbasteceu.style.display = 'none'; etapaFormComb.style.display = 'block'; tipoSelecionado = aplicarUltimoTipo('#etapaFormComb'); });
-btnNaoAbasteceu.addEventListener('click', function() {
+btnSimAbasteceu.addEventListener('click', function() {
+  // Abre o MESMO formulario da aba Combustivel. Antes existiam dois formularios
+  // separados fazendo a mesma coisa — foi por isso que o campo de km ficou
+  // faltando num deles, e depois o aviso de km suspeito tambem.
   modalCombustivel.style.display = 'none';
-  mostrarStreak();
-  // Fechou o turno e não abasteceu: o turno JÁ foi registrado (cortesia),
-  // então aqui o login é pedido depois, sem travar nada. Sem isto, quem
-  // nunca abastece nunca seria lembrado de entrar.
-  setTimeout(exigirLoginSePreciso, 1200);   // deixa o streak aparecer primeiro
+  _abastDoTurno = true;
+  abrirFormAbastecimento(kmTurnoAtual > 0 ? kmTurnoAtual : null);
 });
-btnCancelarComb.addEventListener('click', function() { modalCombustivel.style.display = 'none'; mostrarStreak(); });
 
 // aplica o último combustível usado (destaca o botão certo e devolve o nome)
 function aplicarUltimoTipo(containerSel) {
@@ -2463,13 +2447,6 @@ function aplicarUltimoTipo(containerSel) {
   if (achou) achou.classList.add('ativo');
   return achou ? alvo : 'Gasolina';
 }
-['tipoGasolina','tipoEtanol','tipoFlex','tipoGNV','tipoDiesel','tipoMisto'].forEach(id => {
-  document.querySelector('#' + id).addEventListener('click', function() {
-    document.querySelectorAll('#etapaFormComb .tipo-btn').forEach(b => b.classList.remove('ativo'));
-    this.classList.add('ativo');
-    tipoSelecionado = this.textContent;
-  });
-});
 // Texto de aviso do formulario de abastecimento. Funcao UNICA porque existem
 // DUAS telas que registram abastecimento (pos-turno e aba Combustivel) — foi
 // exatamente por elas terem codigo separado que o campo de km ficou faltando
@@ -2494,33 +2471,7 @@ function pintarAviso(idBox, elValor, msg) {
   if (elValor) elValor.style.color = msg ? 'var(--signal)' : '';
 }
 
-function calcCustoPorKm() {
-  const v = numBR(inputValorComb.value);
-  const k = numBR(document.querySelector('#inputKmComb').value);
-  const l = numBR(inputLitrosComb.value);
-  combPreviewVal.textContent = (v > 0 && k > 0) ? fmtBRL((v/k)) + '/km' : '— /km';
-  pintarAviso('#combAvisoPos', combPreviewVal, avisoAbastecimento(v, k, l));
-}
 let _lockSalvar = false;   // trava anti-clique-duplo dos botões de salvar
-btnConfirmarComb.addEventListener('click', function() {
-  const valor  = numBR(inputValorComb.value);
-  const km     = numBR(document.querySelector('#inputKmComb').value) || null;
-  const litros = numBR(inputLitrosComb.value) || null;
-  const posto  = document.querySelector('#inputPostoComb').value.trim() || null;
-  if (!valor || valor <= 0) { toast('Informe o valor gasto', 'erro'); return; }
-  if (bloquearSemLogin()) return;   // sem entrar na conta, nao lanca
-  if (_lockSalvar) return;
-  _lockSalvar = true; setTimeout(() => { _lockSalvar = false; }, 800);
-  const cpm = (valor && km) ? (valor / km).toFixed(2) : null;
-  // km desconhecido não vira zero: vira "não sei" — e fica fora da média
-  salvarAbastecimento(tipoSelecionado, valor, litros, km, cpm, posto);
-  salvarLS('ultimoTipoComb', tipoSelecionado);   // lembra pro próximo abastecimento
-  atualizarCustoRealKm();
-  modalCombustivel.style.display = 'none';
-  toast('⛽ Abastecimento registrado!');
-  enfileirarBalaoProg('abastecimento');   // entra na fila; dispara após o streak fechar
-  mostrarStreak();
-});
 
 // ─── TELA COMBUSTÍVEL ────────────────────────────────────────
 ['tipoGasolinaTela','tipoEtanolTela','tipoFlexTela','tipoGNVTela','tipoDieselTela','tipoMistoTela'].forEach(id => {
@@ -2611,21 +2562,43 @@ document.querySelector('#btnSalvarTela').addEventListener('click', function() {
   }
   limparCamposAbast();
   document.getElementById('modalAbastecer').style.display = 'none';
-  if (!ehEdicao) dispararBalaoProg('abastecimento');   // ensina na 1ª vez (1x só)
+  // Veio do fecha-turno? Entao o streak fecha agora e o balao entra na FILA
+  // (pra nao aparecer por cima do streak). Veio da aba? Balao direto.
+  if (_abastDoTurno) {
+    _abastDoTurno = false;
+    if (!ehEdicao) enfileirarBalaoProg('abastecimento');
+    mostrarStreak();
+  } else if (!ehEdicao) {
+    dispararBalaoProg('abastecimento');   // ensina na 1ª vez (1x só)
+  }
 });
 
 // ─── ABRIR / FECHAR MODAL DE ABASTECIMENTO ───────────────────
-document.getElementById('btnAbrirAbastecer').addEventListener('click', function() {
+// Abre o formulario de abastecimento — UNICO no app. Usado pelos dois caminhos:
+// o botao da aba Combustivel e o "Sim" depois de encerrar o turno.
+// kmSugerido: preenche o campo de km (o pos-turno manda o km que ele rodou).
+function abrirFormAbastecimento(kmSugerido) {
   editandoAbastId = null;
   document.querySelector('#btnSalvarTela').textContent = '✅ Registrar';
   limparCamposAbast();
+  if (kmSugerido) document.querySelector('#inputKmTela').value = kmSugerido;
+  // dica do km so aparece quando veio do turno (senao confunde quem abre pela aba)
+  const dica = document.querySelector('#dicaKmTurno');
+  if (dica) dica.style.display = _abastDoTurno ? 'block' : 'none';
   tipoSelecionadoTela = aplicarUltimoTipo('#modalAbastecer');
+  calcCustoPorKmTela();
   document.getElementById('modalAbastecer').style.display = 'flex';
+}
+document.getElementById('btnAbrirAbastecer').addEventListener('click', function() {
+  _abastDoTurno = false;
+  abrirFormAbastecimento(null);
 });
 document.getElementById('btnCancelarAbastecer').addEventListener('click', function() {
   editandoAbastId = null;
   document.querySelector('#btnSalvarTela').textContent = '✅ Registrar';
   document.getElementById('modalAbastecer').style.display = 'none';
+  // desistiu de registrar depois do turno: o dia fecha do mesmo jeito
+  if (_abastDoTurno) { _abastDoTurno = false; mostrarStreak(); }
 });
 
 // ─── SALVAR ABASTECIMENTO ────────────────────────────────────
