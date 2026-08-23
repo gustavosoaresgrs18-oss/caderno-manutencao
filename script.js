@@ -2939,12 +2939,19 @@ function renderPorTipo(registros) {
     const nota = temFurado
       ? '<br><span style="font-size:11px;color:var(--faint)">Deixei de fora um abastecimento com o km errado — corrija pra conta ficar completa.</span>'
       : '';
+    // Porcentagem sozinha e abstrata: o motorista pensa em DINHEIRO. Mostra
+    // a diferenca por km E quanto isso daria nos km que ele ja rodou no periodo.
+    const difKm  = pior.cpk - melhor.cpk;                       // R$ por km
+    const kmTotal = tipos.reduce((t, g) => t + (g.km || 0), 0);
+    const noPeriodo = difKm * kmTotal;
     if (diff >= 5) {
       verBox.style.display = 'block';
-      verBox.innerHTML = `🟢 Neste período, o <b>${melhor.tipo}</b> saiu <b>${diff}% mais barato por km</b> que o ${pior.tipo}. Vale mirar nesse pra render mais.` + nota;
+      let txt = `🟢 Neste período, <b>${melhor.tipo}</b> saiu <b>${fmtBRL(difKm)} mais barato por km</b> que ${pior.tipo} (${diff}%).`;
+      if (noPeriodo >= 5) txt += ` Nos ${fmtKm(kmTotal)} km que você rodou, daria <b>${fmtBRL0(noPeriodo)}</b> de diferença.`;
+      verBox.innerHTML = txt + nota;
     } else {
       verBox.style.display = 'block';
-      verBox.innerHTML = `⚖️ Os tipos usados custaram parecido por km (diferença de ${diff}%). Vai no que for mais fácil de achar no posto.` + nota;
+      verBox.innerHTML = `⚖️ Os tipos custaram quase igual por km (${fmtBRL(difKm)} de diferença). Vai no que for mais fácil de achar no posto.` + nota;
     }
   } else if (temFurado) {
     // nao da pra comparar porque o unico dado do outro tipo esta furado — diz isso
