@@ -2013,6 +2013,16 @@ function abrirTrocaVeic(motivo, valor, ultimo) {
   opts.push('<button type="button" class="veic-op" onclick="veicAbrirForm()">' +
     '<span class="veic-op-ic">➕</span>' +
     '<span class="veic-op-txt"><b>Troquei de veículo</b><small>é um veículo que o app ainda não conhece</small></span></button>');
+  if (motivo === 'menor') {
+    // ⚠️ Sem esta saída o motorista fica preso: se o número GUARDADO é que
+    // está errado, ele digita o valor certo, é recusado, volta pro campo,
+    // digita certo de novo... em loop. A única fuga seria cadastrar um
+    // veículo falso — sujando os dados pra sempre.
+    opts.push('<button type="button" class="veic-op" onclick="veicCorrigirGuardado()">' +
+      '<span class="veic-op-ic">✏️</span>' +
+      '<span class="veic-op-txt"><b>O km guardado está errado</b>' +
+      '<small>o certo é o que estou digitando agora — corrigir o registro anterior</small></span></button>');
+  }
   if (motivo === 'maior') {
     opts.push('<button type="button" class="veic-op" onclick="veicRodeiIsso()">' +
       '<span class="veic-op-ic">✅</span>' +
@@ -2051,6 +2061,28 @@ function veicVoltarPara(vid) {
   aplicarKmEFecharTurno(valor);
   toast('🔄 De volta pra ' + nomeVeiculo(veiculoAtivo()));
 }
+// O número GUARDADO é que estava errado. Descarta a base errada e deixa o
+// fechamento seguir normal — o motorista não perde as horas, o streak nem a
+// reserva do dia. O km rodado hoje fica desconhecido de propósito: sem base
+// confiável, o app não chuta (aplicarKmEFecharTurno já trata isso sozinho,
+// porque kmRodadoHoje() devolve null quando não há registro anterior).
+function veicCorrigirGuardado() {
+  const valor = _veicCtx ? _veicCtx.valor : null;
+  if (valor == null) return;
+  const rh = lerLS('registroHoje', null);
+
+  localStorage.removeItem('registroAnterior');   // essa régua estava errada
+  localStorage.removeItem('registroHoje');       // idem — o valor certo entra agora
+  const mapa = lerLS('kmPorDia', {});            // km calculado sobre base errada some
+  delete mapa[hojeISO()];
+  if (rh && rh.data) delete mapa[rh.data];
+  salvarLS('kmPorDia', mapa);
+
+  fecharTrocaVeic();
+  aplicarKmEFecharTurno(valor);
+  toast('🛣️ Corrigido! A contagem de km recomeça a partir daqui.');
+}
+
 // era um dia longo mesmo: aceita o número como o motorista disse
 function veicRodeiIsso() {
   const valor = _veicCtx ? _veicCtx.valor : null;
