@@ -2941,7 +2941,10 @@ function renderPorTipo(registros) {
       : '';
     // Porcentagem sozinha e abstrata: o motorista pensa em DINHEIRO. Mostra
     // a diferenca por km E quanto isso daria nos km que ele ja rodou no periodo.
-    const difKm  = pior.cpk - melhor.cpk;                       // R$ por km
+    // ⚠️ A conta usa o valor JA ARREDONDADO que aparece na tela. Senao o
+    // motorista refaz a conta (R$ 0,01 x 1.020 km) e nao fecha com o total
+    // mostrado — e para de confiar no numero. Mesmo cuidado do balao de ajuda.
+    const difKm  = Number((pior.cpk - melhor.cpk).toFixed(2));   // R$ por km, como aparece
     const kmTotal = tipos.reduce((t, g) => t + (g.km || 0), 0);
     const noPeriodo = difKm * kmTotal;
     if (diff >= 5) {
