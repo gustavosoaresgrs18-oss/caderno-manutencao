@@ -1389,6 +1389,32 @@ function combustivelKmMes() {
 }
 
 // NOVO: custo REAL por km = combustível/km + reserva de manutenção/km
+// Qual abastecimento está com o km errado? O app sabe — então diz, em vez de
+// mandar o motorista procurar. Suspeito = R$/km acima de 3 (não existe combustível
+// que custe isso por km) ou consumo impossível (menos de 2 km por litro).
+function abastecimentoSuspeito() {
+  const base = baseCombustivel().base;
+  for (const r of base) {
+    const cpk = r.valor / r.km;
+    const kmPorLitro = r.litros ? (r.km / r.litros) : null;
+    if (cpk > 3 || (kmPorLitro !== null && kmPorLitro < 2)) {
+      return { reg: r, cpk, kmPorLitro };
+    }
+  }
+  return null;
+}
+// texto curto explicando, na linguagem dele, POR QUE aquele número não fecha
+function textoSuspeito(s) {
+  if (!s) return '';
+  const quando = s.reg.data ? s.reg.data + ': ' : '';
+  if (s.kmPorLitro !== null && s.kmPorLitro < 2) {
+    return '⚠️ ' + quando + s.reg.litros + 'L para ' + fmtKm(s.reg.km) +
+           ' km não fecha — daria ' + s.kmPorLitro.toFixed(1) + ' km por litro. Confira o km.';
+  }
+  return '⚠️ ' + quando + fmtBRL(s.reg.valor) + ' em ' + fmtKm(s.reg.km) +
+         ' km daria ' + fmtBRL(s.cpk) + ' por km — combustível não custa isso. Confira o km.';
+}
+
 function atualizarCustoRealKm() {
   const reservaKm = reservaKmAtual();
   // fonte única: mesma média da aba Combustível (não o último abastecimento isolado, que é ruído)
@@ -1404,7 +1430,9 @@ function atualizarCustoRealKm() {
   custoKmStrip.textContent    = mostra === null ? '—' : fmtBRL(mostra);
 
   if (suspeito) {
-    custoRealSub.textContent = '⚠️ km de algum abastecimento está errado — toque em Combustível pra corrigir';
+    const _s = abastecimentoSuspeito();
+    custoRealSub.textContent = _s ? textoSuspeito(_s)
+      : '⚠️ km de algum abastecimento está errado — toque em Combustível pra corrigir';
     custoRealSub.style.color = 'var(--signal)';
   } else {
     custoRealSub.style.color = '';
@@ -2665,7 +2693,7 @@ function atualizarTelaCombustivel() {
   const cmSuspeito = cKmMes > 3;
   document.querySelector('#custoMedioVal').textContent = (cKmMes > 0 && !cmSuspeito) ? fmtBRL(cKmMes) : '—';
   let subCm;
-  if (cmSuspeito) subCm = '⚠️ algum abastecimento está com o km errado — toque no lápis pra corrigir';
+  if (cmSuspeito) { const _s2 = abastecimentoSuspeito(); subCm = _s2 ? textoSuspeito(_s2) : '⚠️ algum abastecimento está com o km errado — toque no lápis pra corrigir'; }
   else if (cKmMes > 0) subCm = (bc.escopo === 'mes' ? 'média do mês' : 'média de todos os registros') + ' · ' + nomeVeiculo(veiculoAtivo());
   else {
     const n = abastDoVeiculoAtivo().length;
