@@ -2768,13 +2768,22 @@ function renderItensAbastecimento(elLista, registros, baseParaPadrao) {
   elLista.innerHTML = registros.map(r => {
     let badge = '';
     if (r.ppl) {
-      const mesmoTipo = baseParaPadrao.filter(x => x !== r && x.ppl && x.tipo === r.tipo);
+      // Compara com os 4 abastecimentos ANTERIORES do mesmo tipo, nao com o
+      // historico inteiro: combustivel muda de preco o tempo todo, e a media
+      // de meses atras faz tudo parecer "Caro" pra sempre — o selinho vira um
+      // alarme que toca sempre e o motorista para de olhar.
+      // (a lista ja vem da mais recente pra mais antiga)
+      const idx = baseParaPadrao.indexOf(r);
+      const mesmoTipo = baseParaPadrao
+        .filter((x, i) => i > idx && x.ppl && x.tipo === r.tipo)   // so os ANTERIORES a este
+        .slice(0, 4);
       if (mesmoTipo.length >= 1) {
         const media = mesmoTipo.reduce((s, x) => s + numBR(x.ppl), 0) / mesmoTipo.length;
         const diff  = numBR(r.ppl) - media;
-        if (diff > 0.1)       badge = `<div class="comb-badge comb-badge-caro">⚠️ Caro · +${fmtBRL(diff)}/L</div>`;
-        else if (diff < -0.1) badge = `<div class="comb-badge comb-badge-barato">✅ Barato · −${fmtBRL(Math.abs(diff))}/L</div>`;
-        else                  badge = `<div class="comb-badge comb-badge-neutro">👌 No padrão</div>`;
+        const qtd   = mesmoTipo.length === 1 ? 'o anterior' : 'os ' + mesmoTipo.length + ' anteriores';
+        if (diff > 0.1)       badge = `<div class="comb-badge comb-badge-caro">⚠️ +${fmtBRL(diff)}/L que ${qtd}</div>`;
+        else if (diff < -0.1) badge = `<div class="comb-badge comb-badge-barato">✅ −${fmtBRL(Math.abs(diff))}/L que ${qtd}</div>`;
+        else                  badge = `<div class="comb-badge comb-badge-neutro">👌 No mesmo preço de ${qtd}</div>`;
       }
     }
     return `<div class="comb-item">
