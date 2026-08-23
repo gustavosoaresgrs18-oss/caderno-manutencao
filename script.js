@@ -1404,15 +1404,20 @@ function abastecimentoSuspeito() {
   return null;
 }
 // texto curto explicando, na linguagem dele, POR QUE aquele número não fecha
+// e QUAL seria o normal — número sozinho não ajuda quem não conhece a conta.
 function textoSuspeito(s) {
   if (!s) return '';
-  const quando = s.reg.data ? s.reg.data + ': ' : '';
+  const quando  = s.reg.data ? s.reg.data + ': ' : '';
+  const ehCarro = tipoVeiculoAtivo() === 'carro';
+  const faixa   = ehCarro ? '8 a 14 km/L' : '25 a 40 km/L';
   if (s.kmPorLitro !== null && s.kmPorLitro < 2) {
-    return '⚠️ ' + quando + s.reg.litros + 'L para ' + fmtKm(s.reg.km) +
-           ' km não fecha — daria ' + s.kmPorLitro.toFixed(1) + ' km por litro. Confira o km.';
+    return '⚠️ ' + quando + s.reg.litros + 'L para ' + fmtKm(s.reg.km) + ' km dá ' +
+           s.kmPorLitro.toFixed(1) + ' km/L — o normal é ' + faixa +
+           '. O km está baixo demais: toque no lápis pra corrigir.';
   }
-  return '⚠️ ' + quando + fmtBRL(s.reg.valor) + ' em ' + fmtKm(s.reg.km) +
-         ' km daria ' + fmtBRL(s.cpk) + ' por km — combustível não custa isso. Confira o km.';
+  return '⚠️ ' + quando + fmtBRL(s.reg.valor) + ' em ' + fmtKm(s.reg.km) + ' km dá ' +
+         fmtBRL(s.cpk) + '/km — o normal fica entre R$ 0,20 e R$ 0,80. ' +
+         'Toque no lápis pra corrigir o km.';
 }
 
 function atualizarCustoRealKm() {
@@ -2494,9 +2499,20 @@ function calcCustoPorKmTela() {
   // não existe na vida real, é km digitado errado.
   const box = document.querySelector('#combAvisoTela');
   if (!box) return;
+  // Número sozinho não ensina nada: "1.8 km por litro" só diz algo pra quem já
+  // conhece o consumo do próprio veículo. O aviso dá a REFERÊNCIA do que é
+  // normal e sugere o que fazer.
+  const ehCarro = tipoVeiculoAtivo() === 'carro';
+  const faixa   = ehCarro ? '8 a 14 km por litro' : '25 a 40 km por litro';
   let msg = '';
-  if (v > 0 && k > 0 && l > 0 && (k / l) < 2)      msg = '⚠️ ' + l + 'L para ' + fmtKm(k) + ' km daria ' + (k/l).toFixed(1) + ' km por litro. O km está certo?';
-  else if (v > 0 && k > 0 && (v / k) > 3)          msg = '⚠️ ' + fmtBRL(v/k) + ' por km é muito alto. O km está certo?';
+  if (v > 0 && k > 0 && l > 0 && (k / l) < 2) {
+    msg = '⚠️ ' + l + 'L para ' + fmtKm(k) + ' km daria só ' + (k/l).toFixed(1) +
+          ' km por litro. ' + (ehCarro ? 'Um carro faz ' : 'Uma moto faz ') + faixa +
+          ' — esse km parece baixo demais. Confira no painel.';
+  } else if (v > 0 && k > 0 && (v / k) > 3) {
+    msg = '⚠️ ' + fmtBRL(v/k) + ' de combustível por km é muito acima do normal ' +
+          '(o comum fica entre R$ 0,20 e R$ 0,80). Provavelmente o km está baixo demais.';
+  }
   box.textContent = msg;
   box.style.display = msg ? 'block' : 'none';
   el.style.color = msg ? 'var(--signal)' : '';
