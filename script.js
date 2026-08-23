@@ -1392,6 +1392,20 @@ function combustivelKmMes() {
 // Qual abastecimento está com o km errado? O app sabe — então diz, em vez de
 // mandar o motorista procurar. Suspeito = R$/km acima de 3 (não existe combustível
 // que custe isso por km) ou consumo impossível (menos de 2 km por litro).
+// Leva o motorista DIRETO pro abastecimento com problema, ja aberto pra editar.
+// Antes o aviso dizia "toque no lapis" — que lapis? onde? Na tela Inicio nem
+// existe lapis. Agora o proprio aviso e o caminho.
+function irCorrigirAbastecimento() {
+  const s = abastecimentoSuspeito();
+  if (!s) { toast('Nao achei nenhum abastecimento com problema'); return; }
+  // vai pra aba Combustivel antes de abrir: assim, ao fechar o modal, ele fica
+  // na tela certa (e nao de volta no Inicio sem entender o que aconteceu)
+  atualizarTelaCombustivel();
+  mostrarTela(telaCombustivel);
+  navCombustivel.classList.add('ativo');
+  editarAbastecimento(s.reg.id);
+}
+
 function abastecimentoSuspeito() {
   const base = baseCombustivel().base;
   for (const r of base) {
@@ -1413,11 +1427,10 @@ function textoSuspeito(s) {
   if (s.kmPorLitro !== null && s.kmPorLitro < 2) {
     return '⚠️ ' + quando + s.reg.litros + 'L para ' + fmtKm(s.reg.km) + ' km dá ' +
            s.kmPorLitro.toFixed(1) + ' km/L — o normal é ' + faixa +
-           '. O km está baixo demais: toque no lápis pra corrigir.';
+           '. O km está baixo demais.';
   }
   return '⚠️ ' + quando + fmtBRL(s.reg.valor) + ' em ' + fmtKm(s.reg.km) + ' km dá ' +
-         fmtBRL(s.cpk) + '/km — o normal fica entre R$ 0,20 e R$ 0,80. ' +
-         'Toque no lápis pra corrigir o km.';
+         fmtBRL(s.cpk) + '/km — o normal fica entre R$ 0,20 e R$ 0,80.';
 }
 
 function atualizarCustoRealKm() {
@@ -1439,8 +1452,11 @@ function atualizarCustoRealKm() {
 
   if (suspeito) {
     const _s = abastecimentoSuspeito();
-    custoRealSub.textContent = _s ? textoSuspeito(_s)
-      : '⚠️ km de algum abastecimento está errado — toque em Combustível pra corrigir';
+    custoRealSub.innerHTML = (_s ? esc(textoSuspeito(_s)) : '⚠️ Um abastecimento está com o km errado.') +
+      '<br><button onclick="event.stopPropagation();irCorrigirAbastecimento()" ' +
+      'style="margin-top:7px;background:rgba(255,176,32,.14);border:1px solid rgba(255,176,32,.45);' +
+      'color:var(--signal);font-family:inherit;font-size:11.5px;font-weight:700;padding:6px 14px;' +
+      'border-radius:16px;cursor:pointer;">Corrigir agora →</button>';
     custoRealSub.style.color = 'var(--signal)';
   } else {
     custoRealSub.style.color = '';
@@ -2725,14 +2741,20 @@ function atualizarTelaCombustivel() {
   const cmSuspeito = cKmMes > 3 || !!abastecimentoSuspeito();   // mesma regra da tela Início
   document.querySelector('#custoMedioVal').textContent = (cKmMes > 0 && !cmSuspeito) ? fmtBRL(cKmMes) : '—';
   let subCm;
-  if (cmSuspeito) { const _s2 = abastecimentoSuspeito(); subCm = _s2 ? textoSuspeito(_s2) : '⚠️ algum abastecimento está com o km errado — toque no lápis pra corrigir'; }
+  if (cmSuspeito) { const _s2 = abastecimentoSuspeito(); subCm = _s2 ? textoSuspeito(_s2) : '⚠️ Um abastecimento está com o km errado.'; }
   else if (cKmMes > 0) subCm = (bc.escopo === 'mes' ? 'média do mês' : 'média de todos os registros') + ' · ' + nomeVeiculo(veiculoAtivo());
   else {
     const n = abastDoVeiculoAtivo().length;
     subCm = n > 0 ? 'aprendendo ' + nomeVeiculo(veiculoAtivo()) + ' · registre o km ao abastecer'
                   : 'registre valor + km ao abastecer';
   }
-  document.querySelector('#custoMedioSub').textContent = subCm;
+  const _elSub = document.querySelector('#custoMedioSub');
+  if (cmSuspeito) {
+    _elSub.innerHTML = esc(subCm) + '<br><button onclick="event.stopPropagation();irCorrigirAbastecimento()" ' +
+      'style="margin-top:7px;background:rgba(255,176,32,.14);border:1px solid rgba(255,176,32,.45);' +
+      'color:var(--signal);font-family:inherit;font-size:11.5px;font-weight:700;padding:6px 14px;' +
+      'border-radius:16px;cursor:pointer;">Corrigir agora →</button>';
+  } else { _elSub.textContent = subCm; }
 }
 
 // helper reutilizado na tela de combustível e no extrato
