@@ -1420,7 +1420,10 @@ function atualizarCustoRealKm() {
   // fonte única: mesma média da aba Combustível (não o último abastecimento isolado, que é ruído)
   const combKm = combustivelKmMes();
   const real = combKm + reservaKm;
-  const suspeito = combKm > 3;   // R$3+/km de combustível não existe: km errado
+  // Usa a MESMA regra do detector (custo absurdo OU consumo impossível).
+  // Antes aqui só olhava o custo > 3: um registro de 11L para 20 km (1,8 km/L,
+  // impossível) passava batido porque o custo dava R$ 2,50.
+  const suspeito = combKm > 3 || !!abastecimentoSuspeito();
 
   // ⚠️ Número que o app SABE estar errado não vai pra tela. Antes ele aparecia
   // em destaque com um aviso do lado — e o motorista pode decidir uma corrida
@@ -2483,7 +2486,20 @@ btnConfirmarComb.addEventListener('click', function() {
 function calcCustoPorKmTela() {
   const v = numBR(document.querySelector('#inputValorTela').value);
   const k = numBR(document.querySelector('#inputKmTela').value);
-  document.querySelector('#combPreviewValTela').textContent = (v > 0 && k > 0) ? fmtBRL((v/k)) + '/km' : '— /km';
+  const l = numBR(document.querySelector('#inputLitrosTela').value);
+  const el = document.querySelector('#combPreviewValTela');
+  el.textContent = (v > 0 && k > 0) ? fmtBRL((v/k)) + '/km' : '— /km';
+  // Avisa ANTES de salvar: melhor evitar o erro do que consertar depois.
+  // Mesma régua do detector — consumo abaixo de 2 km/L ou custo acima de R$3/km
+  // não existe na vida real, é km digitado errado.
+  const box = document.querySelector('#combAvisoTela');
+  if (!box) return;
+  let msg = '';
+  if (v > 0 && k > 0 && l > 0 && (k / l) < 2)      msg = '⚠️ ' + l + 'L para ' + fmtKm(k) + ' km daria ' + (k/l).toFixed(1) + ' km por litro. O km está certo?';
+  else if (v > 0 && k > 0 && (v / k) > 3)          msg = '⚠️ ' + fmtBRL(v/k) + ' por km é muito alto. O km está certo?';
+  box.textContent = msg;
+  box.style.display = msg ? 'block' : 'none';
+  el.style.color = msg ? 'var(--signal)' : '';
 }
 function limparCamposAbast() {
   document.querySelector('#inputValorTela').value = '';
@@ -2690,7 +2706,7 @@ function atualizarTelaCombustivel() {
   const bc     = baseCombustivel();
   const cKmMes = combustivelKmMes();
   // mesma regra da tela Início: número que o app sabe estar errado vira '—'
-  const cmSuspeito = cKmMes > 3;
+  const cmSuspeito = cKmMes > 3 || !!abastecimentoSuspeito();   // mesma regra da tela Início
   document.querySelector('#custoMedioVal').textContent = (cKmMes > 0 && !cmSuspeito) ? fmtBRL(cKmMes) : '—';
   let subCm;
   if (cmSuspeito) { const _s2 = abastecimentoSuspeito(); subCm = _s2 ? textoSuspeito(_s2) : '⚠️ algum abastecimento está com o km errado — toque no lápis pra corrigir'; }

@@ -16,10 +16,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=335">
+    <link rel="stylesheet" href="style.css?v=336">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=335"></script>
+    <script src="supabase-service.js?v=336"></script>
   </head>
   <body>
     <div class="dashboard">
@@ -318,10 +318,11 @@
             <div class="campo-dica">é isso que calcula seu custo por km — não confunda com litros</div>
           </div>
           <div class="linha-dupla">
-            <div class="comb-field"><label>Litros <span style="color:var(--faint)">· opcional</span></label><input type="text" inputmode="decimal" id="inputLitrosTela" placeholder="Ex: 7,5"></div>
+            <div class="comb-field"><label>Litros <span style="color:var(--faint)">· opcional</span></label><input type="text" inputmode="decimal" id="inputLitrosTela" placeholder="Ex: 7,5" oninput="calcCustoPorKmTela()"></div>
             <div class="comb-field"><label>Posto <span style="color:var(--faint)">· opcional</span></label><input type="text" id="inputPostoTela" placeholder="Ex: Mineiro"></div>
           </div>
           <div class="comb-preview"><span class="comb-preview-label">Custo por km</span><span class="comb-preview-val num" id="combPreviewValTela">— /km</span></div>
+          <div class="km-erro" id="combAvisoTela" style="display:none; color:var(--signal); border-color:rgba(255,176,32,.4); background:rgba(255,176,32,.1);"></div>
           <div class="modal-botoes" style="margin-top:14px;">
             <button class="modal-btn cancelar" id="btnCancelarAbastecer">Cancelar</button>
             <button class="modal-btn confirmar" id="btnSalvarTela">✅ Registrar</button>
@@ -1068,7 +1069,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=335"></script>
+    <script src="script.js?v=336"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       if ('serviceWorker' in navigator) {
