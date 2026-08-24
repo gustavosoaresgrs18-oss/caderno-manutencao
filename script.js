@@ -2451,10 +2451,17 @@ function aplicarUltimoTipo(containerSel) {
 // DUAS telas que registram abastecimento (pos-turno e aba Combustivel) — foi
 // exatamente por elas terem codigo separado que o campo de km ficou faltando
 // numa delas por muito tempo.
-function avisoAbastecimento(v, k, l) {
+function avisoAbastecimento(v, k, l, tipo) {
   const ehCarro = tipoVeiculoAtivo() === 'carro';
   const faixa   = ehCarro ? '8 a 14 km por litro' : '25 a 40 km por litro';
-  if (v > 0 && k > 0 && l > 0 && (k / l) < 2) {
+  // GNV nao entra na checagem de km/L: o motorista costuma completar o
+  // cilindro (pequeno, ~15m3) aos poucos e com frequencia, em vez de encher o
+  // tanque de uma vez como gasolina/etanol. Com litros e km baixos, qualquer
+  // imprecisao na hora de digitar o km pesa muito mais na conta e gera aviso
+  // falso num abastecimento normal. O aviso de custo por km (abaixo) continua
+  // valendo pra GNV — ele sozinho ja pega km digitado errado, porque nem o
+  // GNV mais caro do Brasil chega perto de R$3/km rodado.
+  if (tipo !== 'GNV' && v > 0 && k > 0 && l > 0 && (k / l) < 2) {
     return '\u26a0\ufe0f ' + l + 'L para ' + fmtKm(k) + ' km daria so ' + (k/l).toFixed(1) +
            ' km por litro. ' + (ehCarro ? 'Um carro faz ' : 'Uma moto faz ') + faixa +
            ' \u2014 esse km parece baixo demais. Confira no painel.';
@@ -2487,7 +2494,7 @@ function calcCustoPorKmTela() {
   const l = numBR(document.querySelector('#inputLitrosTela').value);
   const el = document.querySelector('#combPreviewValTela');
   el.textContent = (v > 0 && k > 0) ? fmtBRL((v/k)) + '/km' : '— /km';
-  pintarAviso('#combAvisoTela', el, avisoAbastecimento(v, k, l));   // mesma regra da tela pos-turno
+  pintarAviso('#combAvisoTela', el, avisoAbastecimento(v, k, l, tipoSelecionadoTela));   // mesma regra da tela pos-turno
 }
 function limparCamposAbast() {
   document.querySelector('#inputValorTela').value = '';
@@ -2496,12 +2503,34 @@ function limparCamposAbast() {
   document.querySelector('#inputPostoTela').value = '';
   document.querySelector('#combPreviewValTela').textContent = '— /km';
 }
+// ─── AUTOCOMPLETAR NOME DO POSTO ──────────────────────────────
+// "Posto Tupi", "posto tupi" e "POSTO TUPI" viravam 3 postos diferentes pra
+// qualquer analise por posto (Fatia 3 nasceria quebrada sem isso). Em vez de
+// pedir mais um campo (motorista abastecendo tem pressa), sugere os nomes que
+// ele ja usou: escolheu da lista, o nome sai identico ao anterior — dado
+// limpo sem esforco extra. Digitou um posto novo, funciona como sempre.
+function atualizarListaPostos() {
+  const dl = document.querySelector('#listaPostos');
+  if (!dl) return;
+  const vistos = new Set();
+  const nomes = [];
+  lerLS('historicoAbastecimentos', []).forEach(r => {
+    const p = (r.posto || '').trim();
+    if (!p) return;
+    const chave = p.toLowerCase();
+    if (vistos.has(chave)) return;   // so a grafia mais recente desse posto entra
+    vistos.add(chave);
+    nomes.push(p);
+  });
+  dl.innerHTML = nomes.map(n => '<option value="' + esc(n) + '">').join('');
+}
 let editandoAbastId = null;
 function editarAbastecimento(id) {
   const h = lerLS('historicoAbastecimentos', []);
   const r = h.find(x => x.id === id);
   if (!r) return;
   editandoAbastId = id;
+  atualizarListaPostos();
   document.querySelector('#inputValorTela').value  = (r.valor  != null) ? String(r.valor).replace('.', ',')  : '';
   document.querySelector('#inputLitrosTela').value = (r.litros != null) ? String(r.litros).replace('.', ',') : '';
   document.querySelector('#inputKmTela').value     = (r.km     != null) ? String(r.km) : '';
@@ -2581,6 +2610,7 @@ function abrirFormAbastecimento(kmSugerido) {
   editandoAbastId = null;
   document.querySelector('#btnSalvarTela').textContent = '✅ Registrar';
   limparCamposAbast();
+  atualizarListaPostos();
   if (kmSugerido) document.querySelector('#inputKmTela').value = kmSugerido;
   // dica do km so aparece quando veio do turno (senao confunde quem abre pela aba)
   // uma dica de cada vez: se o km ja veio preenchido, explicar "pode deixar em

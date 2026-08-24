@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=347">
+    <link rel="stylesheet" href="style.css?v=349">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=347"></script>
+    <script src="supabase-service.js?v=349"></script>
   </head>
   <body>
     <div class="dashboard">
@@ -322,7 +322,7 @@
           </div>
           <div class="linha-dupla">
             <div class="comb-field"><label>Litros <span style="color:var(--faint)">· opcional</span></label><input type="text" inputmode="decimal" id="inputLitrosTela" placeholder="Ex: 7,5" oninput="calcCustoPorKmTela()"></div>
-            <div class="comb-field"><label>Posto <span style="color:var(--faint)">· opcional</span></label><input type="text" id="inputPostoTela" placeholder="Ex: Mineiro"></div>
+            <div class="comb-field"><label>Posto <span style="color:var(--faint)">· opcional</span></label><input type="text" id="inputPostoTela" list="listaPostos" autocomplete="off" placeholder="Ex: Mineiro"><datalist id="listaPostos"></datalist></div>
           </div>
           <div class="comb-preview"><span class="comb-preview-label">Custo por km</span><span class="comb-preview-val num" id="combPreviewValTela">— /km</span></div>
           <div class="km-erro" id="combAvisoTela" style="display:none; color:var(--signal); border-color:rgba(255,176,32,.4); background:rgba(255,176,32,.1);"></div>
@@ -1051,7 +1051,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=347"></script>
+    <script src="script.js?v=349"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       if ('serviceWorker' in navigator) {
