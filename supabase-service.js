@@ -80,7 +80,11 @@ const FILA_OFFLINE_KEY = 'filaOffline';
 // o id quando existe, senão a data (finanças) ou o tipo (documentos).
 async function salvarRegistroHibrido(nomeTabela, dados, onConflict) {
   const conflitoAlvo = onConflict || 'id';
-  const chaveDedup = dados.id != null ? String(dados.id)
+  // O perfil é UMA linha só por motorista: usa chave fixa para que, offline,
+  // a versão mais nova substitua a anterior na fila em vez de empilhar uma
+  // entrada por mexida (meta, reserva, streak e patente mudam com frequência).
+  const chaveDedup = nomeTabela === 'perfil' ? 'perfil'
+                    : dados.id != null ? String(dados.id)
                     : dados.data_iso ? 'dia:' + dados.data_iso
                     : dados.tipo_id  ? 'tipo:' + dados.tipo_id
                     : JSON.stringify(dados);
@@ -364,11 +368,15 @@ function inicializarAuth(callbackMudanca) {
 //  Pega todo o histórico do localStorage e sobe pro Supabase.
 //  Garante que o motorista não perde dados antigos ao migrar.
 // ═══════════════════════════════════════════════════════════════
-async function migrarMotoristaAntigo(userId) {
+async function migrarMotoristaAntigo(userId, forcar) {
   if (!userId) return;
-  // Verificar se já migrou (evita rodar 2x)
+  // Verificar se já migrou (evita rodar 2x no fluxo automático).
+  // `forcar` existe para o botão "Enviar tudo pra nuvem" dos Ajustes: a trava
+  // de uma-vez-só deixava dois aparelhos com pedaços diferentes do histórico e
+  // nada mais reconciliava. O envio é upsert por id — atualiza o que existe e
+  // acrescenta o que falta; nunca apaga nada da nuvem.
   const jaMigrou = lerLS('supaMigradoV1', false);
-  if (jaMigrou) return;
+  if (jaMigrou && !forcar) return;
 
   console.log('[Copiloto] Iniciando migração do localStorage...');
 
@@ -599,16 +607,49 @@ async function restaurarDoSupabase(userId) {
     const { data: fins } = await sb.from('financas').select('*').eq('usuario_id', userId);
     if (fins && fins.length) {
       achouAlgo = true;
+      // ⚠️ CORREÇÃO: `comb: 0` zerava o combustível de TODOS os dias, e só o dia
+      // de HOJE era recalculado depois (ressincronizarReceitaHoje). Resultado:
+      // o extrato de finanças mostrava "Combustível R$ 0,00" no mês inteiro
+      // enquanto o extrato de combustível, do mesmo período, mostrava o gasto
+      // real — duas telas se contradizendo. Agora o combustível de cada dia é
+      // RECALCULADO (não somado) a partir dos abastecimentos daquela data, que
+      // já foram restaurados logo acima. `data` também volta no formato de
+      // exibição, e o vid entra pra não deixar o dia órfão de veículo.
+      const vidFin = (typeof vidAtivo === 'function' ? vidAtivo() : null);
+      const diaLongo = iso => {
+        if (!iso) return '';
+        const d = new Date(String(iso).slice(0, 10) + 'T12:00:00');
+        return isNaN(d) ? String(iso)
+          : d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' });
+      };
+      // O combustível fica 0 AQUI de propósito: os abastecimentos só são
+      // restaurados no passo 4, logo abaixo. Quem preenche é o
+      // recalcularCombDosDias() no fim desta função.
       salvarLS('historicoFinancas', fins.map(f => {
         const receita = f.receita || 0;
         const liquido = f.liquido || 0;
+        const iso     = f.data_iso;
         return {
-          data: f.data_iso, dataISO: f.data_iso,
+          data: diaLongo(iso), dataISO: iso,
+          vid: vidFin || null,
           receita, taxa: Math.max(0, receita - liquido),
-          comb: 0, desp: f.despesas || 0,     // recalculados na hora (ressincronizarReceitaHoje cobre o dia de hoje)
+          comb: 0, desp: f.despesas || 0,
           lucro: liquido, odo: null, kmDia: f.km_dia != null ? f.km_dia : null
         };
       }));
+
+      // 3b. HISTÓRICO DE KM — o mapa kmPorDia nunca era restaurado, mesmo com o
+      // dado existindo na nuvem (financas.km_dia). Sem ele o app perdia o km
+      // rodado de cada dia ao trocar de aparelho.
+      const mapaKm = lerLS('kmPorDia', {});
+      let mexeuKm = false;
+      fins.forEach(f => {
+        if (f.data_iso && f.km_dia != null && f.km_dia > 0 && !mapaKm[f.data_iso]) {
+          mapaKm[f.data_iso] = { km: f.km_dia, vid: vidFin || null };
+          mexeuKm = true;
+        }
+      });
+      if (mexeuKm) salvarLS('kmPorDia', mapaKm);
     }
 
     // 4. ABASTECIMENTOS
@@ -687,6 +728,11 @@ async function restaurarDoSupabase(userId) {
       salvarLS('despesasPorDia', porDia);
     }
 
+    // 8. RECONCILIAÇÃO FINAL — agora que abastecimentos E despesas já estão no
+    // lugar, o combustível e as despesas de cada dia podem ser recalculados.
+    // Tem que ser aqui no fim: no passo 3 os abastecimentos ainda não existiam.
+    recalcularCombDosDias();
+
     if (achouAlgo) salvarLS('supaMigradoV1', true);   // já tem base na nuvem: não roda a migração de novo
     return { ok: achouAlgo };
 
@@ -694,6 +740,47 @@ async function restaurarDoSupabase(userId) {
     console.error('[Copiloto] Erro ao restaurar do Supabase:', e);
     return { ok: false, erro: e.message };
   }
+}
+
+// Preenche o combustível (e as despesas) de cada dia do histórico de finanças a
+// partir dos abastecimentos/despesas daquela data. RECALCULA — não soma: rodar
+// dez vezes dá o mesmo resultado. Mesma regra do ressincronizarReceitaHoje, que
+// já fazia isso só para o dia de hoje; aqui vale para todos os dias.
+function recalcularCombDosDias() {
+  const fin = lerLS('historicoFinancas', []);
+  if (!fin.length) return;
+  const combPorDia = {};
+  lerLS('historicoAbastecimentos', []).forEach(a => {
+    if (!a.dataISO) return;
+    combPorDia[a.dataISO] = (combPorDia[a.dataISO] || 0) + (a.valor || 0);
+  });
+  const despPorDia = {};
+  const mapaDesp = lerLS('despesasPorDia', {}) || {};
+  for (const dia in mapaDesp) {
+    despPorDia[dia] = (mapaDesp[dia] || []).reduce((s, d) => s + (d.valor || 0), 0);
+  }
+  // Um dia pode ter mais de uma linha de receita. O custo do dia entra numa
+  // linha só, senão seria contado duas vezes.
+  const jaUsou = {};
+  fin.forEach(r => {
+    const iso = r.dataISO;
+    if (!iso) return;
+    if (!jaUsou[iso]) {
+      r.comb = combPorDia[iso] || 0;
+      if (despPorDia[iso] != null) r.desp = despPorDia[iso];
+      jaUsou[iso] = true;
+    } else {
+      r.comb = 0; r.desp = 0;
+    }
+    // ⚠️ O LUCRO NÃO É RECALCULADO. Ele vem da nuvem (`liquido`), que é o que o
+    // motorista fechou naquele dia — mexer nisso seria reescrever o passado.
+    // O que se ajusta é a TAXA, que a restauração calculava como
+    // `receita - liquido` e por isso engolia combustível e despesas dentro
+    // dela. Agora ela é o que sobra depois dos custos que a gente conhece.
+    const resto = (r.receita || 0) - (r.lucro || 0) - r.comb - (r.desp || 0);
+    r.taxa = resto > 0 ? resto : 0;
+  });
+  salvarLS('historicoFinancas', fin);
 }
 
 // ═══════════════════════════════════════════════════════════════

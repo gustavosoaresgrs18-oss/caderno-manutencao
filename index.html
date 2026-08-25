@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=350">
+    <link rel="stylesheet" href="style.css?v=352">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=350"></script>
+    <script src="supabase-service.js?v=352"></script>
   </head>
   <body>
     <div class="dashboard">
@@ -1025,6 +1025,8 @@
             <div class="aj-sec-tit">💾 Dados</div>
             <button class="modal-btn cancelar" id="ajBtnSair" style="width:100%; display:none;">Sair da conta</button>
             <div class="aj-dica" id="ajSairDica" style="display:none; margin-bottom:12px;">Você pode entrar de novo quando quiser.</div>
+            <button class="modal-btn cancelar" id="ajBtnEnviarTudo" style="width:100%; display:none;">Enviar tudo pra nuvem</button>
+            <div class="aj-dica" id="ajEnviarDica" style="display:none; margin-bottom:12px;">Manda o histórico deste aparelho pra sua conta. Não apaga nada — só completa o que estiver faltando lá.</div>
             <button class="modal-btn cancelar" id="ajBtnApagar" style="width:100%; color:var(--danger); border-color:var(--danger);">Apagar tudo</button>
             <input type="file" id="ajInputRestore" accept="application/json,.json" style="display:none;">
             <div style="display:flex; gap:16px; justify-content:center; margin-top:16px;">
@@ -1051,7 +1053,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=350"></script>
+    <script src="script.js?v=352"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       if ('serviceWorker' in navigator) {

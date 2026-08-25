@@ -133,7 +133,7 @@ function pontosParaAtingir(i) {
 
 // ─── ESTADO DO USUÁRIO ─────────────────────────────────────────
 function getPontos() { return Number(localStorage.getItem('pontosPatente')) || 0; }
-function setPontos(p) { salvarLS('pontosPatente', p); }
+function setPontos(p) { salvarLS('pontosPatente', p); sincronizarPerfil(); }
 
 // determina a patente atual pelos pontos totais
 function patenteAtual() {
@@ -524,11 +524,56 @@ function criarVeiculo(tipo, modelo, placa, odo) {
     desde: hojeISO(), ate: null
   };
   const vs = lerVeiculos(); vs.push(v); salvarVeiculos(vs);
+  sincronizarVeiculo(v);   // veiculo novo precisa existir na nuvem tambem
   return v;
 }
 function setOdoVeiculo(vid, km) {
   const vs = lerVeiculos(); const v = vs.find(x => x.id === vid);
-  if (v) { v.odo = km; salvarVeiculos(vs); }
+  if (v) { v.odo = km; salvarVeiculos(vs); sincronizarVeiculo(v); }
+}
+// O veiculo (e principalmente o ODOMETRO) so ia pra nuvem na subida em massa,
+// que roda UMA vez na vida. Depois disso o odometro mudava a cada turno e a
+// nuvem nunca ficava sabendo: quem trocava de aparelho recebia o odometro do
+// dia da primeira migracao — ou vazio. Pior: veiculo adicionado depois nunca
+// subia, e os abastecimentos dele voltavam apontando pra um veiculo que nao
+// existe na nuvem.
+// O PERFIL (nome, meta, reserva diaria, taxa, e tambem reserva acumulada,
+// streak e pontos de patente) so subia na migracao em massa, que roda uma vez
+// na vida. Resultado: dois aparelhos do mesmo motorista com meta, reserva e
+// patente diferentes, e nada reconciliando. Agora sobe sozinho a cada mudanca.
+// Espera 1,2s antes de enviar porque fechar o dia mexe em varias coisas de uma
+// vez (streak + reserva + patente) — sem isso seriam 3 envios seguidos.
+let _perfilSyncTimer = null;
+function sincronizarPerfil() {
+  if (typeof salvarRegistroHibrido !== 'function') return;
+  clearTimeout(_perfilSyncTimer);
+  _perfilSyncTimer = setTimeout(function () {
+    const p = getPerfil();
+    if (!p || !p.nome) return;                    // ainda no cadastro: nada a subir
+    salvarRegistroHibrido('perfil', {
+      nome:              p.nome        || '',
+      veiculo_tipo:      p.veiculo     || 'moto',
+      modelo:            p.modelo      || '',
+      placa:             p.placa       || '',
+      taxa:              (p.taxa != null && p.taxa > 0) ? p.taxa : null,
+      meta:              p.metaDiaria  || 250,
+      reserva_diaria:    p.reservaDia  || 20,
+      plataformas:       p.plataformas || [],
+      reserva_acumulada: lerLS('reservaAcumulada', 0),
+      streak:            lerLS('streak', 0),
+      pontos_patente:    lerLS('pontosPatente', 0)
+    }, 'usuario_id').catch(function () {});
+  }, 1200);
+}
+function sincronizarVeiculo(v) {
+  if (!v || !v.id || typeof salvarRegistroHibrido !== 'function') return;
+  salvarRegistroHibrido('veiculos', {
+    id: v.id, tipo: v.tipo || 'moto',
+    modelo: v.modelo || '', placa: v.placa || '',
+    odo: (v.odo != null ? v.odo : null),
+    reserva_manut_km: (v.reservaManutKm != null ? v.reservaManutKm : null),
+    desde: v.desde || null, ate: v.ate || null
+  }, 'id').catch(function () {});
 }
 // procura, entre os OUTROS veículos, um cujo painel bate com o número digitado
 function veiculoQueBateCom(valor) {
@@ -1492,6 +1537,7 @@ function guardarReservaDoDia() {
   if (ultimoDia === hojeISO()) return;               // já guardou hoje
   const atual = Number(localStorage.getItem('reservaAcumulada')) || 0;
   salvarLS('reservaAcumulada', atual + (perfil.reservaDia || 20));
+  sincronizarPerfil();
   salvarLS('reservaUltimoDia', hojeISO());
 }
 
@@ -1541,6 +1587,7 @@ document.querySelector('#btnGuardarReserva').addEventListener('click', function(
   const v = numBR(document.getElementById('inputMovReserva').value);
   if (!v || v <= 0) { toast('Digite um valor para guardar', 'erro'); return; }
   salvarLS('reservaAcumulada', reservaTotal() + v);
+  sincronizarPerfil();
   document.getElementById('inputMovReserva').value = '';
   pintarCofre(); atualizarReserva();
   toast('🐷 Guardado na reserva!');
@@ -1552,6 +1599,7 @@ document.querySelector('#btnTirarReserva').addEventListener('click', function() 
   if (v > reservaTotal()) { toast('Você só tem ' + fmtBRL0(reservaTotal()) + ' guardado', 'erro'); return; }
   pedirConfirmacao('🐷 Tirar da reserva', 'Tem certeza que quer tirar ' + fmtBRL0(v) + ' da sua reserva?', function() {
     salvarLS('reservaAcumulada', reservaTotal() - v);
+    sincronizarPerfil();
     document.getElementById('inputMovReserva').value = '';
     pintarCofre(); atualizarReserva();
     toast('Tirado da reserva.');
@@ -1566,6 +1614,7 @@ document.querySelector('#btnSalvarReserva').addEventListener('click', function()
   perfil.reservaDia      = Math.round(dia);
   perfil.reservaObjetivo = Math.round(obj);
   salvarLS('perfilUsuario', perfil);
+  sincronizarPerfil();
   pintarCofre(); atualizarReserva();
   document.getElementById('modalReserva').style.display = 'none';
   toast('✅ Ajustes salvos!');
@@ -1598,6 +1647,7 @@ document.querySelector('#btnSalvarMeta').addEventListener('click', function() {
   if (!n || n <= 0) { toast('Meta inválida', 'erro'); return; }
   perfil.metaDiaria = Math.round(n);
   salvarLS('perfilUsuario', perfil);
+  sincronizarPerfil();
   atualizarResumoDia();
   document.getElementById('modalMeta').style.display = 'none';
   toast('🎯 Meta atualizada!');
@@ -2302,6 +2352,7 @@ function aplicarKmEFecharTurno(valor) {
   if (ultimoDiaStreak !== hojeISO()) {
     streak = (ultimoDiaStreak === ontemISO()) ? streak + 1 : 1;
     salvarLS('streak', streak);
+    sincronizarPerfil();
     salvarLS('streakUltimoDia', hojeISO());
   }
   streakDisplay.textContent = '🔥 ' + streak;
@@ -3462,6 +3513,7 @@ function aprenderTaxa(bruto, liquido) {
   const perfil = getPerfil();
   perfil.taxa = Math.round(media * 10) / 10;   // salva com 1 casa decimal
   salvarLS('perfilUsuario', perfil);
+  sincronizarPerfil();
 }
 
 btnConfirmarReceita.addEventListener('click', function() {
@@ -3604,8 +3656,30 @@ function abrirAjustes() {
   const logado = (typeof usuarioLogado === 'function') && !!usuarioLogado();
   document.getElementById('ajBtnSair').style.display  = logado ? 'block' : 'none';
   document.getElementById('ajSairDica').style.display = logado ? 'block' : 'none';
+  document.getElementById('ajBtnEnviarTudo').style.display = logado ? 'block' : 'none';
+  document.getElementById('ajEnviarDica').style.display    = logado ? 'block' : 'none';
   document.getElementById('modalAjustes').style.display = 'flex';
 }
+// "Enviar tudo pra nuvem" — a subida em massa tinha trava de uma-vez-so, entao
+// dois aparelhos ficavam cada um com um pedaco do historico e nada reconciliava.
+// Aqui ela roda a pedido do motorista. E upsert por id: atualiza o que existe,
+// acrescenta o que falta, nunca apaga.
+document.getElementById('ajBtnEnviarTudo').addEventListener('click', function () {
+  const btn = document.getElementById('ajBtnEnviarTudo');
+  if (btn.disabled) return;
+  if (typeof usuarioLogado !== 'function' || !usuarioLogado()) { toast('Entre na sua conta primeiro', 'erro'); return; }
+  if (!navigator.onLine) { toast('Sem internet agora. Tente de novo depois.', 'erro'); return; }
+  const textoOriginal = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  migrarMotoristaAntigo(usuarioLogado().id, true).then(function (r) {
+    btn.disabled = false; btn.textContent = textoOriginal;
+    if (r && r.ok) toast('Tudo deste aparelho foi pra sua conta');
+    else           toast('Parte não subiu. Tente de novo mais tarde.', 'erro');
+  }).catch(function () {
+    btn.disabled = false; btn.textContent = textoOriginal;
+    toast('Não consegui enviar agora', 'erro');
+  });
+});
 document.getElementById('ajBtnSair').addEventListener('click', function () {
   // Fecha os Ajustes ANTES de pedir a confirmação: senão a confirmação sobe
   // atrás do painel e o motorista precisa fechar um pra ver o outro.
@@ -3784,6 +3858,7 @@ document.getElementById('ajBtnSalvarNome').addEventListener('click', function() 
   const nome = document.getElementById('ajNome').value.trim();
   if (!nome) { toast('Digite seu nome', 'erro'); return; }
   const p = getPerfil(); p.nome = nome; salvarLS('perfilUsuario', p);
+  sincronizarPerfil();
   const hSaud = document.getElementById('headerSaudacao');       // atualiza o cabeçalho na hora
   if (hSaud) {
     const h = new Date().getHours();
