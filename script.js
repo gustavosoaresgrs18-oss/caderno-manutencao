@@ -105,7 +105,7 @@ function esc(s) {
 // confirmação bonita (substitui o confirm() cinza do navegador)
 let _confirmCb = null;
 function pedirConfirmacao(titulo, texto, aoConfirmar) {
-  document.getElementById('confirmTitulo').textContent = titulo;
+  document.getElementById('confirmTitulo').innerHTML = titulo;   // só constantes do app; o texto abaixo segue textContent
   document.getElementById('confirmTexto').textContent  = texto;
   _confirmCb = aoConfirmar;
   document.getElementById('modalConfirm').style.display = 'flex';
@@ -535,8 +535,25 @@ function setVidAtivo(id)    { try { localStorage.setItem('veiculoAtivo', id); } 
 function veiculoPorId(id)   { return lerVeiculos().find(v => v.id === id) || null; }
 function veiculoAtivo()     { return veiculoPorId(vidAtivo()); }
 function tipoVeiculoAtivo() { const v = veiculoAtivo(); return (v && v.tipo) || getPerfil().veiculo || 'moto'; }
-function iconeDoTipo(t)     { return t === 'carro' ? '🚗' : '🏍️'; }
+function iconeDoTipo(t)     { return ico(t === 'carro' ? 'carro' : 'moto'); }
 function fmtKm(n)           { return Number(n || 0).toLocaleString('pt-BR'); }
+
+// ═══════════════════════════════════════════════════════════════
+//  ÍCONES SVG — o desenho é NOSSO, não da fonte do aparelho
+// ═══════════════════════════════════════════════════════════════
+// Cada Android desenha o emoji com a fonte dele: a bomba do Samsung não é a do
+// Motorola, e o print da Play Store sai de UM aparelho só. Aqui todo mundo vê
+// igual, e o ícone herda a cor de quem está por perto (currentColor).
+// Régua do projeto: SVG onde é INFORMAÇÃO, emoji onde é EMOÇÃO —
+// Caramelo, Isaac, 🔥 streak, 🏆 recorde, 🎁 presente e as pedras continuam emoji.
+// ⚠️ ico() devolve HTML: só serve em innerHTML/template. Em .textContent o
+// motorista veria a tag escrita na tela. Onde o texto SAI do app (toast, PDF,
+// CSV, compartilhar no WhatsApp) o emoji CONTINUA — lá SVG não existe.
+function ico(nome, classe) {
+  return '<svg class="ico' + (classe ? ' ' + classe : '') + '" aria-hidden="true"><use href="#i-' + nome + '"></use></svg>';
+}
+// semáforo: era 🟢🟡🔴 (emoji), virou bolinha CSS — mesma cor em todo aparelho
+function dot(cor) { return '<span class="dot dot-' + cor + '"></span>'; }
 function nomeVeiculo(v) {
   if (!v) return 'seu veículo';
   return v.modelo || (v.tipo === 'carro' ? 'seu carro' : 'sua moto');
@@ -701,7 +718,7 @@ let _abastDoTurno   = false;   // formulario aberto pelo fecha-turno? (muda o qu
 let _pediuLogin     = false;   // já pedimos login neste uso do app? (1x por sessão)
 let tipoSelecionadoTela = 'Gasolina';
 let tipoReceita     = 'liquido';
-let iconeVeiculo    = '🏍️';
+let iconeVeiculo    = '';   // preenchido por iconeDoTipo() quando o app sobe
 let veiculoSel      = 'moto';
 let platsSel        = ['Uber'];
 
@@ -727,9 +744,9 @@ function togglePlat(plat, el) {
     platsSel.push(plat);
     el.classList.add('on');
   }
-  document.getElementById('platsSel').textContent = platsSel.length === 1
-    ? '✅ ' + platsSel[0] + ' selecionado'
-    : '✅ ' + platsSel.join(' + ') + ' selecionados';
+  document.getElementById('platsSel').innerHTML = platsSel.length === 1
+    ? ico('check') + ' ' + esc(platsSel[0]) + ' selecionado'
+    : ico('check') + ' ' + esc(platsSel.join(' + ')) + ' selecionados';
 }
 function toggleSenha() {
   const inp = document.getElementById('cadSenha');
@@ -1072,7 +1089,7 @@ function iniciarApp(perfil) {
     } else {
       turnoIniciado = true;
       sliderContainer.classList.add('finalizar');
-      sliderTexto.textContent = '⏹  Encerrar o dia →';
+      sliderTexto.innerHTML = ico('parar') + '  Encerrar o dia ' + ico('seta-dir');
       mostrarTurnoLive();
     }
   }
@@ -1267,9 +1284,9 @@ function renderTanqueGrande() {
     elVal.style.color = cor;
     elNor.innerHTML = 'de <b>~' + fmtBRL0(normal) + '</b> do seu gasto normal por mês';
     const pct = Math.round(frac * 100);
-    if (frac >= 0.9)        { elPill.className = 'tanque-pill verm';  elPill.textContent = '🔴 quase no seu limite'; }
-    else if (frac >= 0.75)  { elPill.className = 'tanque-pill amar';  elPill.textContent = '🟠 chegando perto · ' + pct + '%'; }
-    else                    { elPill.className = 'tanque-pill verde'; elPill.textContent = '🟢 dentro do normal · ' + pct + '%'; }
+    if (frac >= 0.9)        { elPill.className = 'tanque-pill verm';  elPill.innerHTML = dot('vermelho') + ' quase no seu limite'; }
+    else if (frac >= 0.75)  { elPill.className = 'tanque-pill amar';  elPill.innerHTML = dot('laranja') + ' chegando perto · ' + pct + '%'; }
+    else                    { elPill.className = 'tanque-pill verde'; elPill.innerHTML = dot('verde') + ' dentro do normal · ' + pct + '%'; }
   } else {
     // sem mês anterior: nível decorativo neutro, SEM inventar porcentagem
     wave.setAttribute('fill', 'var(--faint)');
@@ -1277,19 +1294,19 @@ function renderTanqueGrande() {
     elVal.style.color = 'var(--signal)';
     elNor.textContent = 'aprendendo seu normal — sem mês anterior pra comparar ainda';
     elPill.className = 'tanque-pill neutro';
-    elPill.textContent = '🟡 aprendendo';
+    elPill.innerHTML = dot('amarelo') + ' aprendendo';
   }
   // moto ou carro do perfil (mesmo padrão do ícone do slider)
   const veic = perfil.veiculo === 'carro' ? 'do seu carro' : 'da sua moto';
-  elAviso.innerHTML = '⚠️ não é o tanque ' + veic + ' — é o seu <b>bolso</b>: soma do que você pagou nos postos este mês';
+  elAviso.innerHTML = ico('alerta') + ' não é o tanque ' + veic + ' — é o seu <b>bolso</b>: soma do que você pagou nos postos este mês';
 }
-// ícones das luzes de manutenção (SVG de linha, currentColor)
-const LUZ_SVG = {
-  oleo:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13h9l3-3 4 2"/><path d="M7 13v3h8v-3"/><circle cx="9" cy="19" r="1.4"/><circle cx="14" cy="19" r="1.4"/><path d="M9 10V7h4"/></svg>',
-  pneus:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.2"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/></svg>',
-  corrente: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="12" r="3.2"/><circle cx="17" cy="12" r="3.2"/><path d="M7 8.8h10M7 15.2h10"/></svg>',
-  freio:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 2.5a9.5 9.5 0 0 1 6.7 2.8M12 21.5a9.5 9.5 0 0 1-6.7-2.8M2.5 12a9.5 9.5 0 0 1 2.8-6.7M21.5 12a9.5 9.5 0 0 1-2.8 6.7"/></svg>',
-};
+// ⚠️ AQUI MORAVA UM SEGUNDO CONJUNTO DE ÍCONES (LUZ_SVG), com SVGs escritos à
+// mão só pra este painel. Resultado: o mesmo item aparecia com desenho
+// DIFERENTE em duas telas — galão de óleo no Início, gota na Manutenção. É a
+// mesma armadilha das duas telas de abastecimento (v3.46) e da regra do km
+// furado (v3.53): regra copiada é regra que diverge. Agora existe UM conjunto
+// (o sprite do index.html) e as duas telas leem MNT_ICONES.
+
 
 // desenha o "+X km hoje" do odômetro. Quando o app NÃO SABE quantos km
 // foram (1º registro, veículo novo), ele diz isso — não mostra um número.
@@ -1322,31 +1339,31 @@ function pintarKmHoje() {
 //     em mais nada.
 // ═══════════════════════════════════════════════════════════════
 const GUIA_ROTINAS = [
-  { ic: '🎯', cor: 'var(--signal)', tit: 'Lucro de hoje', hero: '300 → 190',
+  { ic: ico('alvo'), cor: 'var(--signal)', tit: 'Lucro de hoje', hero: '300 → 190',
     isaac: 'Entrar dinheiro não é ganhar dinheiro. A plataforma tira a parte dela e a gasolina come o resto. Eu te mostro quanto sobrou mesmo no seu bolso.',
     fonte: 'eu monto sozinho — você só diz quanto entrou' },
-  { ic: '⛽', cor: 'var(--signal)', tit: 'Custo real por km', hero: 'além da gasolina',
+  { ic: ico('bomba'), cor: 'var(--signal)', tit: 'Custo real por km', hero: 'além da gasolina',
     isaac: 'A gasolina é só parte da conta. O desgaste do carro é o custo que ninguém soma. Eu junto tudo e te mostro seu gasto real.',
     fonte: 'o app calcula do seu combustível, sem digitação' },
   { ic: '🐷', cor: 'var(--money)', tit: 'Cofrinho', hero: 'a conta sempre volta',
     isaac: 'O carro quebra quando você menos espera. Sem reserva, vira dívida. Eu separo um pouco a cada dia pra você estar preparado.',
     fonte: 'o app guarda o tanto que você escolher, por dia' },
-  { ic: '🔧', cor: 'var(--signal)', tit: 'Manutenção', hero: 'dia perdido',
+  { ic: ico('chave'), cor: 'var(--signal)', tit: 'Manutenção', hero: 'dia perdido',
     isaac: 'Corrente arrebentada no meio da corrida é dia perdido, guincho e conta dobrada. Trocar na hora é barato; quebrar na rua é caro e humilhante. Eu grito ANTES do prejuízo, não depois.',
     fonte: 'eu conto os km e te aviso na hora certa' },
-  { ic: '📄', cor: 'var(--info)', tit: 'Documentos', hero: 'a pé',
+  { ic: ico('doc'), cor: 'var(--info)', tit: 'Documentos', hero: 'a pé',
     isaac: 'CNH vencida não é multazinha: é gravíssima, 7 pontos, e o risco de ficar a pé — sem seu ganha-pão. A blitz não avisa. Eu aviso, com folga pra resolver sem correria.',
     fonte: 'guarda as datas — eu cutuco antes de vencer' },
-  { ic: '🧮', cor: 'var(--info)', tit: 'Vale a pena rodar?', hero: 'antes de ligar',
+  { ic: ico('calc'), cor: 'var(--info)', tit: 'Vale a pena rodar?', hero: 'antes de ligar',
     isaac: 'Sair sem saber quanto PRECISA fazer é rodar no escuro e rezar. Me diz suas horas e sua meta — eu te falo na lata quanto o dia exige por hora, e se dá ou não dá. Sem falso otimismo.',
     fonte: 'eu calculo com o SEU custo de combustível real' },
-  { ic: '📈', cor: 'var(--money)', tit: 'Projeção do mês', hero: 'onde você vai parar',
+  { ic: ico('sobe'), cor: 'var(--money)', tit: 'Projeção do mês', hero: 'onde você vai parar',
     isaac: 'No dia 10 você não sabe como o mês fecha — e no dia 30 leva susto. Eu pego o SEU ritmo e projeto o fechamento antes. Não é chute: quanto mais roda, mais certeira fica.',
     fonte: 'estimo do seu próprio histórico — nunca invento' },
-  { ic: '🕳️', cor: 'var(--danger)', tit: 'Onde seu dinheiro some', hero: 'o buraco invisível',
+  { ic: ico('buraco'), cor: 'var(--danger)', tit: 'Onde seu dinheiro some', hero: 'o buraco invisível',
     isaac: 'A maioria dos motoristas gasta bem mais do que imagina — e nem percebe pra onde vai. Não é azar, é conta que ninguém faz. Eu faço a SUA: te mostro quanto o dia realmente custou, sem susto no fim do mês.',
     fonte: 'eu somo o que você nem vê — do seu próprio dado' },
-  { ic: '⏳', cor: 'var(--signal)', tit: 'Trabalha de graça?', hero: 'a parte que não pagam',
+  { ic: ico('relogio'), cor: 'var(--signal)', tit: 'Trabalha de graça?', hero: 'a parte que não pagam',
     isaac: 'Boa parte do que entra vai embora em taxa e desgaste — e tem hora do dia que você roda só pra empatar. Eu separo o que é ganho do que é só custo, pra você saber quando vale seguir e quando é hora de parar.',
     fonte: 'eu mostro o seu ganho real por hora' },
   { ic: '🐺', cor: 'var(--purple)', tit: 'Eu, o Isaac', hero: 'a real',
@@ -1429,7 +1446,7 @@ function initDashboard() {
   const vAt = veiculoAtivo();
   kmAtual = (vAt && vAt.odo != null) ? vAt.odo : 0;
   pintarKmHoje();
-  odometroTotal.textContent = '🛣️ ' + kmAtual + ' km no total';
+  odometroTotal.innerHTML = ico('estrada') + ' ' + esc(kmAtual) + ' km no total';
   streakDisplay.textContent = '🔥 ' + streak;
 
   // garante que o lucro de hoje reflete o combustível já lançado
@@ -1488,8 +1505,15 @@ function baseCombustivel() {
   return { base: todos, escopo: 'tudo' };
 }
 // fonte ÚNICA do combustível por km: usada no Início e na aba Combustível
+// Quantos registros do período estão com o km furado (pra dizer na tela).
+function qtdSuspeitos() {
+  return baseCombustivel().base.filter(kmSuspeito).length;
+}
 function combustivelKmMes() {
-  const base  = baseCombustivel().base;
+  // ⚠️ Os furados entravam na média. Agora saem da CONTA (o gasto deles segue
+  // contando no total do mês — o dinheiro saiu do bolso de verdade). Mesma
+  // regra que o extrato e o bloco "por tipo" já usavam.
+  const base  = baseCombustivel().base.filter(r => !kmSuspeito(r));
   const gasto = base.reduce((s, r) => s + (r.valor || 0), 0);
   const km    = base.reduce((s, r) => s + (r.km || 0), 0);
   return km > 0 ? gasto / km : 0;
@@ -1554,32 +1578,72 @@ function abastecimentoSuspeito() {
   }
   return null;
 }
+// ⚠️ O aviso dizia "1 abastecimento está com o km errado" e parava aí. O
+// motorista ficava sem saber QUAL: na lista, o registro ruim era idêntico aos
+// outros. Aviso que não aponta o culpado não é aviso, é ruído — e nesse caso
+// ainda por cima cobra uma correção impossível de fazer.
+// Identificação curta, com o que aparece na linha da lista: dia · posto · valor.
+function identificaAbast(r) {
+  if (!r) return '';
+  const p = [];
+  if (r.data)  p.push(r.data);
+  if (r.posto) p.push(r.posto);
+  p.push(fmtBRL(r.valor));
+  return p.join(' · ');
+}
+// Por que ESTE registro ficou de fora — com os números dele e o que seria normal.
+// curto = versão do selinho, que fica colado no próprio registro (não precisa
+// repetir a identificação nem o conselho).
+function porqueSuspeito(r, curto) {
+  if (!r) return '';
+  const fx    = faixaConsumo();
+  const faixa = fx.min + ' a ' + fx.max + ' km/L';
+  const kpl   = r.litros ? (r.km / r.litros) : null;
+  if (kpl !== null && kpl < fx.min / 2) {
+    const base = r.litros + 'L para ' + fmtKm(r.km) + ' km dá ' + kpl.toFixed(1).replace('.', ',') + ' km/L';
+    return curto ? base + ' (o normal é ' + faixa + ')'
+                 : base + ' — o normal é ' + faixa + '. O km está baixo demais.';
+  }
+  if (kpl !== null && kpl > fx.max * 2) {
+    const base = r.litros + 'L não levam ' + fmtKm(r.km) + ' km';
+    return curto ? base + ' (daria ' + kpl.toFixed(0) + ' km/L; o normal é ' + faixa + ')'
+                 : base + '. ' + (tipoVeiculoAtivo() === 'carro' ? 'Um carro faz ' : 'Uma moto faz ') +
+                   faixa + ' — esse tanque daria ' + kpl.toFixed(0) + '. ' +
+                   'Se você ficou dias sem registrar, esse km cobre mais de um abastecimento.';
+  }
+  const base = 'esse valor em ' + fmtKm(r.km) + ' km dá ' + fmtBRL(r.valor / r.km) + '/km';
+  return curto ? base + ' (o normal fica entre R$ 0,20 e R$ 0,80)'
+               : base + ' — o normal fica entre R$ 0,20 e R$ 0,80.';
+}
+// todos os furados do escopo atual — pra listar, não só contar
+function listaSuspeitos() {
+  return baseCombustivel().base.filter(kmSuspeito);
+}
 // texto curto explicando, na linguagem dele, POR QUE aquele número não fecha
 // e QUAL seria o normal — número sozinho não ajuda quem não conhece a conta.
 function textoSuspeito(s) {
   if (!s) return '';
-  const quando  = s.reg.data ? s.reg.data + ': ' : '';
-  const ehCarro = tipoVeiculoAtivo() === 'carro';
-  const fx      = faixaConsumo();
-  const faixa   = fx.min + ' a ' + fx.max + ' km/L';
-  if (s.kmPorLitro !== null && s.kmPorLitro < 2) {
-    return '⚠️ ' + quando + s.reg.litros + 'L para ' + fmtKm(s.reg.km) + ' km dá ' +
-           s.kmPorLitro.toFixed(1) + ' km/L — o normal é ' + faixa +
-           '. O km está baixo demais.';
-  }
-  return '⚠️ ' + quando + fmtBRL(s.reg.valor) + ' em ' + fmtKm(s.reg.km) + ' km dá ' +
-         fmtBRL(s.cpk) + '/km — o normal fica entre R$ 0,20 e R$ 0,80.';
+  return ico('alerta') + ' ' + esc(identificaAbast(s.reg)) + ': ' + esc(porqueSuspeito(s.reg, false));
 }
+
 
 function atualizarCustoRealKm() {
   const reservaKm = reservaKmAtual();
   // fonte única: mesma média da aba Combustível (não o último abastecimento isolado, que é ruído)
-  const combKm = combustivelKmMes();
+  const combKm = combustivelKmMes();   // já sem os furados
   const real = combKm + reservaKm;
   // Usa a MESMA regra do detector (custo absurdo OU consumo impossível).
   // Antes aqui só olhava o custo > 3: um registro de 11L para 20 km (1,8 km/L,
   // impossível) passava batido porque o custo dava R$ 2,50.
-  const suspeito = combKm > 3 || !!abastecimentoSuspeito();
+  // ⚠️ ANTES: UM registro furado apagava o número da tela inteira. Motorista com
+  // 10 abastecimentos bons e 1 ruim ficava sem custo por km — e PARA SEMPRE, se
+  // nunca corrigisse. O app ficava refém de um dado que talvez ele nem lembre
+  // como consertar.
+  // Agora o furado sai da CONTA, não da TELA: o número aparece com o que sobrou
+  // de confiável, e o aviso vira lembrete ao lado. Só some quando não sobra
+  // NENHUM registro bom — aí é verdade que o app não sabe.
+  const nFurados = qtdSuspeitos();
+  const suspeito = combKm > 3 || (combKm <= 0 && nFurados > 0);
 
   // ⚠️ Número que o app SABE estar errado não vai pra tela. Antes ele aparecia
   // em destaque com um aviso do lado — e o motorista pode decidir uma corrida
@@ -1588,18 +1652,38 @@ function atualizarCustoRealKm() {
   custoPorKmValor.textContent = mostra === null ? '—' : fmtBRL(mostra);
   custoKmStrip.textContent    = mostra === null ? '—' : fmtBRL(mostra);
 
-  if (suspeito) {
-    const _s = abastecimentoSuspeito();
-    custoRealSub.innerHTML = (_s ? esc(textoSuspeito(_s)) : '⚠️ Um abastecimento está com o km errado.') +
+  const botaoCorrigir =
       '<br><button onclick="event.stopPropagation();irCorrigirAbastecimento()" ' +
       'style="margin-top:7px;background:rgba(255,176,32,.14);border:1px solid rgba(255,176,32,.45);' +
       'color:var(--signal);font-family:inherit;font-size:11.5px;font-weight:700;padding:6px 14px;' +
-      'border-radius:16px;cursor:pointer;">Corrigir agora →</button>';
+      'border-radius:16px;cursor:pointer;">Corrigir agora ' + ico('seta-dir') + '</button>';
+
+  if (suspeito) {
+    // Não sobrou registro confiável: aí sim o app não tem o que mostrar.
+    const _s = abastecimentoSuspeito();
+    custoRealSub.innerHTML = (_s ? textoSuspeito(_s) : ico('alerta') + ' Um abastecimento está com o km errado.') +
+      botaoCorrigir;
     custoRealSub.style.color = 'var(--signal)';
   } else {
     custoRealSub.style.color = '';
     if (combKm > 0) {
-      custoRealSub.textContent = 'comb ' + fmtBRL(combKm) + ' + reserva ' + fmtBRL(reservaKm);
+      const contaOk = 'comb ' + fmtBRL(combKm) + ' + reserva ' + fmtBRL(reservaKm);
+      if (nFurados > 0) {
+        // Tem número na tela, feito com o que é confiável — e o convite pra
+        // completar fica do lado, sem bloquear nada.
+        // ⚠️ Dizia só "sem 1 abastecimento de km errado". Qual? O motorista não
+        // tinha como saber, e o botão o largava numa lista onde todos os
+        // registros pareciam iguais. Agora o aviso já diz o dia e o posto.
+        const _f = abastecimentoSuspeito();
+        const quais = (nFurados === 1 && _f)
+          ? 'sem o de ' + identificaAbast(_f.reg) + ' (km errado)'
+          : 'sem ' + nFurados + ' abastecimentos de km errado';
+        custoRealSub.innerHTML = esc(contaOk) +
+          '<br><span style="color:var(--faint);font-size:11px;">' + esc(quais) +
+          '</span>' + botaoCorrigir;
+      } else {
+        custoRealSub.textContent = contaOk;
+      }
     } else {
       // sem R$/km deste veículo ainda: fala a verdade em vez de mostrar a média de outro
       const n = abastDoVeiculoAtivo().length;
@@ -1763,7 +1847,7 @@ function abrirAjuda(qual, ev) {
   let titulo = '', texto = '', conta = '';
 
   if (qual === 'hora') {
-    titulo = '💡 Ganho por hora real';
+    titulo = ico('lampada') + ' Ganho por hora real';
     texto  = 'Mostra quanto o seu <b>tempo</b> vale por hora — pra decidir se compensa continuar. '
            + 'Exemplo: <b>R$ 300 em 6h = R$ 50/hora</b>. Já <b>R$ 360 em 9h = R$ 40/hora</b>: '
            + 'parece mais, mas foram 3h a mais pra ganhar menos por hora.';
@@ -1780,7 +1864,7 @@ function abrirAjuda(qual, ev) {
     // ── LINGUAGEM: pra ler de capacete, entre uma corrida e outra.
     // A palavra "guardada" saiu: ela fazia o cara achar que o desgaste ia
     // pro cofrinho 🐷 — e não vai. O balão agora diz onde o dinheiro NÃO está.
-    titulo = '💡 Custo real por km';
+    titulo = ico('lampada') + ' Custo real por km';
     const ehCarro = tipoVeiculoAtivo() === 'carro';
     const peca    = ehCarro ? 'do seu carro' : 'da sua moto';
     const pecas   = ehCarro ? 'Óleo, pneu, freio, embreagem.' : 'Óleo, pneu, corrente, freio.';
@@ -1810,7 +1894,7 @@ function abrirAjuda(qual, ev) {
   }
   else if (qual === 'meta') {
     const meta = perfil.metaDiaria || 250;
-    titulo = '💡 Progresso da meta';
+    titulo = ico('lampada') + ' Progresso da meta';
     texto  = 'Mostra o quanto falta para você atingir a meta do dia — como uma barra de progresso que vai enchendo. '
            + 'Exemplo: meta de R$ 250, você já fez R$ 200, faltam R$ 50. '
            + 'Ter um alvo claro dá foco e ajuda a fechar o dia no positivo, '
@@ -1821,7 +1905,7 @@ function abrirAjuda(qual, ev) {
       conta = `Sua meta é R$ ${meta}/dia. Registre sua receita para ver o progresso.`;
   }
 
-  document.getElementById('ajudaTitulo').textContent = titulo;
+  document.getElementById('ajudaTitulo').innerHTML = titulo;
   document.getElementById('ajudaTexto').innerHTML    = texto;
   document.getElementById('ajudaConta').innerHTML    = conta;
   document.getElementById('ajudaBalao').style.display = 'block';
@@ -1833,27 +1917,27 @@ function fecharAjuda() {
 // ═══ AJUDA DOS CARDS: explicação em 1 frase + exemplo com números redondos ═══
 const AJUDAS_CARD = {
   projecao: {
-    t: '📈 Projeção do mês',
+    t: ico('sobe') + ' Projeção do mês',
     x: 'É a minha estimativa de quanto você deve fechar o mês, com base no seu ritmo até agora. Quanto mais dias registrados, mais precisa ela fica.',
     e: 'Exemplo: em 10 dias rodados você lucrou <b>R$ 1.000</b> — média de R$ 100 por dia. Mantido esse ritmo, o mês fecha perto de <b>R$ 3.000</b>.'
   },
   gastomes: {
-    t: '⛽ Gasto no mês',
+    t: ico('bomba') + ' Gasto no mês',
     x: 'É a soma de tudo que você registrou de combustível neste mês.',
     e: 'Exemplo: abasteceu 4 vezes de R$ 50 → gasto do mês = <b>R$ 200</b>.'
   },
   mediakm: {
-    t: '⛽ Custo médio por km',
+    t: ico('bomba') + ' Custo médio por km',
     x: 'Quanto de combustível você gasta a cada quilômetro rodado. Serve para saber se o trajeto está consumindo o seu ganho.',
     e: 'Exemplo: abasteceu <b>R$ 50</b> e rodou <b>100 km</b> → custo de <b>R$ 0,50 por km</b>. Numa entrega de 10 km, são R$ 5 apenas de combustível.'
   },
   valepena: {
-    t: '🧮 Vale a pena rodar?',
+    t: ico('calc') + ' Vale a pena rodar?',
     x: 'Antes de começar o dia, me informe quantas horas você tem e a sua meta de lucro. Eu calculo quanto o dia exige por hora e comparo com o que você realmente rende — sem otimismo irreal.',
     e: 'Exemplo: meta de <b>R$ 200</b> em <b>8h</b> pede <b>R$ 25/h</b>. Se o seu ritmo real é R$ 18/h, eu aviso que essa meta está pesada para o tempo que você tem.'
   },
   ritmo: {
-    t: '📊 Seu ritmo real',
+    t: ico('grafico') + ' Seu ritmo real',
     x: 'É quanto o seu tempo costuma render nos seus dias de trabalho — o lucro dividido pelas horas (do "Bora rodar" até o "Encerrar o dia"). Serve para comparar a sua meta com a sua realidade, sem número inventado.',
     e: 'Exemplo: lucrou <b>R$ 210</b> em <b>7 horas</b> → <b>R$ 30/hora</b>. Se a sua meta pedir R$ 125/h, eu aviso que está pesada. (Só valem dias com o slider e a receita marcados juntos.)'
   }
@@ -1916,7 +2000,7 @@ function configurarManutencaoPorVeiculo(veiculo) {
     document.getElementById('manutIntervalo' + n).textContent = 'Intervalo: ' + manutencoes['item' + n].intervalo.toLocaleString('pt-BR') + ' km';
     document.getElementById('alertaNome' + n).textContent     = cfg.nome;
     const luzIc = document.getElementById('luzIc' + n);
-    if (luzIc) luzIc.innerHTML = LUZ_SVG[cfg.key] || LUZ_SVG.oleo;
+    if (luzIc) luzIc.innerHTML = ico(MNT_ICONES[cfg.key] || 'oleo');
   });
 }
 // NOVO: salva as trocas no localStorage (antes elas sumiam ao recarregar!)
@@ -1988,7 +2072,7 @@ function atualizarTelaManutencao() {
     const barra = document.getElementById('manutBarra' + n);
     const card  = document.getElementById('manutCard' + n);
     const ic    = document.getElementById('manutIc' + n);
-    if (ic) ic.textContent = MNT_ICONES[it.key] || '🔧';
+    if (ic) ic.innerHTML = ico(MNT_ICONES[it.key] || 'chave');
     document.getElementById('kmUltimaItem' + n).textContent  = it.kmUltima ? it.kmUltima.toLocaleString('pt-BR') + ' km' : '—';
     document.getElementById('manutIntervalo' + n).textContent = 'a cada ' + it.intervalo.toLocaleString('pt-BR') + ' km';
 
@@ -2025,7 +2109,7 @@ function atualizarTodosAlertas() {
 // ═══════════════════════════════════════════════════════════════
 //  MODAL MANUTENÇÃO (toque no alerta → telinha bonita)
 // ═══════════════════════════════════════════════════════════════
-const MNT_ICONES = { oleo:'🛢️', pneus:'🛞', corrente:'⛓️', freio:'🛑' };
+const MNT_ICONES = { oleo:'oleo', pneus:'pneu', corrente:'corrente', freio:'freio' };
 function abrirManutencao(n) {
   manutAlvo = n;
   const it = manutencoes['item' + n];
@@ -2034,7 +2118,7 @@ function abrirManutencao(n) {
   const pctUsado = it.kmUltima ? Math.max(0, Math.min(100, (usado / it.intervalo) * 100)) : 0;
   const restPct  = restante / it.intervalo;
 
-  document.getElementById('mntIcone').textContent = MNT_ICONES[it.key] || '🔧';
+  document.getElementById('mntIcone').innerHTML = ico(MNT_ICONES[it.key] || 'chave');
   document.getElementById('mntNome').textContent  = it.nome;
   const st = document.getElementById('mntStatus');
   const orfao = it.kmUltima && it.kmUltima > kmAtual;   // referência acima do odômetro atual
@@ -2105,7 +2189,7 @@ function finalizarArraste() {
       salvarLS('turnoAtivo', { inicio: Date.now() });
       mostrarTurnoLive();
       sliderContainer.classList.add('finalizar');
-      sliderTexto.textContent = '⏹  Encerrar o dia →';
+      sliderTexto.innerHTML = ico('parar') + '  Encerrar o dia ' + ico('seta-dir');
       moverThumb(0); currentX = 0;
       navigator.geolocation.getCurrentPosition(
         pos => { pontoA = { lat: pos.coords.latitude, lng: pos.coords.longitude }; },
@@ -2116,7 +2200,7 @@ function finalizarArraste() {
       // ── FINALIZAR TURNO ──
       turnoIniciado = false;
       sliderContainer.classList.remove('finalizar');
-      sliderTexto.textContent = iconeVeiculo + '  Bora rodar →';
+      sliderTexto.innerHTML = iconeVeiculo + '  Bora rodar ' + ico('seta-dir');
       moverThumb(0); currentX = 0;
       navigator.geolocation.getCurrentPosition(
         pos => {
@@ -2154,14 +2238,14 @@ function abrirModalKm(gpsDist) {
   kmGps.classList.remove('neutro');
   if (gpsDist === null) {
     kmGps.classList.add('neutro');
-    kmGps.innerHTML = '📍 GPS indisponível — digite o km do painel';
+    kmGps.innerHTML = ico('pin') + ' GPS indisponível — digite o km do painel';
   } else if (gpsDist <= 0) {
     // linha reta zero: ele voltou ao ponto de partida. Não diz nada sobre
     // distância, então o app não finge que diz.
     kmGps.classList.add('neutro');
-    kmGps.innerHTML = '📍 Você terminou onde começou';
+    kmGps.innerHTML = ico('pin') + ' Você terminou onde começou';
   } else {
-    kmGps.innerHTML = '📍 Você terminou a <b class="num">~' + gpsDist + ' km</b> de onde começou — rodou pelo menos isso';
+    kmGps.innerHTML = ico('pin') + ' Você terminou a <b class="num">~' + gpsDist + ' km</b> de onde começou — rodou pelo menos isso';
   }
   // Faz dias que ele não fecha? Diz isso ANTES de confirmar, porque o número que
   // ele vai digitar não é "o km de hoje" — é o de todos esses dias juntos.
@@ -2169,7 +2253,7 @@ function abrirModalKm(gpsDist) {
   const avisoD = document.getElementById('kmVaoDias');
   if (avisoD) {
     if (nDias > 1 && ultimo !== null) {
-      avisoD.innerHTML = '📅 Faz <b>' + nDias + ' dias</b> desde seu último registro — ' +
+      avisoD.innerHTML = ico('calendario') + ' Faz <b>' + nDias + ' dias</b> desde seu último registro — ' +
                          'esse km cobre todos eles, não só hoje.';
       avisoD.style.display = 'block';
     } else {
@@ -2308,7 +2392,7 @@ function abrirTrocaVeic(motivo, valor, ultimo) {
       '<small>o painel dela parou em ' + fmtKm(cand.odo) + ' km — bate certinho</small></span></button>');
   }
   opts.push('<button type="button" class="veic-op" onclick="veicAbrirForm()">' +
-    '<span class="veic-op-ic">➕</span>' +
+    '<span class="veic-op-ic">' + ico('mais') + '</span>' +
     '<span class="veic-op-txt"><b>Troquei de veículo</b><small>é um veículo que o app ainda não conhece</small></span></button>');
   if (motivo === 'menor') {
     // ⚠️ Sem esta saída o motorista fica preso: se o número GUARDADO é que
@@ -2316,13 +2400,13 @@ function abrirTrocaVeic(motivo, valor, ultimo) {
     // digita certo de novo... em loop. A única fuga seria cadastrar um
     // veículo falso — sujando os dados pra sempre.
     opts.push('<button type="button" class="veic-op" onclick="veicCorrigirGuardado()">' +
-      '<span class="veic-op-ic">✏️</span>' +
+      '<span class="veic-op-ic">' + ico('lapis') + '</span>' +
       '<span class="veic-op-txt"><b>O km guardado está errado</b>' +
       '<small>o certo é o que estou digitando agora — corrigir o registro anterior</small></span></button>');
   }
   if (motivo === 'maior') {
     opts.push('<button type="button" class="veic-op" onclick="veicRodeiIsso()">' +
-      '<span class="veic-op-ic">✅</span>' +
+      '<span class="veic-op-ic" style="color:var(--money)">' + ico('check') + '</span>' +
       '<span class="veic-op-txt"><b>Rodei isso mesmo</b><small>foi um dia longo — pode contar</small></span></button>');
   }
   document.getElementById('veicOpcoes').innerHTML = opts.join('');
@@ -2446,8 +2530,8 @@ function aplicarVeiculoNaTela() {
                        : ((p.modelo || '') + (p.placa ? ' · ' + p.placa : ''));
   }
   iconeVeiculo = iconeDoTipo(tipoVeiculoAtivo());
-  if (typeof sliderThumb !== 'undefined' && sliderThumb) sliderThumb.textContent = iconeVeiculo;
-  if (typeof sliderTexto !== 'undefined' && sliderTexto && !turnoIniciado) sliderTexto.textContent = iconeVeiculo + '  Bora rodar →';
+  if (typeof sliderThumb !== 'undefined' && sliderThumb) sliderThumb.innerHTML = iconeVeiculo;
+  if (typeof sliderTexto !== 'undefined' && sliderTexto && !turnoIniciado) sliderTexto.innerHTML = iconeVeiculo + '  Bora rodar ' + ico('seta-dir');
   configurarManutencaoPorVeiculo(tipoVeiculoAtivo());
   kmAtual = (v && v.odo != null) ? v.odo : 0;
   renderOdometro();
@@ -2500,7 +2584,7 @@ function aplicarKmEFecharTurno(valor) {
 
   kmAtual = valor;
   pintarKmHoje();
-  odometroTotal.textContent = '🛣️ ' + kmAtual + ' km no total';
+  odometroTotal.innerHTML = ico('estrada') + ' ' + esc(kmAtual) + ' km no total';
   renderOdometro();   // dígitos giram até o km novo 🎰
 
   // km do dia: fonte única. Só grava quando o app REALMENTE sabe.
@@ -2724,12 +2808,12 @@ function avisoAbastecimento(v, k, l, tipo) {
   if (kmSuspeito({ valor: v, km: k, litros: l, tipo: tipo })) {
     const kpl = (l > 0) ? (k / l) : null;
     if (kpl !== null && kpl < fx.min / 2) {
-      return '\u26a0\ufe0f ' + l + 'L para ' + fmtKm(k) + ' km daria so ' + kpl.toFixed(1) +
+      return '\u26a0\ufe0f ' + l + 'L para ' + fmtKm(k) + ' km daria so ' + kpl.toFixed(1).replace('.', ',') +
              ' km por litro. ' + (ehCarro ? 'Um carro faz ' : 'Uma moto faz ') + faixa +
              ' \u2014 esse km parece baixo demais. Confira no painel.';
     }
     if (kpl !== null && kpl > fx.max * 2) {
-      return '\u26a0\ufe0f ' + l + 'L para ' + fmtKm(k) + ' km daria ' + kpl.toFixed(1) +
+      return '\u26a0\ufe0f ' + l + 'L para ' + fmtKm(k) + ' km daria ' + kpl.toFixed(1).replace('.', ',') +
              ' km por litro. ' + (ehCarro ? 'Um carro faz ' : 'Uma moto faz ') + faixa +
              ' \u2014 esse km parece alto demais. Se ficou dias sem registrar, ' +
              'esse km cobre mais de um abastecimento.';
@@ -2807,11 +2891,11 @@ function editarAbastecimento(id) {
   tipoSelecionadoTela = r.tipo || 'Gasolina';
   document.querySelectorAll('#modalAbastecer .tipo-btn').forEach(b => b.classList.toggle('ativo', b.textContent.trim() === tipoSelecionadoTela));
   calcCustoPorKmTela();
-  document.querySelector('#btnSalvarTela').textContent = '✅ Salvar alteração';
+  document.querySelector('#btnSalvarTela').innerHTML = ico('check') + ' Salvar alteração';
   document.getElementById('modalAbastecer').style.display = 'flex';
 }
 function excluirAbastecimento(id) {
-  pedirConfirmacao('🗑️ Apagar abastecimento', 'Quer apagar este lançamento? Isso não dá pra desfazer.', function() {
+  pedirConfirmacao(ico('lixeira') + ' Apagar abastecimento', 'Quer apagar este lançamento? Isso não dá pra desfazer.', function() {
     let h = lerLS('historicoAbastecimentos', []);
     h = h.filter(r => r.id !== id);
     salvarLS('historicoAbastecimentos', h);
@@ -2850,7 +2934,7 @@ document.querySelector('#btnSalvarTela').addEventListener('click', function() {
       refreshAposAbast();
     }
     editandoAbastId = null;
-    document.querySelector('#btnSalvarTela').textContent = '✅ Registrar';
+    document.querySelector('#btnSalvarTela').innerHTML = ico('check') + ' Registrar';
     toast('Abastecimento atualizado');
   } else {
     const cpm = (valor && km) ? (valor / km).toFixed(2) : null;
@@ -2878,7 +2962,7 @@ document.querySelector('#btnSalvarTela').addEventListener('click', function() {
 // kmSugerido: preenche o campo de km (o pos-turno manda o km que ele rodou).
 function abrirFormAbastecimento(kmSugerido) {
   editandoAbastId = null;
-  document.querySelector('#btnSalvarTela').textContent = '✅ Registrar';
+  document.querySelector('#btnSalvarTela').innerHTML = ico('check') + ' Registrar';
   limparCamposAbast();
   atualizarListaPostos();
   if (kmSugerido) document.querySelector('#inputKmTela').value = kmSugerido;
@@ -2899,7 +2983,7 @@ document.getElementById('btnAbrirAbastecer').addEventListener('click', function(
 });
 document.getElementById('btnCancelarAbastecer').addEventListener('click', function() {
   editandoAbastId = null;
-  document.querySelector('#btnSalvarTela').textContent = '✅ Registrar';
+  document.querySelector('#btnSalvarTela').innerHTML = ico('check') + ' Registrar';
   document.getElementById('modalAbastecer').style.display = 'none';
   // desistiu de registrar depois do turno: o dia fecha do mesmo jeito
   if (_abastDoTurno) { _abastDoTurno = false; mostrarStreak(); }
@@ -3073,22 +3157,34 @@ function atualizarTelaCombustivel() {
   const bc     = baseCombustivel();
   const cKmMes = combustivelKmMes();
   // mesma regra da tela Início: número que o app sabe estar errado vira '—'
-  const cmSuspeito = cKmMes > 3 || !!abastecimentoSuspeito();   // mesma regra da tela Início
+  // ⚠️ Aqui ainda apagava o número inteiro por causa de UM registro ruim — a
+  // v3.61 corrigiu isso na Início e esqueceu esta tela (de novo o padrão "regra
+  // copiada que diverge"). combustivelKmMes() já exclui os furados.
+  const nFuradosMes = qtdSuspeitos();
+  const cmSuspeito  = cKmMes > 3 || (cKmMes <= 0 && nFuradosMes > 0);
   document.querySelector('#custoMedioVal').textContent = (cKmMes > 0 && !cmSuspeito) ? fmtBRL(cKmMes) : '—';
   let subCm;
-  if (cmSuspeito) { const _s2 = abastecimentoSuspeito(); subCm = _s2 ? textoSuspeito(_s2) : '⚠️ Um abastecimento está com o km errado.'; }
-  else if (cKmMes > 0) subCm = (bc.escopo === 'mes' ? 'média do mês' : 'média de todos os registros') + ' · ' + nomeVeiculo(veiculoAtivo());
+  if (cmSuspeito) { const _s2 = abastecimentoSuspeito(); subCm = _s2 ? textoSuspeito(_s2) : ico('alerta') + ' Um abastecimento está com o km errado.'; }
+  else if (cKmMes > 0) {
+    subCm = (bc.escopo === 'mes' ? 'média do mês' : 'média de todos os registros') + ' · ' + esc(nomeVeiculo(veiculoAtivo()));
+    if (nFuradosMes > 0) {
+      const _f2 = abastecimentoSuspeito();
+      subCm += (nFuradosMes === 1 && _f2)
+        ? ' · sem o de ' + esc(identificaAbast(_f2.reg)) + ' (km errado)'
+        : ' · sem ' + nFuradosMes + ' de km errado';
+    }
+  }
   else {
     const n = abastDoVeiculoAtivo().length;
-    subCm = n > 0 ? 'aprendendo ' + nomeVeiculo(veiculoAtivo()) + ' · registre o km ao abastecer'
+    subCm = n > 0 ? 'aprendendo ' + esc(nomeVeiculo(veiculoAtivo())) + ' · registre o km ao abastecer'
                   : 'registre valor + km ao abastecer';
   }
   const _elSub = document.querySelector('#custoMedioSub');
-  if (cmSuspeito) {
-    _elSub.innerHTML = esc(subCm) + '<br><button onclick="event.stopPropagation();irCorrigirAbastecimento()" ' +
+  if (cmSuspeito || nFuradosMes > 0) {
+    _elSub.innerHTML = subCm + '<br><button onclick="event.stopPropagation();irCorrigirAbastecimento()" ' +
       'style="margin-top:7px;background:rgba(255,176,32,.14);border:1px solid rgba(255,176,32,.45);' +
       'color:var(--signal);font-family:inherit;font-size:11.5px;font-weight:700;padding:6px 14px;' +
-      'border-radius:16px;cursor:pointer;">Corrigir agora →</button>';
+      'border-radius:16px;cursor:pointer;">Corrigir agora ' + ico('seta-dir') + '</button>';
   } else { _elSub.textContent = subCm; }
 }
 
@@ -3096,8 +3192,9 @@ function atualizarTelaCombustivel() {
 function renderItensAbastecimento(elLista, registros, baseParaPadrao) {
   if (registros.length === 0) { elLista.innerHTML = '<div class="comb-vazio">Nenhum abastecimento neste período.</div>'; return; }
   elLista.innerHTML = registros.map(r => {
+    const furado = kmSuspeito(r);
     let badge = '';
-    if (r.ppl) {
+    if (r.ppl && !furado) {
       // Compara com os 4 abastecimentos ANTERIORES do mesmo tipo, nao com o
       // historico inteiro: combustivel muda de preco o tempo todo, e a media
       // de meses atras faz tudo parecer "Caro" pra sempre — o selinho vira um
@@ -3111,24 +3208,36 @@ function renderItensAbastecimento(elLista, registros, baseParaPadrao) {
         const media = mesmoTipo.reduce((s, x) => s + numBR(x.ppl), 0) / mesmoTipo.length;
         const diff  = numBR(r.ppl) - media;
         const qtd   = mesmoTipo.length === 1 ? 'o anterior' : 'os ' + mesmoTipo.length + ' anteriores';
-        if (diff > 0.1)       badge = `<div class="comb-badge comb-badge-caro">⚠️ +${fmtBRL(diff)}/L que ${qtd}</div>`;
-        else if (diff < -0.1) badge = `<div class="comb-badge comb-badge-barato">✅ −${fmtBRL(Math.abs(diff))}/L que ${qtd}</div>`;
+        if (diff > 0.1)       badge = `<div class="comb-badge comb-badge-caro">${ico('alerta')} +${fmtBRL(diff)}/L que ${qtd}</div>`;
+        else if (diff < -0.1) badge = `<div class="comb-badge comb-badge-barato">${ico('check')} −${fmtBRL(Math.abs(diff))}/L que ${qtd}</div>`;
         else                  badge = `<div class="comb-badge comb-badge-neutro">👌 No mesmo preço de ${qtd}</div>`;
       }
     }
-    return `<div class="comb-item">
+    // O selinho de preço some no registro furado: comparar R$/L de um dado que o
+    // app sabe estar errado é dar crédito a ele. No lugar entra o motivo.
+    if (furado) {
+      badge = `<div class="comb-badge comb-badge-erro">${ico('alerta')} Km errado — fora da conta de R$/km<br>` +
+              `<span style="font-weight:600;">${esc(porqueSuspeito(r, true))}</span><br>` +
+              `<span style="font-weight:600;opacity:.85;">Toque no ${ico('lapis')} aqui do lado e ajuste o km.</span></div>`;
+    }
+    // ⚠️ O km NÃO aparecia em lugar nenhum da lista. O app pedia "corrija o km"
+    // num registro onde o motorista não conseguia nem VER o km atual.
+    const kmTxt = r.km > 0
+      ? (furado ? `<b style="color:var(--danger);">${fmtKm(r.km)} km ${ico('alerta')}</b>` : fmtKm(r.km) + ' km')
+      : '<span style="color:var(--danger);">sem km</span>';
+    return `<div class="comb-item${furado ? ' comb-item-erro' : ''}">
       <div class="comb-item-left">
         <div class="comb-item-dia">${r.data || ''}</div>
-        <div class="comb-item-detalhe">${r.posto ? '📍 ' + esc(r.posto) + ' · ' : ''}${r.tipo}${r.litros ? ' · ' + r.litros + 'L' : ''}${r.ppl ? ' · ' + fmtBRL(numBR(r.ppl)) + '/L' : ''}</div>
+        <div class="comb-item-detalhe">${r.posto ? ico('pin') + ' ' + esc(r.posto) + ' · ' : ''}${r.tipo}${r.litros ? ' · ' + r.litros + 'L' : ''}${r.ppl ? ' · ' + fmtBRL(numBR(r.ppl)) + '/L' : ''} · ${kmTxt}</div>
         ${badge}
       </div>
       <div class="comb-item-right">
         <div class="comb-item-val">${fmtBRL(r.valor)}</div>
-        <div class="comb-item-cpm">${r.cpm ? fmtBRL(numBR(r.cpm)) + '/km' : '—'}</div>
+        <div class="comb-item-cpm">${furado ? '<span style="color:var(--danger);">não conta</span>' : (r.cpm ? fmtBRL(numBR(r.cpm)) + '/km' : '—')}</div>
       </div>
       <div class="comb-item-acoes">
-        <button class="comb-acao" onclick="editarAbastecimento('${r.id}')" title="Editar">✏️</button>
-        <button class="comb-acao" onclick="excluirAbastecimento('${r.id}')" title="Apagar">🗑️</button>
+        <button class="comb-acao" onclick="editarAbastecimento('${r.id}')" title="Editar">${ico('lapis')}</button>
+        <button class="comb-acao" onclick="excluirAbastecimento('${r.id}')" title="Apagar">${ico('lixeira')}</button>
       </div>
     </div>`;
   }).join('');
@@ -3208,11 +3317,35 @@ function renderExtrato() {
                             cpkEl.title = nFurados > 0 ? 'Todos os registros com km estão errados' : ''; }
   const avisoCpk = document.getElementById('extCpkAviso');
   if (avisoCpk) {
-    avisoCpk.textContent = nFurados > 0
-      ? (nFurados === 1 ? 'Deixei 1 abastecimento de fora desta conta: o km está errado.'
-                        : 'Deixei ' + nFurados + ' abastecimentos de fora desta conta: o km está errado.')
-      : '';
-    avisoCpk.style.display = nFurados > 0 ? 'block' : 'none';
+    // O texto antigo só dizia o que foi deixado de fora — o motorista leigo lia
+    // aquilo sem entender o que fazer, e ficava com a impressão de que o app
+    // tinha parado de funcionar. Agora diz também o que ISSO SIGNIFICA e o que
+    // ele ganha corrigindo.
+    if (nFurados > 0) {
+      const qtos = nFurados === 1
+        ? '1 abastecimento com o km errado ficou'
+        : nFurados + ' abastecimentos com o km errado ficaram';
+      // ⚠️ Faltava o principal: QUAL. Agora o aviso nomeia cada um (dia, posto,
+      // valor) e diz o que não fecha — os mesmos que estão marcados de vermelho
+      // na lista logo abaixo. Máximo de 3 pra não virar parede de texto.
+      const ruins = doPeriodo.filter(kmSuspeito);
+      const itens = ruins.slice(0, 3).map(r =>
+        '<li style="margin-top:4px;"><b>' + esc(identificaAbast(r)) + '</b><br>' +
+        '<span style="opacity:.85;">' + esc(porqueSuspeito(r, true)) + '</span></li>').join('');
+      const resto = ruins.length > 3 ? '<div style="margin-top:4px;opacity:.85;">e mais ' +
+        (ruins.length - 3) + ' na lista abaixo.</div>' : '';
+      avisoCpk.innerHTML = '<b>' + qtos + ' de fora desta conta.</b>' +
+        '<ul style="margin:6px 0 0;padding-left:16px;">' + itens + '</ul>' + resto +
+        '<div style="margin-top:6px;">' +
+        (kmLimpo > 0
+          ? 'O número acima usa só os que estão certos. Ache o registro marcado de vermelho na lista, toque no ' + ico('lapis') + ' e ajuste o km.'
+          : 'Sem nenhum km confiável eu não consigo calcular o custo por km. ' +
+            'Toque no ' + ico('lapis') + ' do registro marcado de vermelho e ajuste o km.') + '</div>';
+      avisoCpk.style.display = 'block';
+    } else {
+      avisoCpk.textContent = '';
+      avisoCpk.style.display = 'none';
+    }
   }
   renderItensAbastecimento(document.getElementById('extLista'), doPeriodo, hist);
   renderPorTipo(doPeriodo);
@@ -3295,17 +3428,17 @@ function renderPorTipo(registros) {
     const noPeriodo = difKm * kmTotal;
     if (diff >= 5) {
       verBox.style.display = 'block';
-      let txt = `🟢 Neste período, <b>${melhor.tipo}</b> saiu <b>${fmtBRL(difKm)} mais barato por km</b> que ${pior.tipo} (${diff}%).`;
+      let txt = dot('verde') + ` Neste período, <b>${melhor.tipo}</b> saiu <b>${fmtBRL(difKm)} mais barato por km</b> que ${pior.tipo} (${diff}%).`;
       if (noPeriodo >= 5) txt += ` Nos ${fmtKm(kmTotal)} km que você rodou, daria <b>${fmtBRL0(noPeriodo)}</b> de diferença.`;
       verBox.innerHTML = txt + nota;
     } else {
       verBox.style.display = 'block';
-      verBox.innerHTML = `⚖️ Os tipos custaram quase igual por km (${fmtBRL(difKm)} de diferença). Vai no que for mais fácil de achar no posto.` + nota;
+      verBox.innerHTML = ico('balanca') + ` Os tipos custaram quase igual por km (${fmtBRL(difKm)} de diferença). Vai no que for mais fácil de achar no posto.` + nota;
     }
   } else if (temFurado) {
     // nao da pra comparar porque o unico dado do outro tipo esta furado — diz isso
     verBox.style.display = 'block';
-    verBox.innerHTML = '⚠️ Não consigo comparar os tipos: um abastecimento está com o km errado. Corrija que eu faço a conta.';
+    verBox.innerHTML = ico('alerta') + ' Não consigo comparar os tipos: um abastecimento está com o km errado. Corrija que eu faço a conta.';
   } else {
     verBox.style.display = 'none';
   }
@@ -3539,8 +3672,8 @@ function atualizarTelaDocumentos() {
       <div class="doc-dir">
         <div class="doc-status" style="color:${st.cor}">${st.texto}</div>
         <div class="doc-acoes">
-          <button class="doc-btn-edit" onclick="abrirModalDoc('${tipo.id}')">✏️</button>
-          <button class="doc-btn-edit" onclick="excluirDoc('${tipo.id}')">🗑️</button>
+          <button class="doc-btn-edit" onclick="abrirModalDoc('${tipo.id}')" title="Editar">${ico('lapis')}</button>
+          <button class="doc-btn-edit" onclick="excluirDoc('${tipo.id}')" title="Remover">${ico('lixeira')}</button>
         </div>
       </div>
     </div>`;
@@ -3560,7 +3693,7 @@ function abrirModalDoc(tipoId) {
   const btnSug = document.getElementById('btnSugerirData');
   if (tipoDef && tipoDef.renovaMeses) {
     const meses = tipoDef.renovaMeses;
-    btnSug.textContent = '📅 Renovou? Adiantar ' + (meses === 12 ? '1 ano' : (meses / 12) + ' anos');
+    btnSug.innerHTML = ico('calendario') + ' Renovou? Adiantar ' + (meses === 12 ? '1 ano' : (meses / 12) + ' anos');
     btnSug.dataset.meses = meses;
     btnSug.style.display = 'block';
   } else {
@@ -3578,7 +3711,7 @@ document.getElementById('btnSugerirData').addEventListener('click', function() {
 });
 function excluirDoc(tipoId) {
   const msg = DOCS_TIPOS.find(t => t.id === tipoId) ? 'Deseja remover os dados deste documento?' : 'Deseja excluir este documento?';
-  pedirConfirmacao('🗑️ Remover documento', msg, function() {
+  pedirConfirmacao(ico('lixeira') + ' Remover documento', msg, function() {
     const docs = lerLS('documentos', {});
     delete docs[tipoId];
     salvarLS('documentos', docs);
@@ -3662,7 +3795,7 @@ btnRegistrarReceita.addEventListener('click', function() {
   } else {
     inputReceita.value = '';
   }
-  document.getElementById('modalReceitaTitulo').textContent = hoje ? '💰 Ajustar receita de hoje' : '💰 Receita do dia';
+  document.getElementById('modalReceitaTitulo').innerHTML = ico('dinheiro') + (hoje ? ' Ajustar receita de hoje' : ' Receita do dia');
   selecionarTipoReceita(tipoReceita);   // sincroniza a tela com o modo atual (padrão: líquido)
   modalReceita.style.display = 'flex';
 });
@@ -4248,12 +4381,12 @@ function renderProjecao() {
 
 // ─── DESPESAS DO DIA (grid opcional) ─────────────────────────
 const CATS_DESPESA = {
-  pedagio:        { icon:'🛣️', label:'Pedágio' },
-  alimentacao:    { icon:'🍔', label:'Alimentação' },
-  lavagem:        { icon:'🧼', label:'Lavagem' },
-  estacionamento: { icon:'🅿️', label:'Estacionamento' },
-  internet:       { icon:'📱', label:'Internet/chip' },
-  outro:          { icon:'➕', label:'Outro' },
+  pedagio:        { icon:'pedagio',  label:'Pedágio' },
+  alimentacao:    { icon:'comida',   label:'Alimentação' },
+  lavagem:        { icon:'lavagem',  label:'Lavagem' },
+  estacionamento: { icon:'estacionar', label:'Estacionamento' },
+  internet:       { icon:'celular',  label:'Internet/chip' },
+  outro:          { icon:'mais',     label:'Outro' },
 };
 let despCatSel = null;
 // Reconstrói a categoria a partir da descrição. Serve para as despesas que
@@ -4286,10 +4419,10 @@ function renderDespesas() {
   const lista = lerDespesasDia(hojeISO());
   elLista.innerHTML = lista.map(d =>
     `<div class="desp-item">
-       <div class="desp-item-esq">${d.icon} ${esc(d.label)}</div>
+       <div class="desp-item-esq">${ico((CATS_DESPESA[d.cat] || {}).icon || 'saindo')} ${esc(d.label)}</div>
        <div class="desp-item-dir">
          <span class="desp-item-val">− ${fmtBRL(d.valor)}</span>
-         <button class="desp-item-x" onclick="removerDespesa('${d.id}')" aria-label="Remover">✕</button>
+         <button class="desp-item-x" onclick="removerDespesa('${d.id}')" aria-label="Remover">${ico('x')}</button>
        </div>
      </div>`).join('');
   const total = despesasTotalHoje();
@@ -4331,7 +4464,7 @@ function adicionarDespesa() {
   const lista = lerDespesasDia(hojeISO());
   lista.push({
     id: 'dp' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-    cat: despCatSel, icon: CATS_DESPESA[despCatSel].icon, label: CATS_DESPESA[despCatSel].label, valor
+    cat: despCatSel, label: CATS_DESPESA[despCatSel].label, valor
   });
   salvarDespesasDia(hojeISO(), lista);
   // Supabase: a despesa recém-criada é a última da lista
@@ -4444,13 +4577,13 @@ function renderCompPersonal() {
   v.classList.remove('acima','abaixo','igual');
   if (Math.abs(diff) < media * 0.08) {           // dentro de ±8% = "normal"
     v.classList.add('igual');
-    v.textContent = '⚖️ Dia dentro do seu normal';
+    v.innerHTML = ico('balanca') + ' Dia dentro do seu normal';
   } else if (diff > 0) {
     v.classList.add('acima');
-    v.textContent = '🟢 ' + fmtBRL0(diff) + ' acima do seu normal';
+    v.innerHTML = dot('verde') + ' ' + fmtBRL0(diff) + ' acima do seu normal';
   } else {
     v.classList.add('abaixo');
-    v.textContent = '🔴 ' + fmtBRL0(Math.abs(diff)) + ' abaixo do seu normal';
+    v.innerHTML = dot('vermelho') + ' ' + fmtBRL0(Math.abs(diff)) + ' abaixo do seu normal';
   }
 }
 function abrirAjudaComp() { document.getElementById('modalAjudaComp').style.display = 'flex'; }
@@ -4673,13 +4806,13 @@ function renderInteligenciaSim() {
 
   if (!it.suficiente) {
     box.classList.add('amarelo');
-    vd.textContent = '🟡 Ainda aprendendo com você';
+    vd.innerHTML = dot('amarelo') + ' Ainda aprendendo com você';
     tx.innerHTML = 'Use o "Bora rodar" e registre suas receitas — com uns dias de uso eu te digo se <b>' + nomeHoje + '</b> costuma valer a pena pra você.';
     return;
   }
   if (it.mediaDia === null) {
     box.classList.add('amarelo');
-    vd.textContent = '🟡 Sem histórico de ' + nomeHoje + ' ainda';
+    vd.innerHTML = dot('amarelo') + ' Sem histórico de ' + esc(nomeHoje) + ' ainda';
     tx.innerHTML = 'Sua média geral é <b>' + fmtBRL0(it.mediaGeral) + '/hora</b> (' + it.total + ' dias). Ainda não tenho ' + nomeHoje + 's registradas pra comparar — roda hoje que eu aprendo!';
     return;
   }
@@ -4687,15 +4820,15 @@ function renderInteligenciaSim() {
   const N = nomeHoje.charAt(0).toUpperCase() + nomeHoje.slice(1);
   if (razao >= 1.05) {
     box.classList.add('verde');
-    vd.textContent = '🟢 ' + N + ' costuma ser boa pra você!';
+    vd.innerHTML = dot('verde') + ' ' + esc(N) + ' costuma ser boa pra você!';
     tx.innerHTML = plDia(it.hojeDow, nomeHoje) + ' rendem <b>' + fmtBRL0(it.mediaDia) + '/hora</b>, acima da sua média geral de ' + fmtBRL0(it.mediaGeral) + '/h. Bora aproveitar!';
   } else if (razao >= 0.85) {
     box.classList.add('amarelo');
-    vd.textContent = '🟡 ' + N + ' é mediana pra você';
+    vd.innerHTML = dot('amarelo') + ' ' + esc(N) + ' é mediana pra você';
     tx.innerHTML = plDia(it.hojeDow, nomeHoje) + ' rendem <b>' + fmtBRL0(it.mediaDia) + '/hora</b>, perto da sua média de ' + fmtBRL0(it.mediaGeral) + '/h. Vale rodar, sem esperar milagre.';
   } else {
     box.classList.add('vermelho');
-    vd.textContent = '🔴 ' + N + ' costuma render menos';
+    vd.innerHTML = dot('vermelho') + ' ' + esc(N) + ' costuma render menos';
     tx.innerHTML = plDia(it.hojeDow, nomeHoje) + ' rendem <b>' + fmtBRL0(it.mediaDia) + '/hora</b>, abaixo da sua média de ' + fmtBRL0(it.mediaGeral) + '/h. Se rodar, ajusta a expectativa.';
   }
 }
@@ -4760,7 +4893,7 @@ function calcSimulador() {
   if (comLitros.length > 1) {
     const media = comLitros.slice(1,5).reduce((s,x)=>s+numBR(x.ppl),0) / Math.min(comLitros.length-1,4);
     const diff  = precoComb - media;
-    if (diff > 0.1) aviso = `⚠️ Combustível ${fmtBRL(diff)}/L acima da média. Impacto: ${fmtBRL((diff*litros))} no lucro.`;
+    if (diff > 0.1) aviso = `${ico('alerta')} Combustível ${fmtBRL(diff)}/L acima da média. Impacto: ${fmtBRL((diff*litros))} no lucro.`;
   }
 
   // ── VEREDITO: compara a meta com o SEU ritmo real (nada de régua inventada) ──
@@ -4768,27 +4901,27 @@ function calcSimulador() {
   let linhaRitmo = '';
   if (temRitmo) {
     const razao = phNecessario / phReal;
-    if (razao <= 1.0)      { vd.textContent = '🟢 Meta tranquila pro seu ritmo';  vd.style.color = 'var(--money)'; }
-    else if (razao <= 1.3) { vd.textContent = '🟡 Meta puxada, mas possível';     vd.style.color = 'var(--signal)'; }
-    else                   { vd.textContent = '🔴 Meta pesada pra esse tempo';    vd.style.color = 'var(--danger)'; }
+    if (razao <= 1.0)      { vd.innerHTML = dot('verde') + ' Meta tranquila pro seu ritmo';  vd.style.color = 'var(--money)'; }
+    else if (razao <= 1.3) { vd.innerHTML = dot('amarelo') + ' Meta puxada, mas possível';     vd.style.color = 'var(--signal)'; }
+    else                   { vd.innerHTML = dot('vermelho') + ' Meta pesada pra esse tempo';    vd.style.color = 'var(--danger)'; }
     const rende = phReal * horas;
     linhaRitmo = `
-    <div class="sim-linha"><span class="ajuda-clic" onclick="abrirAjudaCard('ritmo')">📊 Seu ritmo real <span class="int">ⓘ</span></span><span>${fmtBRL0(phReal)}/h (${phAmostras.length} dias)</span></div>
-    <div class="sim-linha"><span>🎯 No seu ritmo, ${horas}h rendem</span><span style="color:${rende >= meta ? 'var(--money)' : 'var(--signal)'}">~${fmtBRL0(rende)}</span></div>`;
+    <div class="sim-linha"><span class="ajuda-clic" onclick="abrirAjudaCard('ritmo')">${ico('grafico')} Seu ritmo real <span class="int">ⓘ</span></span><span>${fmtBRL0(phReal)}/h (${phAmostras.length} dias)</span></div>
+    <div class="sim-linha"><span>${ico('alvo')} No seu ritmo, ${horas}h rendem</span><span style="color:${rende >= meta ? 'var(--money)' : 'var(--signal)'}">~${fmtBRL0(rende)}</span></div>`;
   } else {
-    vd.textContent = '🟡 Ainda aprendendo seu ritmo';
+    vd.innerHTML = dot('amarelo') + ' Ainda aprendendo seu ritmo';
     vd.style.color = 'var(--signal)';
     linhaRitmo = `
-    <div class="sim-linha"><span class="ajuda-clic" onclick="abrirAjudaCard('ritmo')">📊 Seu ritmo real <span class="int">ⓘ</span></span><span>use o "Bora rodar" + registre receitas</span></div>`;
+    <div class="sim-linha"><span class="ajuda-clic" onclick="abrirAjudaCard('ritmo')">${ico('grafico')} Seu ritmo real <span class="int">ⓘ</span></span><span>use o "Bora rodar" + registre receitas</span></div>`;
   }
 
   document.getElementById('simLinhas').innerHTML = `
-    <div class="sim-linha sim-linha-forte"><span>🕐 Precisa render</span><span>${fmtBRL(phNecessario)}/h</span></div>${linhaRitmo}
+    <div class="sim-linha sim-linha-forte"><span>${ico('relogio')} Precisa render</span><span>${fmtBRL(phNecessario)}/h</span></div>${linhaRitmo}
     <details class="sim-detalhes">
       <summary>ver a conta completa ›</summary>
-      <div class="sim-linha"><span>💰 Receita bruta necessária</span><span>${fmtBRL(receita)}</span></div>
-      <div class="sim-linha"><span>⛽ Deve gastar de combustível</span><span>~${fmtBRL0(combEst)} (uns ${kmEst} km)</span></div>
-      <div class="sim-linha"><span>⛽ Conta feita com o litro a</span><span>${fmtBRL(precoComb)}${comLitros.length > 0 ? ' (seu último posto)' : ' (média — registre um abastecimento!)'}</span></div>
+      <div class="sim-linha"><span>${ico('dinheiro')} Receita bruta necessária</span><span>${fmtBRL(receita)}</span></div>
+      <div class="sim-linha"><span>${ico('bomba')} Deve gastar de combustível</span><span>~${fmtBRL0(combEst)} (uns ${kmEst} km)</span></div>
+      <div class="sim-linha"><span>${ico('bomba')} Conta feita com o litro a</span><span>${fmtBRL(precoComb)}${comLitros.length > 0 ? ' (seu último posto)' : ' (média — registre um abastecimento!)'}</span></div>
     </details>`;
   const avisoEl = document.getElementById('simAviso');
   if (aviso) { avisoEl.textContent = aviso; avisoEl.style.display = 'block'; } else { avisoEl.style.display = 'none'; }

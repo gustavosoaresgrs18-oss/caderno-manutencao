@@ -757,7 +757,7 @@ async function restaurarDoSupabase(userId) {
                               ? catPelaDescricao(d.descricao) : 'outro');
         const meta = (typeof CATS_DESPESA !== 'undefined' && CATS_DESPESA[cat]) || null;
         porDia[d.data_iso].push({
-          id: d.id, cat: cat, icon: meta ? meta.icon : '💸',
+          id: d.id, cat: cat,
           label: d.descricao || (meta ? meta.label : 'Despesa'), valor: d.valor || 0
         });
       });

@@ -117,7 +117,7 @@ body{
 .slider-container{ position:relative; width:100%; height:52px; background:var(--elev); border-radius:26px; border:1.5px solid rgba(0,224,138,.4); overflow:hidden; cursor:pointer; user-select:none; touch-action:none; }
 .slider-track{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
 .slider-texto{ font-size:15px; font-weight:800; color:var(--money); pointer-events:none; }
-.slider-thumb{ position:absolute; left:4px; top:50%; transform:translateY(-50%); width:44px; height:44px; background:linear-gradient(135deg,var(--money),var(--money2)); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; cursor:grab; z-index:2; pointer-events:none; box-shadow:0 6px 18px rgba(0,224,138,.35); }
+.slider-thumb{ position:absolute; left:4px; top:50%; transform:translateY(-50%); width:44px; height:44px; background:linear-gradient(135deg,var(--money),var(--money2)); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:22px; color:#04120c; cursor:grab; z-index:2; pointer-events:none; box-shadow:0 6px 18px rgba(0,224,138,.35); }
 .slider-container.finalizar{ border-color:var(--danger); }
 .slider-container.finalizar .slider-texto{ color:var(--danger); }
 .slider-container.finalizar .slider-thumb{ background:linear-gradient(135deg,var(--danger),#d63c41); box-shadow:0 6px 18px rgba(255,90,95,.35); }
@@ -169,6 +169,8 @@ h2.tela-h{ font-size:20px; font-weight:800; margin-bottom:16px; }
 .comb-badge-caro{ background:rgba(255,90,95,.12); color:var(--danger); }
 .comb-badge-barato{ background:rgba(0,224,138,.12); color:var(--money); }
 .comb-badge-neutro{ background:rgba(147,161,176,.1); color:var(--dim); }
+.comb-badge-erro{ background:rgba(255,90,95,.14); color:var(--danger); border:1px solid rgba(255,90,95,.35); }
+.comb-item-erro{ border-color:rgba(255,90,95,.45); background:rgba(255,90,95,.05); }
 
 /* tipo de combustível */
 .tipo-grid{ display:grid; grid-template-columns:repeat(5,1fr); gap:6px; margin-bottom:12px; }
@@ -1115,3 +1117,27 @@ h2.tela-h{ font-size:20px; font-weight:800; margin-bottom:16px; }
 .aj-tipo-btn.ativo { border-color:var(--money); color:var(--text); }
 /* dica do atalho de digitacao no fecha-turno (v3.54) */
 .km-atalho{ font-size:11.5px; color:var(--dim); margin:-2px 0 8px; line-height:1.4; }
+
+/* ══════════ ÍCONES SVG ══════════
+   1em = acompanha o tamanho do texto ao lado, como o emoji fazia.
+   currentColor = herda a cor de quem está por perto (título, botão, alerta).
+   Trocam os emojis que eram INFORMAÇÃO — os de emoção continuam emoji. */
+.ico{ width:1em; height:1em; vertical-align:-.14em; flex-shrink:0;
+      fill:none; stroke:currentColor; stroke-width:2;
+      stroke-linecap:round; stroke-linejoin:round; }
+.ico-g{ width:1.15em; height:1.15em; vertical-align:-.2em; }
+
+/* semáforo: era 🟢🟡🔴 (emoji), virou bolinha CSS — mesma cor em todo aparelho */
+.dot{ display:inline-block; width:.62em; height:.62em; border-radius:50%;
+      vertical-align:.02em; margin-right:.15em; background:currentColor; }
+.dot-verde{ background:var(--money); }
+.dot-amarelo{ background:var(--signal); }
+.dot-laranja{ background:#ff8c3a; }
+.dot-vermelho{ background:var(--danger); }
+
+/* onde o texto é pequeno ou caixa-alta, o traço fino do SVG some:
+   um tico maior resolve sem mexer no tamanho da letra */
+.desp-chip .ico, .aj-sec-tit .ico, .odo-label .ico, .luzes-t .ico,
+.tanque-titulo .ico, .cp-titulo .ico, .comb-item-detalhe .ico,
+.comb-badge .ico, .ext-title .ico{ width:1.18em; height:1.18em; vertical-align:-.22em; }
+.dot{ margin-right:.3em; }
