@@ -4256,6 +4256,18 @@ const CATS_DESPESA = {
   outro:          { icon:'➕', label:'Outro' },
 };
 let despCatSel = null;
+// Reconstrói a categoria a partir da descrição. Serve para as despesas que
+// subiram para a nuvem ANTES da coluna `cat` existir — nelas só sobrou o texto
+// ("Pedágio", "Alimentação"...). Sem isto, tudo voltaria como "Outro".
+function catPelaDescricao(texto) {
+  const t = String(texto || '').toLowerCase();
+  if (/ped[áa]gio/.test(t))      return 'pedagio';
+  if (/aliment/.test(t))         return 'alimentacao';
+  if (/lavagem/.test(t))         return 'lavagem';
+  if (/estacion/.test(t))        return 'estacionamento';
+  if (/internet|chip/.test(t))   return 'internet';
+  return 'outro';
+}
 function lerDespesasDia(iso) {
   const todas = lerLS('despesasPorDia', {});
   return todas[iso] || [];
@@ -4327,7 +4339,8 @@ function adicionarDespesa() {
   if (typeof salvarRegistroHibrido === 'function') {
     salvarRegistroHibrido('despesas', {
       id: nova.id, data_iso: hojeISO(),
-      descricao: nova.label, valor: nova.valor
+      descricao: nova.label, valor: nova.valor,
+      cat: nova.cat || 'outro'   // sem isto, pedágio voltava da nuvem como "outros"
     }, 'id').catch(function () {});
   }
   refreshAposDespesa();

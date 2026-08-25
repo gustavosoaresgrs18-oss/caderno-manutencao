@@ -6,7 +6,7 @@
    O cache aqui serve so pra ele nao ficar na mao sem sinal.
    ============================================================ */
 
-const CACHE = 'copiloto-v6';
+const CACHE = 'copiloto-v7';
 
 const ESSENCIAIS = [
   './',
@@ -19,11 +19,22 @@ const ESSENCIAIS = [
   './icone-512.png'
 ];
 
-// Instala: guarda uma copia de reserva pro offline
+// Instala: guarda uma copia de reserva pro offline.
+// ⚠️ Era cache.addAll(), que e TUDO OU NADA: se UM arquivo da lista falhasse
+// (404, ou uma oscilacao de rede no meio da instalacao), a instalacao inteira
+// era rejeitada e o motorista ficava com o cache VAZIO — sem aviso nenhum,
+// descobrindo so quando perdesse o sinal. Agora cada arquivo e guardado por
+// conta propria: o que falhar fica de fora, o resto entra.
 self.addEventListener('install', evento => {
   evento.waitUntil(
     caches.open(CACHE)
-      .then(cache => cache.addAll(ESSENCIAIS))
+      .then(cache => Promise.all(
+        ESSENCIAIS.map(url =>
+          fetch(url, { cache: 'reload' })
+            .then(resposta => resposta.ok ? cache.put(url, resposta) : null)
+            .catch(() => null)   // esse arquivo fica sem reserva; os outros seguem
+        )
+      ))
       .then(() => self.skipWaiting())
   );
 });
@@ -64,9 +75,25 @@ self.addEventListener('fetch', evento => {
         return resposta;
       })
       .catch(() => {
-        // sem sinal: entrega o que tiver guardado
-        return caches.match(req).then(guardado => {
-          return guardado || caches.match('./index.html');
+        // ⚠️ DOIS PROBLEMAS ARRUMADOS AQUI:
+        //
+        // 1) ignoreSearch. Os arquivos sao pedidos com ?v=NNN
+        //    (script.js?v=359), mas o install guarda sem a query
+        //    (./script.js). O caches.match compara a URL INTEIRA por padrao —
+        //    entao NADA da lista ESSENCIAIS era encontrado, e a reserva de
+        //    offline so funcionava por acidente, gracas ao cache.put que roda
+        //    a cada carregamento online. Na PRIMEIRA vez sem sinal, o
+        //    motorista ficava sem app.
+        //
+        // 2) O fallback pro index.html valia pra QUALQUER pedido. Um pedido de
+        //    script.js que nao estivesse no cache recebia HTML de volta, o
+        //    navegador tentava executar aquilo como JavaScript, e o app
+        //    quebrava com erro de sintaxe em vez de so nao carregar.
+        //    Agora o index.html so responde a pedido de PAGINA.
+        return caches.match(req, { ignoreSearch: true }).then(guardado => {
+          if (guardado) return guardado;
+          if (ehHTML) return caches.match('./index.html', { ignoreSearch: true });
+          return Response.error();
         });
       })
   );

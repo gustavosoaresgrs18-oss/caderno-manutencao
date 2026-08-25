@@ -748,9 +748,17 @@ async function restaurarDoSupabase(userId) {
       desps.forEach(d => {
         if (!d.data_iso) return;
         porDia[d.data_iso] = porDia[d.data_iso] || [];
+        // ⚠️ Antes era `cat: 'outros', icon: '💸'` chumbado: TODA despesa voltava
+        // da nuvem como "outros". O pedágio do motorista perdia a categoria ao
+        // trocar de aparelho, e a análise por categoria (Fatia 3) ficava sem
+        // matéria-prima. Agora vem da coluna `cat`; linhas antigas (sem coluna)
+        // têm a categoria reconstruída a partir da descrição.
+        const cat = d.cat || (typeof catPelaDescricao === 'function'
+                              ? catPelaDescricao(d.descricao) : 'outro');
+        const meta = (typeof CATS_DESPESA !== 'undefined' && CATS_DESPESA[cat]) || null;
         porDia[d.data_iso].push({
-          id: d.id, cat: 'outros', icon: '💸',
-          label: d.descricao || 'Despesa', valor: d.valor || 0
+          id: d.id, cat: cat, icon: meta ? meta.icon : '💸',
+          label: d.descricao || (meta ? meta.label : 'Despesa'), valor: d.valor || 0
         });
       });
       salvarLS('despesasPorDia', porDia);
