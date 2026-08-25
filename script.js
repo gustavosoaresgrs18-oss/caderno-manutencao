@@ -3210,7 +3210,9 @@ function renderItensAbastecimento(elLista, registros, baseParaPadrao) {
         const qtd   = mesmoTipo.length === 1 ? 'o anterior' : 'os ' + mesmoTipo.length + ' anteriores';
         if (diff > 0.1)       badge = `<div class="comb-badge comb-badge-caro">${ico('alerta')} +${fmtBRL(diff)}/L que ${qtd}</div>`;
         else if (diff < -0.1) badge = `<div class="comb-badge comb-badge-barato">${ico('check')} −${fmtBRL(Math.abs(diff))}/L que ${qtd}</div>`;
-        else                  badge = `<div class="comb-badge comb-badge-neutro">👌 No mesmo preço de ${qtd}</div>`;
+        // "de os 4 anteriores" — qtd ja vem com artigo ("o anterior" / "os N
+        // anteriores"), entao aqui tem que ser QUE, nao DE.
+        else                  badge = `<div class="comb-badge comb-badge-neutro">${ico('igual')} No mesmo preço que ${qtd}</div>`;
       }
     }
     // O selinho de preço some no registro furado: comparar R$/L de um dado que o
@@ -3247,6 +3249,17 @@ function renderItensAbastecimento(elLista, registros, baseParaPadrao) {
 //  EXTRATOS (combustível e finanças) — por mês ou por semana
 // ═══════════════════════════════════════════════════════════════
 let extratoModo   = 'mes';   let extratoOffset = 0;    // combustível
+
+// ⚠️ O extrato despejava TODOS os abastecimentos do período de uma vez. Com 7
+// já vira parede de texto; num mês de uso real são 15, 20 — e aí o motorista
+// não acha nada, nem o registro que o app está pedindo pra ele corrigir.
+// Agora aparecem os 5 mais recentes e o resto entra num toque.
+// ⚠️ EXCEÇÃO IMPORTANTE: o registro com km errado aparece SEMPRE, mesmo fora
+// dos 5. O aviso do topo manda "ache o registro marcado de vermelho na lista" —
+// se ele estiver escondido, o aviso vira caça ao tesouro.
+const EXTRATO_VISIVEL = 5;
+let _extratoTodos = false;
+function alternarListaExtrato() { _extratoTodos = !_extratoTodos; renderExtrato(); }
 let extFinModo    = 'mes';   let extFinOffset  = 0;    // finanças
 const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 let _dadosExtratoComb = null, _dadosExtratoFin = null;   // guardam o período atual pra exportar
@@ -3278,7 +3291,7 @@ function rangeDatas(ini, fim) {
 
 // ── EXTRATO COMBUSTÍVEL ──
 function abrirExtrato() {
-  extratoModo = 'mes'; extratoOffset = 0;
+  extratoModo = 'mes'; extratoOffset = 0; _extratoTodos = false;
   document.getElementById('extMes').classList.add('ativo');
   document.getElementById('extSemana').classList.remove('ativo');
   renderExtrato();
@@ -3347,7 +3360,21 @@ function renderExtrato() {
       avisoCpk.style.display = 'none';
     }
   }
-  renderItensAbastecimento(document.getElementById('extLista'), doPeriodo, hist);
+  const elLista = document.getElementById('extLista');
+  // os 5 mais recentes + qualquer um com km errado que tenha ficado pra trás
+  const naTela = _extratoTodos
+    ? doPeriodo
+    : doPeriodo.filter((r, i) => i < EXTRATO_VISIVEL || kmSuspeito(r));
+  renderItensAbastecimento(elLista, naTela, hist);
+  const escondidos = doPeriodo.length - naTela.length;
+  if (escondidos > 0) {
+    elLista.insertAdjacentHTML('beforeend',
+      '<button class="comb-vermais" onclick="alternarListaExtrato()">Ver os outros ' +
+      escondidos + (escondidos === 1 ? ' abastecimento' : ' abastecimentos') + '</button>');
+  } else if (_extratoTodos && doPeriodo.length > EXTRATO_VISIVEL) {
+    elLista.insertAdjacentHTML('beforeend',
+      '<button class="comb-vermais" onclick="alternarListaExtrato()">Mostrar só os 5 últimos</button>');
+  }
   renderPorTipo(doPeriodo);
   document.getElementById('extNext').disabled = extratoOffset >= 0;
   _dadosExtratoComb = { per, registros: doPeriodo, gasto, litros, km };
@@ -4669,17 +4696,17 @@ function mostrarTela(tela) {
 document.getElementById('btnVerExtrato').addEventListener('click', abrirExtrato);
 document.getElementById('extBack').addEventListener('click', () => { atualizarTelaCombustivel(); mostrarTela(telaCombustivel); navCombustivel.classList.add('ativo'); });
 document.getElementById('extMes').addEventListener('click', () => {
-  extratoModo = 'mes'; extratoOffset = 0;
+  extratoModo = 'mes'; extratoOffset = 0; _extratoTodos = false;
   document.getElementById('extMes').classList.add('ativo'); document.getElementById('extSemana').classList.remove('ativo');
   renderExtrato();
 });
 document.getElementById('extSemana').addEventListener('click', () => {
-  extratoModo = 'semana'; extratoOffset = 0;
+  extratoModo = 'semana'; extratoOffset = 0; _extratoTodos = false;
   document.getElementById('extSemana').classList.add('ativo'); document.getElementById('extMes').classList.remove('ativo');
   renderExtrato();
 });
-document.getElementById('extPrev').addEventListener('click', () => { extratoOffset--; renderExtrato(); });
-document.getElementById('extNext').addEventListener('click', () => { if (extratoOffset < 0) { extratoOffset++; renderExtrato(); } });
+document.getElementById('extPrev').addEventListener('click', () => { extratoOffset--; _extratoTodos = false; renderExtrato(); });
+document.getElementById('extNext').addEventListener('click', () => { if (extratoOffset < 0) { extratoOffset++; _extratoTodos = false; renderExtrato(); } });
 document.getElementById('extCombPDF').addEventListener('click', exportarCombPDF);
 document.getElementById('extCombCSV').addEventListener('click', exportarCombCSV);
 

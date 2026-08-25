@@ -1141,3 +1141,9 @@ h2.tela-h{ font-size:20px; font-weight:800; margin-bottom:16px; }
 .tanque-titulo .ico, .cp-titulo .ico, .comb-item-detalhe .ico,
 .comb-badge .ico, .ext-title .ico{ width:1.18em; height:1.18em; vertical-align:-.22em; }
 .dot{ margin-right:.3em; }
+
+/* "ver os outros N" do extrato — discreto: é navegação, não ação principal */
+.comb-vermais{ width:100%; background:none; border:1px dashed var(--line);
+  border-radius:11px; color:var(--dim); font-family:'Inter'; font-size:12px;
+  font-weight:700; padding:11px; cursor:pointer; margin-top:2px; }
+.comb-vermais:active{ transform:scale(.985); }
