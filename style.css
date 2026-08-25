@@ -43,7 +43,14 @@ body{
   -webkit-font-smoothing:antialiased;
   overscroll-behavior-y:contain;
 }
-.dashboard{ max-width:390px; margin:0 auto; padding:calc(16px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom)); }
+.dashboard{ max-width:390px; margin:0 auto; padding:calc(16px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom));
+  /* coluna flex + min-height: é o que permite empurrar a assinatura pro pé da
+     tela, em vez de deixá-la boiando logo abaixo do último card */
+  min-height:100vh; display:flex; flex-direction:column; }
+.rodape-marca{ margin-top:auto; padding-top:30px; text-align:center;
+  font-size:var(--f1); font-weight:700; letter-spacing:.06em;
+  color:var(--faint); opacity:.5; user-select:none; }
+.rodape-marca .ico{ width:1.1em; height:1.1em; vertical-align:-.18em; }
 
 /* números com cara de painel */
 .num{ font-family:'Sora','Inter',sans-serif; font-feature-settings:"tnum" 1; letter-spacing:-.02em; }
@@ -51,10 +58,17 @@ body{
 .azul{ color:var(--info); } .vermelho-txt{ color:var(--danger); }
 
 /* ── HEADER ── */
-.header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:11px; }
-.header-info{ display:flex; flex-direction:column; gap:2px; }
+/* ⚠️ align-items:center centralizava os dois botões contra o bloco INTEIRO da
+   esquerda (saudação + chips + veículo). Resultado: eles caíam na altura das
+   chips, deixando um vazio em L — um buraco à direita da saudação e outro à
+   direita do nome do veículo. Alinhados pelo topo, encostam na saudação. */
+.header{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:11px; }
+.header-info{ display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
 .header-saudacao{ font-size:var(--f4); color:var(--text); font-weight:800; }
-.header-veiculo{ font-size:var(--f1); font-weight:600; color:var(--dim); white-space:nowrap; }
+/* nome longo ("VOYAGE CONFORTLINE 1.6 · QNJ0650") empurrava a linha inteira;
+   agora ele corta com reticências — é contexto, não dado que se lê inteiro */
+.header-veiculo{ font-size:var(--f1); font-weight:600; color:var(--faint);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
 .header-sub{ display:flex; align-items:center; gap:8px; margin-top:4px; flex-wrap:wrap; }
 .header-sub .header-streak{ font-size:var(--f1); }
 .header-odometro{ font-size:var(--f1); color:var(--info); margin-top:1px; }
@@ -1005,15 +1019,21 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 /* ═══════════════════════════════════════════════════════════
    GUIA DAS ROTINAS + SUPORTE
    ═══════════════════════════════════════════════════════════ */
+/* ⚠️ Eram dois círculos com fundo e borda, do mesmo tamanho e do mesmo peso —
+   competindo com a saudação e entre si. Mas Ajustes é usado de vez em quando e
+   o guia quase nunca: peso igual pra importância diferente é o que faz uma tela
+   parecer amadora sem a pessoa saber explicar por quê.
+   Sem caixa nem borda eles voltam a ser o que são: utilitários. A área de toque
+   continua de 38px (o dedo precisa dela; o desenho não). */
 .header-ajuda {
   display: flex; align-items: center; justify-content: center;
-  width: 34px; height: 34px; margin-right: 8px;
-  background: var(--elev2); border: 1px solid var(--line);
-  border-radius: 50%; color: var(--dim); cursor: pointer;
-  transition: color .15s, border-color .15s, transform .1s;
+  width: 38px; height: 38px; margin-right: 2px; margin-top: -6px;
+  background: none; border: none;
+  color: var(--faint); cursor: pointer;
+  transition: color .15s, transform .1s;
 }
-.header-ajuda:active { transform: scale(.92); }
-.header-ajuda:hover  { color: var(--purple); border-color: var(--purple); }
+.header-ajuda:active { transform: scale(.9); }
+.header-ajuda:hover  { color: var(--dim); }
 
 #modalGuia .guia-caixa {
   display: flex; flex-direction: column;
