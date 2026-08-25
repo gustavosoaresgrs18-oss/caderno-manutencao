@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=354">
+    <link rel="stylesheet" href="style.css?v=355">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=354"></script>
+    <script src="supabase-service.js?v=355"></script>
   </head>
   <body>
     <div class="dashboard">
@@ -547,6 +547,7 @@
 
           <div class="km-ref" id="kmRef">Seu último registro: <b class="num">—</b></div>
           <div class="km-gps" id="kmGps" style="display:none;">📍 <b class="num" id="kmGpsVal">~0 km</b></div>
+          <div class="km-gps neutro" id="kmVaoDias" style="display:none;"></div>
 
           <input type="text" inputmode="numeric" class="modal-input" id="inputKm" placeholder="Ex: 32.480" oninput="atualizarKmVivo()" style="margin-bottom:6px;">
           <div class="km-atalho" id="kmAtalho" style="display:none;">Pode digitar só o final — eu completo o resto</div>
@@ -1055,7 +1056,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=354"></script>
+    <script src="script.js?v=355"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       if ('serviceWorker' in navigator) {

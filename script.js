@@ -583,7 +583,18 @@ function veiculoQueBateCom(valor) {
   ) || null;
 }
 // km rodados por dia (fonte única — gravado ao encerrar o dia)
-function kmDoDia(iso)  { const m = lerLS('kmPorDia', {}); const r = m[iso]; return (r && r.km != null) ? r.km : null; }
+// Devolve o km rodado NAQUELE dia. Se o registro cobre vários dias, devolve
+// null: o app sabe o total do período, não o de cada dia — e não chuta.
+function kmDoDia(iso)  {
+  const m = lerLS('kmPorDia', {}); const r = m[iso];
+  if (!r || r.km == null) return null;
+  return ((r.dias || 1) === 1) ? r.km : null;
+}
+// Quantos dias o registro daquela data cobre (1 = normal).
+function diasDoRegistro(iso) {
+  const m = lerLS('kmPorDia', {}); const r = m[iso];
+  return (r && r.dias) ? r.dias : 1;
+}
 function maiorKmDia()  {
   const m = lerLS('kmPorDia', {});
   const vals = Object.values(m).map(r => (r && r.km) || 0).filter(k => k > 0);
@@ -1462,6 +1473,10 @@ function irCorrigirAbastecimento() {
 // continuavam tratando GNV como suspeito. É o mesmo tipo de dívida que causou
 // o bug do campo de km faltando (duas telas de abastecimento até a v3.46).
 // Mexeu aqui, mudou em todo lugar.
+// Faixa normal de consumo do veículo ativo — fonte única dos textos e do teto.
+function faixaConsumo() {
+  return tipoVeiculoAtivo() === 'carro' ? { min: 8, max: 14 } : { min: 25, max: 40 };
+}
 function kmSuspeito(r) {
   if (!r) return false;
   const v = r.valor, k = r.km, l = r.litros;
@@ -1469,7 +1484,19 @@ function kmSuspeito(r) {
   if (v / k > 3) return true;                   // custo por km impossível (vale pra todo combustível)
   if (r.tipo === 'GNV') return false;           // GNV completa o cilindro aos poucos: km/L não serve de régua
   const kpl = l ? (k / l) : null;
-  return kpl !== null && kpl < 2;
+  if (kpl === null) return false;
+  // ⚠️ O piso era 2 km/L CHUMBADO, pra qualquer veículo. Frouxo demais: um carro
+  // faz 8 a 14, então 3 km/L é impossível e passava batido. Agora os dois
+  // limites saem da faixa do próprio veículo — metade do mínimo até o dobro do
+  // máximo. Carro: 4 a 28. Moto: 12,5 a 80. Fora disso, a conta por km não serve.
+  if (kpl < faixaConsumo().min / 2) return true;
+  // ⚠️ TETO — faltava. Só existia piso, então 40 km/L num carro (normal 8 a 14)
+  // passava batido, e o custo por km saía barato demais. Isso é pior que o
+  // erro de baixo: o motorista acha que roda a R$ 0,20 quando roda a R$ 0,60,
+  // e aceita corrida ruim achando que lucra. Duas causas levam ao mesmo lugar:
+  // km que cobre vários dias (esqueceu de fechar) ou abastecimento parcial.
+  // Nos dois casos a conta por km não serve — então fica de fora dela.
+  return kpl > faixaConsumo().max * 2;   // teto
 }
 function abastecimentoSuspeito() {
   const base = baseCombustivel().base;
@@ -1486,7 +1513,8 @@ function textoSuspeito(s) {
   if (!s) return '';
   const quando  = s.reg.data ? s.reg.data + ': ' : '';
   const ehCarro = tipoVeiculoAtivo() === 'carro';
-  const faixa   = ehCarro ? '8 a 14 km/L' : '25 a 40 km/L';
+  const fx      = faixaConsumo();
+  const faixa   = fx.min + ' a ' + fx.max + ' km/L';
   if (s.kmPorLitro !== null && s.kmPorLitro < 2) {
     return '⚠️ ' + quando + s.reg.litros + 'L para ' + fmtKm(s.reg.km) + ' km dá ' +
            s.kmPorLitro.toFixed(1) + ' km/L — o normal é ' + faixa +
@@ -2085,6 +2113,19 @@ function abrirModalKm(gpsDist) {
   } else {
     kmGps.innerHTML = '📍 Você terminou a <b class="num">~' + gpsDist + ' km</b> de onde começou — rodou pelo menos isso';
   }
+  // Faz dias que ele não fecha? Diz isso ANTES de confirmar, porque o número que
+  // ele vai digitar não é "o km de hoje" — é o de todos esses dias juntos.
+  const nDias = diasDesdeUltimoRegistro();
+  const avisoD = document.getElementById('kmVaoDias');
+  if (avisoD) {
+    if (nDias > 1 && ultimo !== null) {
+      avisoD.innerHTML = '📅 Faz <b>' + nDias + ' dias</b> desde seu último registro — ' +
+                         'esse km cobre todos eles, não só hoje.';
+      avisoD.style.display = 'block';
+    } else {
+      avisoD.style.display = 'none';
+    }
+  }
   kmErro.style.display = 'none';
   atualizarKmVivo();
   modal.style.display = 'flex';
@@ -2133,7 +2174,9 @@ function atualizarKmVivo() {
   if (ultimo !== null && valor > ultimo && (valor - ultimo) <= KM_SALTO_SUSPEITO) {
     const rodou = valor - ultimo;
     kmVivo.style.display = 'block';
-    kmVivo.innerHTML = prefixo + '<b class="num">' + fmtKm(rodou) + '</b> km rodados hoje';
+    const nd = diasDesdeUltimoRegistro();
+    const quando = nd > 1 ? ' km rodados nesses ' + nd + ' dias' : ' km rodados hoje';
+    kmVivo.innerHTML = prefixo + '<b class="num">' + fmtKm(rodou) + '</b>' + quando;
     // PISO DO GPS: ele não pode ter rodado menos que a linha reta entre A e B
     if (_gpsLinhaReta > 0 && rodou < _gpsLinhaReta) {
       kmErro.textContent = 'Você terminou a ' + fmtKm(_gpsLinhaReta) + ' km de onde começou, ' +
@@ -2365,6 +2408,23 @@ function aplicarVeiculoNaTela() {
 }
 
 // ─── GRAVA O KM E FECHA O DIA ────────────────────────────────
+// ─── QUANTOS DIAS ESTE FECHAMENTO COBRE ──────────────────────
+// O app calculava "km rodados hoje" como (odômetro de agora − último registro),
+// SEM olhar a data. Quem ficasse 3 dias sem registrar tinha os 600 km dos três
+// dias lançados como se fossem de um só: a média diária inflava, o custo por km
+// despencava, e o motorista passava a achar que roda muito mais barato do que
+// roda. Agora o app conta os dias e guarda essa informação junto.
+function diasDesdeUltimoRegistro() {
+  const ra = lerLS('registroAnterior', null);
+  const rh = lerLS('registroHoje', null);
+  const base = (rh && rh.data) ? rh : ra;                 // o registro que serve de régua
+  if (!base || !base.data) return 1;
+  const d1 = new Date(String(base.data).slice(0, 10) + 'T12:00:00');
+  const d2 = new Date(hojeISO() + 'T12:00:00');
+  if (isNaN(d1) || isNaN(d2)) return 1;
+  const dias = Math.round((d2 - d1) / 86400000);
+  return dias > 0 ? dias : 1;
+}
 function aplicarKmEFecharTurno(valor) {
   // ⚠️ CORREÇÃO (auditoria): era `new Date().toLocaleDateString()` sem locale
   // — o formato depende do idioma do aparelho (en-US, pt-BR, etc dão strings
@@ -2374,6 +2434,7 @@ function aplicarKmEFecharTurno(valor) {
   const hoje    = hojeISO();
   const vidUsar = vidAtivo();
   const registroAtual = lerLS('registroHoje', null);
+  const _diasDoFechamento = diasDesdeUltimoRegistro();   // ANTES de sobrescrever o registroHoje
 
   // só empurra pro "anterior" se for de OUTRO dia ou de OUTRO veículo.
   // Registrar duas vezes no mesmo dia é EDIÇÃO — não pode mexer na régua.
@@ -2393,7 +2454,10 @@ function aplicarKmEFecharTurno(valor) {
   kmTurnoAtual = (kmD !== null && kmD > 0) ? kmD : 0;
   if (kmD !== null && kmD > 0) {
     const mapa = lerLS('kmPorDia', {});
-    mapa[hojeISO()] = { km: kmD, vid: vidUsar };
+    // `dias` = quantos dias esse km cobre. 1 é o normal. Mais que isso quer
+    // dizer que ele ficou sem registrar e esse número NÃO é de um dia só —
+    // quem consome média por dia precisa saber disso pra não se enganar.
+    mapa[hojeISO()] = { km: kmD, vid: vidUsar, dias: _diasDoFechamento || 1 };
     salvarLS('kmPorDia', mapa);
   }
 
@@ -2588,7 +2652,8 @@ function aplicarUltimoTipo(containerSel) {
 // numa delas por muito tempo.
 function avisoAbastecimento(v, k, l, tipo) {
   const ehCarro = tipoVeiculoAtivo() === 'carro';
-  const faixa   = ehCarro ? '8 a 14 km por litro' : '25 a 40 km por litro';
+  const fx      = faixaConsumo();
+  const faixa   = fx.min + ' a ' + fx.max + ' km por litro';
   // GNV nao entra na checagem de km/L: o motorista costuma completar o
   // cilindro (pequeno, ~15m3) aos poucos e com frequencia, em vez de encher o
   // tanque de uma vez como gasolina/etanol. Com litros e km baixos, qualquer
@@ -4537,8 +4602,12 @@ function calcSimulador() {
   // km/dia REAIS deste veículo (antes isso lia o odômetro achando que era km do dia)
   const mapaKm = lerLS('kmPorDia', {});
   const vidS   = vidAtivo();
+  // ⚠️ `(r.dias || 1) === 1`: registro que cobre vários dias (o motorista ficou
+  // sem fechar) não entra em média POR DIA — dividir seria inventar como aquele
+  // km se reparte entre os dias, e o app não sabe.
   const diasKm = Object.keys(mapaKm).sort().reverse().slice(0, 5)
-                   .map(k => mapaKm[k]).filter(r => r && r.km > 0 && (!vidS || r.vid === vidS));
+                   .map(k => mapaKm[k])
+                   .filter(r => r && r.km > 0 && (r.dias || 1) === 1 && (!vidS || r.vid === vidS));
   if (diasKm.length > 0) {
     const media = diasKm.reduce((s, r) => s + r.km, 0) / diasKm.length;
     kmPorHora = Math.max(10, Math.min(50, Math.round(media / 8)));
