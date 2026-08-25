@@ -42,6 +42,24 @@ function numBR(v) {
 // vírgula no centavo, ponto no milhar: R$ 1.234,56 · R$ 325,00 · -R$ 50,00
 // numBRL: só o número formatado ("1.234,56"). fmtBRL: com "R$ " na frente.
 // Preserva o sinal (negativo aparece), sempre 2 casas.
+// ─── KM É NÚMERO INTEIRO ─────────────────────────────────────
+// ⚠️ O numBR() acima é de DINHEIRO: nele a vírgula é decimal de verdade
+// (R$ 45,50). Km é outra coisa — painel não mostra fração, e décimo de km não
+// muda conta nenhuma.
+// O caso que quebrou em teste: o motorista digitou "105,387" querendo cento e
+// cinco mil e trezentos e oitenta e sete. O numBR() leu 105 vírgula 387, e o
+// fechamento acusou 105 mil km rodados num dia.
+// Regra: ponto é sempre separador de milhar. Vírgula seguida de EXATAMENTE 3
+// dígitos também é milhar disfarçado ("105,387"). Qualquer outra vírgula é
+// decimal ("32,5" = trinta e dois e meio), e o resultado é arredondado.
+function numKm(v) {
+  let s = String(v ?? '').trim();
+  if (!s) return 0;
+  s = s.replace(/\s/g, '').replace(/\./g, '');
+  s = /^\d+,\d{3}$/.test(s) ? s.replace(',', '') : s.replace(',', '.');
+  const n = parseFloat(s.replace(/[^0-9.\-]/g, ''));
+  return isNaN(n) ? 0 : Math.round(n);
+}
 function numBRL(n) {
   const v = numBR(n);
   const x = isFinite(v) ? v : 0;
@@ -2587,7 +2605,7 @@ function previewCorrecaoKm() {
   const rh = lerLS('registroHoje', null);
   const ra = lerLS('registroAnterior', null);
   const box = document.getElementById('corrKmPreview');
-  const valor = numBR(document.getElementById('corrKmInput').value);
+  const valor = numKm(document.getElementById('corrKmInput').value);
   const mesmoVeic = rh && ra && (rh.vid || null) === (ra.vid || null);
   if (!valor || !mesmoVeic) { box.style.display = 'none'; return; }
   const kmDia = valor - ra.km;
@@ -2605,7 +2623,7 @@ document.getElementById('btnCorrKmCancelar').addEventListener('click', function 
   document.getElementById('modalCorrigirKm').style.display = 'none';
 });
 document.getElementById('btnCorrKmSalvar').addEventListener('click', function () {
-  const valor = numBR(document.getElementById('corrKmInput').value);
+  const valor = numKm(document.getElementById('corrKmInput').value);
   const erro  = document.getElementById('corrKmErro');
   if (!valor || valor <= 0) { erro.textContent = 'Digite o km do painel.'; erro.style.display = 'block'; return; }
 
@@ -2698,10 +2716,24 @@ function avisoAbastecimento(v, k, l, tipo) {
   // falso num abastecimento normal. O aviso de custo por km (abaixo) continua
   // valendo pra GNV — ele sozinho ja pega km digitado errado, porque nem o
   // GNV mais caro do Brasil chega perto de R$3/km rodado.
-  if (tipo !== 'GNV' && v > 0 && k > 0 && l > 0 && (k / l) < 2) {
-    return '\u26a0\ufe0f ' + l + 'L para ' + fmtKm(k) + ' km daria so ' + (k/l).toFixed(1) +
-           ' km por litro. ' + (ehCarro ? 'Um carro faz ' : 'Uma moto faz ') + faixa +
-           ' \u2014 esse km parece baixo demais. Confira no painel.';
+  // ⚠️ Os limites aqui eram OUTROS (2 km/L chumbado, sem teto) — diferentes dos
+  // que o kmSuspeito() usa no resto do app. Resultado: 31 km/L num carro passava
+  // calado no formulário e depois era recusado pelo detector da tela Início.
+  // É a mesma dívida que a v3.53 já tinha limpado nos outros dois lugares.
+  // Agora quem decide é sempre o kmSuspeito(); aqui só se escolhe o TEXTO.
+  if (kmSuspeito({ valor: v, km: k, litros: l, tipo: tipo })) {
+    const kpl = (l > 0) ? (k / l) : null;
+    if (kpl !== null && kpl < fx.min / 2) {
+      return '\u26a0\ufe0f ' + l + 'L para ' + fmtKm(k) + ' km daria so ' + kpl.toFixed(1) +
+             ' km por litro. ' + (ehCarro ? 'Um carro faz ' : 'Uma moto faz ') + faixa +
+             ' \u2014 esse km parece baixo demais. Confira no painel.';
+    }
+    if (kpl !== null && kpl > fx.max * 2) {
+      return '\u26a0\ufe0f ' + l + 'L para ' + fmtKm(k) + ' km daria ' + kpl.toFixed(1) +
+             ' km por litro. ' + (ehCarro ? 'Um carro faz ' : 'Uma moto faz ') + faixa +
+             ' \u2014 esse km parece alto demais. Se ficou dias sem registrar, ' +
+             'esse km cobre mais de um abastecimento.';
+    }
   }
   if (v > 0 && k > 0 && (v / k) > 3) {
     return '\u26a0\ufe0f ' + fmtBRL(v/k) + ' de combustivel por km e muito acima do normal ' +
@@ -2727,7 +2759,7 @@ let _lockSalvar = false;   // trava anti-clique-duplo dos botões de salvar
 });
 function calcCustoPorKmTela() {
   const v = numBR(document.querySelector('#inputValorTela').value);
-  const k = numBR(document.querySelector('#inputKmTela').value);
+  const k = numKm(document.querySelector('#inputKmTela').value);
   const l = numBR(document.querySelector('#inputLitrosTela').value);
   const el = document.querySelector('#combPreviewValTela');
   el.textContent = (v > 0 && k > 0) ? fmtBRL((v/k)) + '/km' : '— /km';
@@ -2793,7 +2825,7 @@ function excluirAbastecimento(id) {
 document.querySelector('#btnSalvarTela').addEventListener('click', function() {
   const valor  = numBR(document.querySelector('#inputValorTela').value);
   const litros = numBR(document.querySelector('#inputLitrosTela').value) || null;
-  const km     = numBR(document.querySelector('#inputKmTela').value) || null;
+  const km     = numKm(document.querySelector('#inputKmTela').value) || null;
   const posto  = document.querySelector('#inputPostoTela').value.trim() || null;
   if (!valor || valor <= 0) { toast('Informe o valor gasto', 'erro'); return; }
   if (bloquearSemLogin()) return;   // sem entrar na conta, nao lanca
@@ -4078,7 +4110,7 @@ function ajSelTipo(t) {
     const kmRaw = document.getElementById('ajVeicKm').value.trim();
     let odo = null;
     if (kmRaw) {
-      const k = numBR(kmRaw);
+      const k = numKm(kmRaw);
       if (k == null || k < 0) { erro.textContent = 'Km inválido. Deixe em branco se não souber.'; erro.style.display = 'block'; return; }
       odo = Math.round(k);
     }
