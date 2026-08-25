@@ -1455,13 +1455,27 @@ function irCorrigirAbastecimento() {
   editarAbastecimento(s.reg.id);
 }
 
+// ─── REGRA ÚNICA: o que é um abastecimento com km furado ──────
+// Isto estava COPIADO em 3 lugares (o aviso do formulário, o detector da tela
+// Início e o comparador do extrato) e já tinha começado a divergir: a exceção
+// do GNV, criada na v3.49, só existia no formulário — o Início e o extrato
+// continuavam tratando GNV como suspeito. É o mesmo tipo de dívida que causou
+// o bug do campo de km faltando (duas telas de abastecimento até a v3.46).
+// Mexeu aqui, mudou em todo lugar.
+function kmSuspeito(r) {
+  if (!r) return false;
+  const v = r.valor, k = r.km, l = r.litros;
+  if (!(k > 0 && v > 0)) return false;          // sem km informado: nada a julgar
+  if (v / k > 3) return true;                   // custo por km impossível (vale pra todo combustível)
+  if (r.tipo === 'GNV') return false;           // GNV completa o cilindro aos poucos: km/L não serve de régua
+  const kpl = l ? (k / l) : null;
+  return kpl !== null && kpl < 2;
+}
 function abastecimentoSuspeito() {
   const base = baseCombustivel().base;
   for (const r of base) {
-    const cpk = r.valor / r.km;
-    const kmPorLitro = r.litros ? (r.km / r.litros) : null;
-    if (cpk > 3 || (kmPorLitro !== null && kmPorLitro < 2)) {
-      return { reg: r, cpk, kmPorLitro };
+    if (kmSuspeito(r)) {
+      return { reg: r, cpk: r.valor / r.km, kmPorLitro: r.litros ? (r.km / r.litros) : null };
     }
   }
   return null;
@@ -2048,23 +2062,28 @@ function abrirModalKm(gpsDist) {
   if (ultimo !== null) kmRef.innerHTML = esc(nomeVeiculo(vAt)) + ', último registro: <b class="num">' + fmtKm(ultimo) + ' km</b>';
   else                 kmRef.innerHTML = 'Primeiro registro — digite o km do painel';
 
-  // STATUS DO GPS — sempre visível, em 3 casos
+  // ⚠️ O QUE O GPS MEDE AQUI É LINHA RETA entre onde o turno começou e onde
+  // terminou — NÃO é o quanto ele rodou. Quem sai de casa, roda 200 km e volta
+  // pra casa tem linha reta ZERO. Mesmo assim isso era mostrado como "GPS
+  // estimou ~X km rodados hoje" e, pior, JÁ PREENCHIA o campo do odômetro:
+  // motorista exausto confirmava e o dia inteiro virava 15 km. É a origem mais
+  // provável dos registros de 1,4 km/L que o detector vinha caçando.
+  // Agora o campo nasce VAZIO e a linha reta vira o que ela realmente é: um
+  // PISO. Rodou no mínimo aquilo — nunca menos.
+  _gpsLinhaReta = (gpsDist !== null && gpsDist > 0) ? gpsDist : null;
+  inputKm.value = '';
   kmGps.style.display = 'block';
   kmGps.classList.remove('neutro');
   if (gpsDist === null) {
-    // GPS indisponível ou permissão negada
     kmGps.classList.add('neutro');
     kmGps.innerHTML = '📍 GPS indisponível — digite o km do painel';
-    inputKm.value = '';
   } else if (gpsDist <= 0) {
-    // GPS funcionou mas você não se moveu (ex: testando parado)
+    // linha reta zero: ele voltou ao ponto de partida. Não diz nada sobre
+    // distância, então o app não finge que diz.
     kmGps.classList.add('neutro');
-    kmGps.innerHTML = '📍 GPS não detectou movimento hoje';
-    inputKm.value = '';
+    kmGps.innerHTML = '📍 Você terminou onde começou';
   } else {
-    // GPS estimou a distância — já preenche o odômetro (último + distância)
-    kmGps.innerHTML = '📍 GPS estimou <b class="num">~' + gpsDist + ' km</b> rodados hoje';
-    inputKm.value = (ultimo !== null ? ultimo + gpsDist : gpsDist);
+    kmGps.innerHTML = '📍 Você terminou a <b class="num">~' + gpsDist + ' km</b> de onde começou — rodou pelo menos isso';
   }
   kmErro.style.display = 'none';
   atualizarKmVivo();
@@ -2073,13 +2092,60 @@ function abrirModalKm(gpsDist) {
 }
 
 // mostra ao vivo quantos km rodou neste turno enquanto digita
+// ─── DIGITAR SÓ O FINAL DO ODÔMETRO ──────────────────────────
+// O odômetro é um número de 6 dígitos que muda pouco por dia: de 105.387 para
+// 105.567 os três primeiros são os mesmos. Depois de 10 horas de trânsito,
+// digitar 6 dígitos é atrito à toa. Aqui, se ele digitar menos dígitos que o
+// último registro, o app completa com o começo do número anterior.
+// A virada de casa é tratada: último 105.998 + ele digita "043" = 106.043
+// (e não 105.043, que seria andar pra trás).
+// Nada é adivinhado às escondidas: o valor entendido aparece na tela antes
+// dele confirmar.
+function interpretarKm(texto, ultimo) {
+  const digitos = String(texto || '').replace(/\D/g, '');
+  if (!digitos) return null;
+  const n = Number(digitos);
+  if (ultimo == null) return n;                          // 1º registro: vale o que digitou
+  const casasUltimo = String(Math.floor(ultimo)).length;
+  if (digitos.length >= casasUltimo) return n;           // digitou o número inteiro
+  const passo = Math.pow(10, digitos.length);
+  let cand = Math.floor(ultimo / passo) * passo + n;
+  if (cand < ultimo) cand += passo;                      // virou a casa (105.998 → 106.043)
+  return cand;
+}
+// Distância em linha reta entre o ponto de início e o de fim do turno.
+// NÃO é o quanto ele rodou — serve só como PISO: quem terminou a 15 km de
+// onde começou rodou no mínimo 15 km. Guardada só enquanto o modal está aberto.
+let _gpsLinhaReta = null;
 function atualizarKmVivo() {
-  const ultimo = ultimoOdoAtivo();
-  const valor  = numBR(inputKm.value);
+  const ultimo   = ultimoOdoAtivo();
+  const digitados = String(inputKm.value || '').replace(/\D/g, '');
+  const valor    = interpretarKm(inputKm.value, ultimo);
+  const atalho   = document.getElementById('kmAtalho');
+  // a dica do atalho só aparece pra quem já tem um registro anterior
+  if (atalho) atalho.style.display = (ultimo !== null && !digitados) ? 'block' : 'none';
+  if (valor === null) { kmVivo.style.display = 'none'; return; }
+
+  // completou o número? mostra o total entendido, pra ele conferir antes de salvar
+  const completou = ultimo !== null && digitados.length < String(Math.floor(ultimo)).length;
+  const prefixo   = completou ? '<b class="num">' + fmtKm(valor) + ' km</b> · ' : '';
+
   if (ultimo !== null && valor > ultimo && (valor - ultimo) <= KM_SALTO_SUSPEITO) {
+    const rodou = valor - ultimo;
     kmVivo.style.display = 'block';
-    kmVivo.innerHTML = '= <b class="num">' + fmtKm(valor - ultimo) + '</b> km rodados hoje';
-    kmErro.style.display = 'none';
+    kmVivo.innerHTML = prefixo + '<b class="num">' + fmtKm(rodou) + '</b> km rodados hoje';
+    // PISO DO GPS: ele não pode ter rodado menos que a linha reta entre A e B
+    if (_gpsLinhaReta > 0 && rodou < _gpsLinhaReta) {
+      kmErro.textContent = 'Você terminou a ' + fmtKm(_gpsLinhaReta) + ' km de onde começou, ' +
+                           'então rodou no mínimo isso. Confira o km do painel.';
+      kmErro.style.display = 'block';
+    } else {
+      kmErro.style.display = 'none';
+    }
+  } else if (ultimo !== null && completou) {
+    // entendeu o número mas ele não serve (pra trás ou salto absurdo): mostra mesmo assim
+    kmVivo.style.display = 'block';
+    kmVivo.innerHTML = 'entendi <b class="num">' + fmtKm(valor) + ' km</b>';
   } else {
     kmVivo.style.display = 'none';
   }
@@ -2088,7 +2154,7 @@ function atualizarKmVivo() {
 // ─── MODAL KM (confirma o turno) ─────────────────────────────
 btnCancelar.addEventListener('click', () => { modal.style.display = 'none'; });
 btnConfirmar.addEventListener('click', function() {
-  const valor = numBR(inputKm.value);
+  const valor = interpretarKm(inputKm.value, ultimoOdoAtivo());   // aceita o número inteiro ou só o final
   if (!valor || valor <= 0) {
     kmErro.textContent = 'Digite o km total do painel do seu veículo.';
     kmErro.style.display = 'block'; return;
@@ -2102,7 +2168,15 @@ btnConfirmar.addEventListener('click', function() {
   if (ultimo !== null) {
     if (valor < ultimo)                            { abrirTrocaVeic('menor', valor, ultimo); return; }
     if (valor - ultimo > KM_SALTO_SUSPEITO)        { abrirTrocaVeic('maior', valor, ultimo); return; }
+    // impossível rodar menos que a linha reta entre o início e o fim do turno
+    if (_gpsLinhaReta > 0 && (valor - ultimo) < _gpsLinhaReta) {
+      kmErro.textContent = 'Você terminou a ' + fmtKm(_gpsLinhaReta) + ' km de onde começou, ' +
+                           'então rodou no mínimo isso. Confira o km do painel.';
+      kmErro.style.display = 'block';
+      return;
+    }
   }
+  _gpsLinhaReta = null;
   aplicarKmEFecharTurno(valor);
 });
 
@@ -2983,8 +3057,29 @@ function renderExtrato() {
   // R$/km só faz sentido dentro de UM veículo. Período com vários → '—'.
   const vidsPer = Array.from(new Set(doPeriodo.map(r => r.vid || '?')));
   const cpkEl   = document.getElementById('extCpk');
+  // ⚠️ Este número era `gasto / km` com TUDO dentro — inclusive registros que o
+  // próprio app já sabia estarem com o km errado. Dava a cena absurda de o
+  // bloco de baixo dizer "não consigo comparar, tem km errado" e este aqui,
+  // logo acima, exibir R$ 0,44 com toda a confiança. Agora segue a mesma regra
+  // do resto: o furado fica de fora da conta por km (o gasto continua inteiro,
+  // porque o dinheiro saiu do bolso de verdade) e a tela diz que deixou de fora.
+  const limpos   = doPeriodo.filter(r => !kmSuspeito(r));
+  const kmLimpo  = limpos.reduce((s, r) => s + (r.km || 0), 0);
+  const gastoLim = limpos.reduce((s, r) => s + ((r.km > 0) ? (r.valor || 0) : 0), 0);
+  const nFurados = doPeriodo.length - limpos.length;
   if (vidsPer.length > 1) { cpkEl.textContent = '—'; cpkEl.title = 'Vários veículos no período'; }
-  else { cpkEl.textContent = km > 0 ? fmtBRL((gasto/km)) : '—'; cpkEl.title = ''; }
+  else if (kmLimpo > 0)   { cpkEl.textContent = fmtBRL(gastoLim / kmLimpo);
+                            cpkEl.title = nFurados > 0 ? 'Sem ' + nFurados + ' abastecimento(s) com km errado' : ''; }
+  else                    { cpkEl.textContent = '—';
+                            cpkEl.title = nFurados > 0 ? 'Todos os registros com km estão errados' : ''; }
+  const avisoCpk = document.getElementById('extCpkAviso');
+  if (avisoCpk) {
+    avisoCpk.textContent = nFurados > 0
+      ? (nFurados === 1 ? 'Deixei 1 abastecimento de fora desta conta: o km está errado.'
+                        : 'Deixei ' + nFurados + ' abastecimentos de fora desta conta: o km está errado.')
+      : '';
+    avisoCpk.style.display = nFurados > 0 ? 'block' : 'none';
+  }
   renderItensAbastecimento(document.getElementById('extLista'), doPeriodo, hist);
   renderPorTipo(doPeriodo);
   document.getElementById('extNext').disabled = extratoOffset >= 0;
@@ -3008,12 +3103,7 @@ function renderPorTipo(registros) {
   // afirmava coisas falsas ("gasolina 91% mais barata por km") a partir de um
   // dado que ele mesmo já sabia estar errado. O gasto continua aparecendo
   // (o dinheiro saiu do bolso de verdade) — o que sai é o custo por km.
-  const kmFurado = r => {
-    if (!(r.km > 0 && r.valor > 0)) return false;
-    const cpk = r.valor / r.km;
-    const kpl = r.litros ? (r.km / r.litros) : null;
-    return cpk > 3 || (kpl !== null && kpl < 2);
-  };
+  const kmFurado = kmSuspeito;            // regra única — ver kmSuspeito()
   const temFurado = registros.some(kmFurado);
 
   // agrupa por tipo

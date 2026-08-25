@@ -1113,3 +1113,5 @@ h2.tela-h{ font-size:20px; font-weight:800; margin-bottom:16px; }
 .aj-tipo-btn { flex:1; padding:9px; border-radius:10px; border:1px solid var(--line);
   background:var(--elev); color:var(--dim); font-size:14px; font-weight:600; cursor:pointer; }
 .aj-tipo-btn.ativo { border-color:var(--money); color:var(--text); }
+/* dica do atalho de digitacao no fecha-turno (v3.54) */
+.km-atalho{ font-size:11.5px; color:var(--dim); margin:-2px 0 8px; line-height:1.4; }

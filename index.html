@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=352">
+    <link rel="stylesheet" href="style.css?v=354">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=352"></script>
+    <script src="supabase-service.js?v=354"></script>
   </head>
   <body>
     <div class="dashboard">
@@ -354,6 +354,7 @@
           <div class="ext-stat"><div class="ext-stat-label">Preço médio/L</div><div class="ext-stat-val num" id="extPreco">—</div></div>
           <div class="ext-stat"><div class="ext-stat-label">Combustível / km</div><div class="ext-stat-val verde num" id="extCpk">—</div></div>
         </div>
+        <div id="extCpkAviso" style="display:none;font-size:11.5px;color:var(--signal);background:rgba(255,176,32,.1);border:1px solid rgba(255,176,32,.35);border-radius:9px;padding:8px 11px;margin-bottom:12px;line-height:1.45;"></div>
         <div class="ext-export">
           <button class="ext-exp-btn" id="extCombPDF">🖨️ Exportar PDF</button>
           <button class="ext-exp-btn" id="extCombCSV">📊 Exportar CSV</button>
@@ -545,9 +546,10 @@
           <p class="modal-desc" style="margin-bottom:14px">Confira o km total do painel do seu veículo</p>
 
           <div class="km-ref" id="kmRef">Seu último registro: <b class="num">—</b></div>
-          <div class="km-gps" id="kmGps" style="display:none;">📍 GPS estimou <b class="num" id="kmGpsVal">~0 km</b> rodados hoje</div>
+          <div class="km-gps" id="kmGps" style="display:none;">📍 <b class="num" id="kmGpsVal">~0 km</b></div>
 
           <input type="text" inputmode="numeric" class="modal-input" id="inputKm" placeholder="Ex: 32.480" oninput="atualizarKmVivo()" style="margin-bottom:6px;">
+          <div class="km-atalho" id="kmAtalho" style="display:none;">Pode digitar só o final — eu completo o resto</div>
           <div class="km-vivo" id="kmVivo" style="display:none;">= <b class="num">0</b> km rodados hoje</div>
           <div class="km-erro" id="kmErro" style="display:none;"></div>
 
@@ -1053,7 +1055,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=352"></script>
+    <script src="script.js?v=354"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       if ('serviceWorker' in navigator) {
