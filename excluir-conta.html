@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Excluir minha conta · Copiloto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ground:#0B0F14; --card:#141B21; --ink:#EDF2F1; --dim:#93A1B0;
+    --faint:#6B7B89; --line:#232E37; --accent:#00E08A; --danger:#FF5A5F;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif; font-size:16px; line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{ max-width:680px; margin:0 auto; padding:40px 20px 80px; }
+  .marca{
+    display:flex; align-items:center; gap:10px; margin-bottom:28px;
+    padding-bottom:20px; border-bottom:1px solid var(--line);
+  }
+  .marca b{ font-family:'Sora',sans-serif; font-size:19px; font-weight:800; letter-spacing:-.01em; }
+  h1{ font-family:'Sora',sans-serif; font-size:clamp(26px,6vw,34px); font-weight:800;
+      line-height:1.15; margin:0 0 14px; letter-spacing:-.02em; }
+  h2{ font-family:'Sora',sans-serif; font-size:18px; font-weight:700; margin:32px 0 10px; }
+  p{ margin:0 0 14px; color:#D7DEE6; }
+  ul,ol{ margin:0 0 14px; padding-left:20px; color:#D7DEE6; }
+  li{ margin-bottom:7px; }
+  li::marker{ color:var(--faint); }
+  strong{ color:var(--ink); }
+  a{ color:var(--accent); }
+  .caminho{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:18px 20px; margin:0 0 18px;
+  }
+  .caminho h3{
+    font-family:'Sora',sans-serif; font-size:15.5px; font-weight:700;
+    margin:0 0 8px; display:flex; align-items:center; gap:9px;
+  }
+  .n{
+    width:24px; height:24px; flex:0 0 auto; border-radius:7px;
+    background:rgba(0,224,138,.14); color:var(--accent);
+    display:grid; place-items:center; font-size:12.5px; font-weight:700;
+  }
+  .caminho p:last-child{ margin-bottom:0; }
+  .btn{
+    display:inline-block; background:var(--danger); color:#fff; text-decoration:none;
+    font-weight:700; font-size:15px; padding:13px 22px; border-radius:11px;
+    margin:4px 0 6px;
+  }
+  .aviso{
+    background:rgba(255,90,95,.08); border:1px solid rgba(255,90,95,.3);
+    border-radius:11px; padding:14px 16px; margin:0 0 18px; font-size:14.5px;
+  }
+  .aviso p{ margin:0; color:#F0D9DA; }
+  .rodape{ margin-top:44px; padding-top:22px; border-top:1px solid var(--line);
+           color:var(--faint); font-size:13.5px; }
+  @media(max-width:520px){ .wrap{ padding:28px 16px 60px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="marca">
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#00E08A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 18a9 9 0 1 1 15 0"/><path d="M12 14a2 2 0 0 0 1.6-3.2L16.5 7"/>
+      <circle cx="12" cy="12" r="1.1" fill="#00E08A"/>
+    </svg>
+    <b>Copiloto</b>
+  </div>
+
+  <h1>Excluir minha conta</h1>
+  <p>Esta página é do aplicativo <strong>Copiloto</strong>. Aqui você pede a exclusão da sua conta e de todos os dados que ela guarda — mesmo que já tenha desinstalado o app.</p>
+
+  <div class="aviso">
+    <p><strong>Antes de continuar:</strong> a exclusão não tem volta. Se quiser guardar seu histórico, abra o app e use <em>Ajustes → Baixar cópia</em> primeiro.</p>
+  </div>
+
+  <h2>Dois caminhos</h2>
+
+  <div class="caminho">
+    <h3><span class="n">1</span> Pelo aplicativo — é imediato</h3>
+    <p>Se o app ainda estiver instalado, esse é o caminho mais rápido:</p>
+    <p><strong>Ajustes (⚙️) → Dados → Excluir minha conta</strong></p>
+    <p>A conta e todos os dados somem na hora, sem precisar esperar ninguém responder.</p>
+  </div>
+
+  <div class="caminho">
+    <h3><span class="n">2</span> Por e-mail — se já desinstalou</h3>
+    <p>Clique no botão abaixo. Ele abre seu programa de e-mail com a mensagem pronta — você só precisa confirmar o endereço da conta e enviar.</p>
+    <a class="btn" href="mailto:app.copilotosup@gmail.com?subject=Excluir%20minha%20conta%20do%20Copiloto&amp;body=Ol%C3%A1%2C%0A%0AQuero%20excluir%20minha%20conta%20do%20aplicativo%20Copiloto%20e%20todos%20os%20dados%20ligados%20a%20ela.%0A%0AE-mail%20cadastrado%20no%20app%3A%20%5Bescreva%20aqui%5D%0A%0AObrigado.">Pedir exclusão por e-mail</a>
+    <p>Se o botão não funcionar no seu aparelho, escreva direto para <strong>app.copilotosup@gmail.com</strong> com o assunto <em>"Excluir minha conta do Copiloto"</em>, informando o e-mail cadastrado.</p>
+  </div>
+
+  <h2>O que é apagado</h2>
+  <p>Tudo que estiver ligado à sua conta:</p>
+  <ul>
+    <li>Seu cadastro — nome, e-mail e senha</li>
+    <li>Seus veículos e a quilometragem registrada</li>
+    <li>Todos os abastecimentos</li>
+    <li>Todo o histórico financeiro — receitas, despesas e lucro</li>
+    <li>Documentos e lembretes de manutenção</li>
+    <li>Reserva, streak e patente</li>
+  </ul>
+
+  <h2>O que pode permanecer por um tempo</h2>
+  <p>Cópias de segurança da infraestrutura podem manter os dados por um curto período antes de serem sobrescritas automaticamente. Registros mínimos podem ser preservados apenas quando houver obrigação legal.</p>
+
+  <h2>Prazo</h2>
+  <p>Pelo aplicativo, a exclusão é <strong>imediata</strong>. Por e-mail, o pedido é atendido em <strong>até 15 dias</strong>, e você recebe a confirmação no mesmo endereço.</p>
+
+  <div class="rodape">
+    Copiloto · <a href="./">voltar para o aplicativo</a> · <a href="privacidade.html">política de privacidade</a>
+  </div>
+
+</div>
+</body>
+</html>

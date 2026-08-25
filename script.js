@@ -3813,12 +3813,55 @@ function abrirAjustes() {
   document.getElementById('ajSairDica').style.display = logado ? 'block' : 'none';
   document.getElementById('ajBtnEnviarTudo').style.display = logado ? 'block' : 'none';
   document.getElementById('ajEnviarDica').style.display    = logado ? 'block' : 'none';
+  document.getElementById('ajBtnExcluirConta').style.display = logado ? 'block' : 'none';
+  document.getElementById('ajExcluirDica').style.display     = logado ? 'block' : 'none';
   document.getElementById('modalAjustes').style.display = 'flex';
 }
 // "Enviar tudo pra nuvem" — a subida em massa tinha trava de uma-vez-so, entao
 // dois aparelhos ficavam cada um com um pedaco do historico e nada reconciliava.
 // Aqui ela roda a pedido do motorista. E upsert por id: atualiza o que existe,
 // acrescenta o que falta, nunca apaga.
+// "Excluir minha conta" — diferente do "Apagar tudo deste aparelho".
+// O outro limpa o celular e o motorista pode voltar entrando na conta de novo.
+// Este apaga a conta e os dados da NUVEM também, sem volta. Exigência do Google
+// Play (todo app com cadastro precisa oferecer isso) e direito garantido pela
+// LGPD. Quem apaga de fato é a função no banco — ver supabase-excluir-conta.sql.
+document.getElementById('ajBtnExcluirConta').addEventListener('click', function () {
+  const btn = document.getElementById('ajBtnExcluirConta');
+  if (btn.disabled) return;
+  if (typeof usuarioLogado !== 'function' || !usuarioLogado()) { toast('Entre na sua conta primeiro', 'erro'); return; }
+  if (!navigator.onLine) { toast('Precisa de internet pra apagar da nuvem', 'erro'); return; }
+  fecharAjustes();
+  // Duas confirmações: é a ação mais destrutiva do app.
+  pedirConfirmacao('Excluir sua conta?',
+    'Apaga TUDO, aqui e na nuvem: lançamentos, veículos, histórico, reserva e a própria conta. ' +
+    'Não dá pra desfazer. Se quiser guardar seus números, baixe uma cópia antes.',
+    function () {
+      pedirConfirmacao('Tem certeza mesmo?',
+        'Última chance. Depois disso não tem como recuperar nada.',
+        function () {
+          btn.disabled = true;
+          toast('Apagando sua conta...');
+          excluirContaNaNuvem().then(function (r) {
+            btn.disabled = false;
+            if (r && r.ok) {
+              // só limpa o aparelho DEPOIS que a nuvem confirmou: se a rede
+              // cair no meio, o motorista não fica sem dado local e com a
+              // conta ainda de pé na nuvem.
+              try { localStorage.clear(); } catch (e) {}
+              location.reload();
+            } else if (r && r.offline) {
+              toast('Sem internet agora. Tente de novo depois.', 'erro');
+            } else {
+              toast('Não consegui apagar agora. Tente mais tarde.', 'erro');
+            }
+          }).catch(function () {
+            btn.disabled = false;
+            toast('Não consegui apagar agora. Tente mais tarde.', 'erro');
+          });
+        });
+    });
+});
 document.getElementById('ajBtnEnviarTudo').addEventListener('click', function () {
   const btn = document.getElementById('ajBtnEnviarTudo');
   if (btn.disabled) return;
@@ -4071,8 +4114,9 @@ document.getElementById('ajInputRestore').addEventListener('change', function(ev
 
 // ── APAGAR TUDO: confirmação DUPLA ──
 document.getElementById('ajBtnApagar').addEventListener('click', function() {
-  pedirConfirmacao('Apagar TUDO?',
-    'Some com lançamentos, veículos, histórico e reserva — volta como app novo. Não dá pra desfazer. O ideal é baixar um backup antes.',
+  pedirConfirmacao('Apagar tudo deste aparelho?',
+    'Limpa este celular e o app volta como novo. Sua CONTA e o histórico na nuvem continuam — dá pra voltar entrando de novo. ' +
+    'Pra apagar de vez, use "Excluir minha conta".',
     function() {
       pedirConfirmacao('Tem certeza mesmo?',
         'Última chance. Isso apaga tudo pra sempre.',

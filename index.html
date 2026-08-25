@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=355">
+    <link rel="stylesheet" href="style.css?v=356">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=355"></script>
+    <script src="supabase-service.js?v=356"></script>
   </head>
   <body>
     <div class="dashboard">
@@ -1030,7 +1030,10 @@
             <div class="aj-dica" id="ajSairDica" style="display:none; margin-bottom:12px;">Você pode entrar de novo quando quiser.</div>
             <button class="modal-btn cancelar" id="ajBtnEnviarTudo" style="width:100%; display:none;">Enviar tudo pra nuvem</button>
             <div class="aj-dica" id="ajEnviarDica" style="display:none; margin-bottom:12px;">Manda o histórico deste aparelho pra sua conta. Não apaga nada — só completa o que estiver faltando lá.</div>
-            <button class="modal-btn cancelar" id="ajBtnApagar" style="width:100%; color:var(--danger); border-color:var(--danger);">Apagar tudo</button>
+            <button class="modal-btn cancelar" id="ajBtnApagar" style="width:100%; color:var(--danger); border-color:var(--danger);">Apagar tudo deste aparelho</button>
+            <div class="aj-dica">Limpa só este celular. Sua conta e seu histórico continuam salvos.</div>
+            <button class="modal-btn cancelar" id="ajBtnExcluirConta" style="width:100%; margin-top:10px; color:var(--danger); border-color:var(--danger); display:none;">Excluir minha conta</button>
+            <div class="aj-dica" id="ajExcluirDica" style="display:none;">Apaga a conta e todo o histórico, aqui e na nuvem. Não tem volta.</div>
             <input type="file" id="ajInputRestore" accept="application/json,.json" style="display:none;">
             <div style="display:flex; gap:16px; justify-content:center; margin-top:16px;">
               <button id="ajBtnBackup" class="aj-link">Baixar cópia</button>
@@ -1056,7 +1059,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=355"></script>
+    <script src="script.js?v=356"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       if ('serviceWorker' in navigator) {

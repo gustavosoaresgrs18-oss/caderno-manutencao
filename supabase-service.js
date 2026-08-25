@@ -548,6 +548,34 @@ async function migrarMotoristaAntigo(userId, forcar) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  EXCLUIR A CONTA (LGPD + exigência do Google Play)
+//
+//  O "Apagar tudo" dos Ajustes limpava só o localStorage: a conta e
+//  as 7 tabelas continuavam na nuvem. O motorista achava que tinha
+//  apagado e não tinha.
+//
+//  Quem apaga de verdade é a função excluir_minha_conta() no banco
+//  (ver supabase-excluir-conta.sql). Ela roda com permissão de
+//  administrador — necessária pra apagar a conta de LOGIN — mas só
+//  age sobre os dados de quem chamou. Assim a chave de admin nunca
+//  precisa existir no front-end.
+// ═══════════════════════════════════════════════════════════════
+async function excluirContaNaNuvem() {
+  try {
+    if (!navigator.onLine)  return { ok: false, offline: true, erro: 'sem internet' };
+    if (!usuarioId())       return { ok: false, erro: 'sem sessão' };
+    const { error } = await getSB().rpc('excluir_minha_conta');
+    if (error) throw error;
+    try { await getSB().auth.signOut(); } catch (e) {}
+    _usuarioAtual = null;
+    return { ok: true };
+  } catch (e) {
+    console.error('[Copiloto] Erro ao excluir conta:', e);
+    return { ok: false, erro: e.message };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
 //  RESTAURAR DO SUPABASE (o caminho inverso da migração)
 //
 //  Usado no LOGIN de uma conta que já existe (motorista trocou de

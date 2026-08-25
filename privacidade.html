@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Política de Privacidade · Copiloto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ground:#0B0F14; --card:#141B21; --ink:#EDF2F1; --dim:#93A1B0;
+    --faint:#6B7B89; --line:#232E37; --accent:#00E08A;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif; font-size:16px; line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{ max-width:720px; margin:0 auto; padding:40px 20px 80px; }
+  .marca{
+    display:flex; align-items:center; gap:10px; margin-bottom:28px;
+    padding-bottom:20px; border-bottom:1px solid var(--line);
+  }
+  .marca svg{ flex:0 0 auto; }
+  .marca b{ font-family:'Sora',sans-serif; font-size:19px; font-weight:800; letter-spacing:-.01em; }
+  h1{ font-family:'Sora',sans-serif; font-size:clamp(26px,6vw,34px); font-weight:800;
+      line-height:1.15; margin:0 0 6px; letter-spacing:-.02em; }
+  .atualizado{ color:var(--faint); font-size:13.5px; margin:0 0 32px; }
+  h2{ font-family:'Sora',sans-serif; font-size:19px; font-weight:700; margin:34px 0 10px;
+      letter-spacing:-.01em; }
+  p{ margin:0 0 14px; color:#D7DEE6; }
+  ul{ margin:0 0 14px; padding-left:20px; color:#D7DEE6; }
+  li{ margin-bottom:7px; }
+  li::marker{ color:var(--faint); }
+  strong{ color:var(--ink); }
+  a{ color:var(--accent); }
+  .box{
+    background:var(--card); border:1px solid var(--line); border-radius:12px;
+    padding:16px 18px; margin:0 0 16px;
+  }
+  .box p:last-child{ margin-bottom:0; }
+  table{ width:100%; border-collapse:collapse; font-size:14.5px; margin:0 0 16px; }
+  th{ text-align:left; padding:9px 10px; color:var(--faint); font-size:11px;
+      text-transform:uppercase; letter-spacing:.09em; border-bottom:1px solid var(--line); }
+  td{ padding:10px; border-bottom:1px solid var(--line); color:#D7DEE6; vertical-align:top; }
+  tr:last-child td{ border-bottom:none; }
+  .rodape{ margin-top:44px; padding-top:22px; border-top:1px solid var(--line);
+           color:var(--faint); font-size:13.5px; }
+  @media(max-width:520px){ .wrap{ padding:28px 16px 60px; } table{ font-size:13.5px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="marca">
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#00E08A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 18a9 9 0 1 1 15 0"/><path d="M12 14a2 2 0 0 0 1.6-3.2L16.5 7"/>
+      <circle cx="12" cy="12" r="1.1" fill="#00E08A"/>
+    </svg>
+    <b>Copiloto</b>
+  </div>
+
+  <h1>Política de Privacidade</h1>
+  <p class="atualizado">Última atualização: 25 de agosto de 2026</p>
+
+  <div class="box">
+    <p><strong>Resumo honesto:</strong> o Copiloto guarda o que você registra para devolver isso em forma de conta fechada. Não vendemos nada, não compartilhamos com ninguém, não há publicidade. Você pode baixar uma cópia ou apagar tudo quando quiser.</p>
+  </div>
+
+  <h2>Quem é responsável</h2>
+  <p>O Copiloto é um aplicativo desenvolvido e mantido por Gustavo Soares. Para qualquer assunto relacionado aos seus dados, o contato é <a href="mailto:app.copilotosup@gmail.com">app.copilotosup@gmail.com</a>.</p>
+
+  <h2>Que dados o app guarda</h2>
+  <p>Todos os dados abaixo são informados por você. O app não coleta nada em segundo plano sem que você registre.</p>
+
+  <table>
+    <thead><tr><th>Tipo</th><th>O que é</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Conta</strong></td><td>Nome e e-mail. A senha é guardada de forma cifrada pelo serviço de autenticação — nem nós conseguimos vê-la.</td></tr>
+      <tr><td><strong>Veículo</strong></td><td>Tipo (moto ou carro), modelo, placa e quilometragem do painel.</td></tr>
+      <tr><td><strong>Abastecimentos</strong></td><td>Data, tipo de combustível, valor pago, litros, km rodados e nome do posto.</td></tr>
+      <tr><td><strong>Finanças</strong></td><td>Quanto você recebeu por dia, taxa da plataforma, despesas e o lucro calculado.</td></tr>
+      <tr><td><strong>Despesas</strong></td><td>Categoria (pedágio, alimentação, lavagem…), valor e data.</td></tr>
+      <tr><td><strong>Documentos</strong></td><td>Nome do documento, data de vencimento e observações que você escrever.</td></tr>
+      <tr><td><strong>Manutenção</strong></td><td>Quilometragem da última troca de cada item e o intervalo que você configurar.</td></tr>
+      <tr><td><strong>Localização</strong></td><td>Usada apenas para medir a distância percorrida durante um turno de trabalho, quando você inicia e encerra o dia no app. Veja a seção específica abaixo.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Para que servem</h2>
+  <p>Para uma finalidade só: <strong>fazer o aplicativo funcionar</strong> — calcular seu custo por quilômetro, seu lucro do dia, avisar sobre manutenção e vencimento de documentos, e manter seu histórico disponível caso você troque de aparelho.</p>
+  <p>Seus dados <strong>não</strong> são usados para publicidade, não são vendidos, não são cedidos a terceiros e não alimentam nenhum tipo de perfil comercial.</p>
+
+  <h2>Sobre a localização</h2>
+  <p>O aplicativo pode pedir acesso à sua localização para medir quanto você rodou durante o turno de trabalho. Esse é o número que permite calcular seu custo real por quilômetro — o recurso central do app.</p>
+  <ul>
+    <li>A localização só é usada <strong>entre o início e o encerramento de um turno</strong> que você mesmo iniciou.</li>
+    <li>Serve exclusivamente para calcular <strong>distância percorrida</strong>. O trajeto não é usado para nenhuma outra finalidade.</li>
+    <li>Você pode <strong>recusar a permissão</strong> e continuar usando o aplicativo normalmente — nesse caso, basta informar a quilometragem do painel manualmente.</li>
+    <li>A localização <strong>não é compartilhada com ninguém</strong> e não é usada para publicidade.</li>
+  </ul>
+
+  <h2>Onde os dados ficam</h2>
+  <p>Os dados ficam guardados em duas camadas:</p>
+  <ul>
+    <li><strong>No seu aparelho</strong>, para o app funcionar mesmo sem internet.</li>
+    <li><strong>No Supabase</strong>, um serviço de banco de dados, em servidores localizados no Brasil (região São Paulo). O Supabase atua apenas como operador da infraestrutura — não usa seus dados para nada.</li>
+  </ul>
+  <p>O acesso é protegido por regras que garantem que cada pessoa só enxergue os próprios registros.</p>
+
+  <h2>Por quanto tempo</h2>
+  <p>Enquanto sua conta existir. Quando você exclui a conta, os dados são apagados dos nossos bancos — veja abaixo.</p>
+  <p>Cópias de segurança da infraestrutura podem reter dados por um curto período adicional antes de serem sobrescritas, e registros mínimos podem ser mantidos quando houver obrigação legal.</p>
+
+  <h2>Seus direitos</h2>
+  <p>Pela Lei Geral de Proteção de Dados (LGPD), você tem direito a:</p>
+  <ul>
+    <li><strong>Saber</strong> quais dados temos sobre você — estão todos visíveis dentro do próprio app.</li>
+    <li><strong>Corrigir</strong> qualquer informação — todo registro pode ser editado no app.</li>
+    <li><strong>Levar seus dados embora</strong> — em <em>Ajustes → Baixar cópia</em> você gera um arquivo com tudo.</li>
+    <li><strong>Apagar tudo</strong> — em <em>Ajustes → Excluir minha conta</em>, ou pela página de <a href="excluir-conta.html">exclusão de conta</a>, que funciona mesmo se você já tiver desinstalado o app.</li>
+  </ul>
+
+  <h2>Menores de idade</h2>
+  <p>O Copiloto é destinado a motoristas profissionais e não se dirige a menores de 18 anos.</p>
+
+  <h2>Mudanças nesta política</h2>
+  <p>Se algo mudar, esta página é atualizada e a data no topo muda junto. Alterações relevantes serão avisadas dentro do aplicativo.</p>
+
+  <h2>Contato</h2>
+  <p>Dúvida, pedido ou reclamação sobre seus dados: <a href="mailto:app.copilotosup@gmail.com">app.copilotosup@gmail.com</a>. Respondemos em até 15 dias.</p>
+
+  <div class="rodape">
+    Copiloto · <a href="./">voltar para o aplicativo</a> · <a href="excluir-conta.html">excluir minha conta</a>
+  </div>
+
+</div>
+</body>
+</html>
