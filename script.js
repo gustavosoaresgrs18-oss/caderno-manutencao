@@ -4815,7 +4815,21 @@ function inteligenciaDoDia() {
       amostras.push({ dow, ph: porDia[iso] / hrs });
     }
   });
-  if (amostras.length < 2) return { suficiente: false, amostras: amostras.length };
+  if (amostras.length < 2) {
+    // ⚠️ Antes daqui só saía "faltam dados". A tela então dizia a MESMA frase
+    // pra quem nunca registrou nada e pra quem já tinha um dia inteiro feito —
+    // esse segundo lia "use o Bora rodar e registre suas receitas" e pensava
+    // "mas eu fiz isso ontem". Aviso que ignora o esforço do motorista queima
+    // a confiança dele no app. Agora sai QUAL metade está faltando.
+    let comReceita = 0, comHoras = 0, curtos = 0;
+    Object.keys(porDia).forEach(iso => {
+      comReceita++;
+      const h = horas[iso];
+      if (h != null && h > 0 && h < 0.5) curtos++;
+    });
+    Object.keys(horas).forEach(iso => { if (horas[iso] >= 0.5) comHoras++; });
+    return { suficiente: false, amostras: amostras.length, comReceita, comHoras, curtos };
+  }
   const hojeDow  = new Date().getDay();
   const doDia    = amostras.filter(a => a.dow === hojeDow);
   const mediaGeral = amostras.reduce((s, a) => s + a.ph, 0) / amostras.length;
@@ -4833,8 +4847,33 @@ function renderInteligenciaSim() {
 
   if (!it.suficiente) {
     box.classList.add('amarelo');
-    vd.innerHTML = dot('amarelo') + ' Ainda aprendendo com você';
-    tx.innerHTML = 'Use o "Bora rodar" e registre suas receitas — com uns dias de uso eu te digo se <b>' + nomeHoje + '</b> costuma valer a pena pra você.';
+    // ⚠️ "com uns dias de uso" era vago, e o app SABE o número: são 2 dias
+    // completos. Regra do projeto — faltou dado, o app diz quanto falta.
+    const artigo = DIA_MASC[new Date().getDay()] ? 'um ' : 'uma ';
+    if (it.amostras === 1) {
+      vd.innerHTML = dot('amarelo') + ' Falta 1 dia pra eu te responder';
+      // ⚠️ o texto antigo prometia "eu te digo se terça vale a pena" só por
+      // acumular dias. Não é verdade: pra falar de terça, precisa de uma TERÇA
+      // registrada. Prometer o que não entrega é o que o motorista já vê demais.
+      tx.innerHTML = 'Você já tem <b>1 dia completo</b>. Com mais um eu começo a comparar — e pra falar ' +
+                     'de <b>' + esc(nomeHoje) + '</b> mesmo, preciso de pelo menos ' + artigo + esc(nomeHoje) + ' registrada.';
+    } else if (it.curtos > 0) {
+      vd.innerHTML = dot('amarelo') + ' Seus dias estão curtos demais';
+      tx.innerHTML = 'Dia com menos de <b>30 minutos</b> de "Bora rodar" não entra na conta — ' +
+                     'em tão pouco tempo o valor da hora sai distorcido.';
+    } else if (it.comHoras > 0 && it.comReceita === 0) {
+      vd.innerHTML = dot('amarelo') + ' Falta registrar a receita';
+      tx.innerHTML = 'Você está marcando as horas com o "Bora rodar", mas ainda não lançou a receita ' +
+                     '(aba Finanças). Sem as duas metades eu não sei quanto vale a sua hora.';
+    } else if (it.comReceita > 0 && it.comHoras === 0) {
+      vd.innerHTML = dot('amarelo') + ' Falta marcar suas horas';
+      tx.innerHTML = 'Você está lançando a receita, mas ainda não usou o <b>"Bora rodar"</b> ' +
+                     '— sem saber quantas horas você rodou, eu não tenho como calcular o valor da sua hora.';
+    } else {
+      vd.innerHTML = dot('amarelo') + ' Ainda não tenho nenhum dia completo';
+      tx.innerHTML = 'Um dia conta quando você usa o <b>"Bora rodar"</b> (marca as horas) <b>e</b> ' +
+                     'registra a receita no fim. Com <b>2 desses</b> eu já começo a comparar.';
+    }
     return;
   }
   if (it.mediaDia === null) {
