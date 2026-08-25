@@ -4547,6 +4547,43 @@ function removerDespesa(id) {
 })();
 
 let desempenhoView = 'mes';
+// Quantos dias o motorista já tem, e quantos faltam pra cada aba funcionar.
+// Cada aba tem uma régua diferente porque cada conta precisa de coisa diferente:
+// comparar HOJE com o normal dele exige um normal (5 dias); comparar SEMANAS
+// exige 3 dias; projetar o MÊS exige pelo menos um dia lançado.
+function faltaDias(n) {   // concordância: "Falta 1 dia" / "Faltam 3 dias"
+  return (n === 1 ? 'Falta <b>1 dia</b>' : 'Faltam <b>' + n + ' dias</b>');
+}
+function textoFaltaDesempenho(aba) {
+  const hist = lerLS('historicoFinancas', []);
+  const dias = new Set(hist.map(r => r.dataISO).filter(Boolean));
+  const n    = dias.size;
+  const temHoje = dias.has(hojeISO());
+  if (aba === 'hoje') {
+    const anteriores = n - (temHoje ? 1 : 0);
+    const faltam = 5 - anteriores;
+    if (!temHoje) {
+      return anteriores >= 5
+        ? ico('raio') + ' <b>Registre a receita de hoje</b> e eu comparo na hora com o seu normal.'
+        : ico('raio') + ' Pra saber se hoje foi bom eu preciso saber qual é o <b>seu normal</b>. ' +
+          faltaDias(faltam) + ' — e hoje ainda nem entrou.';
+    }
+    return ico('raio') + ' <b>Hoje já está registrado</b> — o que falta é o resto. ' +
+           (anteriores === 0
+              ? 'Sem nenhum outro dia no histórico'
+              : 'Com <b>' + anteriores + (anteriores === 1 ? ' dia</b>' : ' dias</b>')) +
+           ' eu ainda não sei qual é o <b>seu normal</b>, e com menos de 5 a média é chute. ' +
+           faltaDias(faltam) + '.';
+  }
+  if (aba === 'semana') {
+    const faltam = 3 - n;
+    return ico('calendario') + ' Comparar uma semana com a outra precisa de <b>3 dias</b> registrados. ' +
+           'Você tem <b>' + n + (n === 1 ? ' dia</b>' : ' dias</b>') + ' — ' +
+           faltaDias(faltam).toLowerCase().replace('falta', 'falta') + '.';
+  }
+  return ico('sobe') + ' <b>Registre a receita de um dia</b> que eu já projeto onde seu mês fecha — ' +
+         'pra você não levar susto no dia 30.';
+}
 function mostrarDesempenho(v) {
   desempenhoView = v;
   const map = { hoje:'compPersonal', semana:'comparativoSemanal', mes:'projCard' };
@@ -4560,12 +4597,12 @@ function mostrarDesempenho(v) {
   if (ph) {
     ph.style.display = pronto ? 'none' : 'block';
     if (!pronto) {
-      var _promessa = {
-        hoje:   '\u26A1 Registra hoje e eu te mostro se voc\u00ea foi ACIMA ou abaixo do seu normal \u2014 com o SEU n\u00famero, sem achismo.',
-        semana: '\uD83D\uDCC5 Roda uns dias e aqui vira o comparativo da sua semana contra a passada \u2014 subindo ou caindo.',
-        mes:    '\uD83D\uDCC8 Registra alguns dias que eu projeto onde seu m\u00eas fecha \u2014 pra n\u00e3o levar susto no dia 30.'
-      };
-      ph.textContent = _promessa[desempenhoView] || _promessa.mes;
+      // ⚠️ O texto era fixo: dizia "Registra hoje e eu te mostro" mesmo pra quem
+      // JÁ tinha registrado hoje. O motorista lançava a receita, via o número na
+      // tela, abria a aba e o app mandava ele fazer o que ele acabou de fazer.
+      // (mesma correção que a v3.64 fez no simulador — o app sabe a contagem,
+      // então ele tem que DIZER a contagem em vez de mandar recado genérico)
+      ph.innerHTML = textoFaltaDesempenho(desempenhoView);
     }
   }
   document.querySelectorAll('#desempenhoToggle .seg-btn').forEach(b => b.classList.toggle('ativo', b.dataset.v === v));
