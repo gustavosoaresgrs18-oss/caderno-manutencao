@@ -3118,6 +3118,17 @@ function ressincronizarReceitaHoje() {
   }
 }
 
+// ⚠️ O valor dentro do arco tinha tamanho fixo e transbordava por cima do
+// desenho quando passava de R$ 100. Chutar um tamanho menor pra todo mundo
+// resolveria o transbordo e estragaria o normal — o número é a estrela da tela.
+// Aqui ele começa grande e só encolhe quando o texto realmente não cabe.
+function ajustarValorDoArco(el) {
+  if (!el) return;
+  const n = (el.textContent || '').length;
+  el.style.fontSize = n <= 9  ? '34px'    // R$ 250,00
+                    : n <= 11 ? '28px'    // R$ 1.250,00
+                    :           '25px';   // -R$ 1.250,00 (prejuízo)
+}
 // atualiza o banner de lucro do dashboard a partir dos registros de hoje
 function atualizarBannerLucro() {
   const el  = document.getElementById('bannerLucroValor');
@@ -3135,6 +3146,7 @@ function atualizarBannerLucro() {
   const receita = recs.reduce((s, r) => s + r.receita, 0);
   const custos  = recs.reduce((s, r) => s + r.taxa + r.comb + (r.desp || 0), 0);
   el.textContent = fmtBRL(lucro);
+  ajustarValorDoArco(el);
   el.style.color = lucro >= 0 ? 'var(--money)' : 'var(--danger)';
   // com dados: tira a linha de dentro do arco (o ponteiro varre ali) e mostra abaixo
   sub.style.display = 'none';

@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=370">
+    <link rel="stylesheet" href="style.css?v=372">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=370"></script>
+    <script src="supabase-service.js?v=372"></script>
   </head>
   <body>
 
@@ -179,7 +179,7 @@
         <div class="gauge-card">
           <div class="gc-label">Lucro de hoje</div>
           <div class="gauge-wrap" onclick="gaugeClique()" style="cursor:pointer;" title="Registrar receita do dia">
-            <svg viewBox="0 0 270 152" width="100%" style="max-width:185px;display:block;margin:0 auto;">
+            <svg viewBox="0 0 270 152" width="100%" style="max-width:240px;display:block;margin:0 auto;">
               <defs>
                 <linearGradient id="gArcOn" x1="0" y1="0" x2="1" y2="0">
                   <stop offset="0" stop-color="#FFB020"/><stop offset="1" stop-color="#00E08A"/>
@@ -363,7 +363,7 @@
           <div class="cmk-esq"><span class="cmk-label">Combustível / km <span class="int">ⓘ</span></span><span class="cmk-sub" id="custoMedioSub">sem registros</span></div>
           <div class="cmk-val verde num" id="custoMedioVal">—</div>
         </div>
-        <button class="btn-abrir-abastecer" id="btnAbrirAbastecer"><svg class="ico"><use href="#i-bomba"></use></svg> Registrar abastecimento</button>
+        <button class="btn-primario combustivel btn-abrir-abastecer" id="btnAbrirAbastecer"><svg class="ico"><use href="#i-bomba"></use></svg> Registrar abastecimento</button>
         <button class="btn-ver-extrato-full" id="btnVerExtrato"><svg class="ico"><use href="#i-doc"></use></svg> Ver extrato de combustível <svg class="ico"><use href="#i-seta-dir"></use></svg></button>
       </div>
 
@@ -455,7 +455,7 @@
         </div>
 
         <!-- BOTÃO PÍLULA REGISTRAR -->
-        <button class="btn-registrar-pill" id="btnRegistrarReceita"><svg class="ico"><use href="#i-raio"></use></svg> Registrar receita do dia</button>
+        <button class="btn-primario dinheiro btn-registrar-pill" id="btnRegistrarReceita"><svg class="ico"><use href="#i-raio"></use></svg> Registrar receita do dia</button>
         <button class="btn-despesas-abrir" id="btnAbrirDespesas"><svg class="ico"><use href="#i-nota"></use></svg> Despesas do dia<span id="btnDespesasTotal"></span> <svg class="ico"><use href="#i-seta-dir"></use></svg></button>
 
         <!-- DESEMPENHO: 3 visões em 1 card que alterna -->
@@ -548,7 +548,7 @@
       <!-- ══════════ TELA DOCUMENTOS ══════════ -->
       <div class="tela-documentos" id="telaDocumentos" style="display: none;">
         <div class="fin-header"><div class="fin-titulo"><svg class="ico"><use href="#i-doc"></use></svg> Documentos</div><div class="fin-sub">Vencimentos e alertas</div></div>
-        <button class="btn-registrar-receita" id="btnNovoDoc" style="width:100%;margin-bottom:16px;">+ Adicionar documento</button>
+        <button class="btn-secundario" id="btnNovoDoc" style="margin-bottom:16px;"><svg class="ico"><use href="#i-mais"></use></svg> Adicionar documento</button>
         <div class="doc-lista" id="docLista"></div>
       </div>
 
@@ -1143,7 +1143,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=370"></script>
+    <script src="script.js?v=372"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       if ('serviceWorker' in navigator) {

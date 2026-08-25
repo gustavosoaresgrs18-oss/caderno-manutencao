@@ -243,7 +243,16 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .fin-header{ margin-bottom:14px; }
 .fin-titulo{ font-size:var(--f5); font-weight:800; color:var(--text); }
 .fin-sub{ font-size:var(--f1); color:var(--dim); margin-top:2px; }
-.btn-registrar-receita{ flex:2; background:linear-gradient(135deg,var(--money),var(--money2)); color:#04120c; border:none; border-radius:12px; padding:14px; font-size:var(--f3); font-weight:800; cursor:pointer; font-family:'Inter'; }
+/* ⚠️ "+ Adicionar documento" era VERDE — a cor que no app inteiro significa
+   "dinheiro que fica no seu bolso". Gastar o verde numa ação que não tem nada
+   a ver com dinheiro enfraquece o significado dele em todas as outras telas.
+   Documento é assunto azul (é a cor da aba Docs). E como adicionar documento é
+   organização, não ganho, ele é secundário: contorno, não preenchido. */
+.btn-secundario{ width:100%; background:var(--elev); border:1px solid var(--line);
+  color:var(--info); border-radius:14px; padding:13px; font-family:'Inter';
+  font-size:var(--f3); font-weight:700; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:7px; }
+.btn-secundario:active{ transform:scale(.99); }
 .fin-hist-titulo{ font-size:var(--f1); color:var(--dim); text-transform:uppercase; letter-spacing:.06em; font-weight:700; margin-bottom:10px; }
 .fin-hist-lista{ display:flex; flex-direction:column; gap:8px; }
 .fin-hist-item{ background:var(--elev); border:1px solid var(--line); border-radius:13px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; }
@@ -552,8 +561,24 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .tp-tempo{ font-family:'Sora'; font-size:var(--f3); font-weight:800; color:var(--text); }
 
 /* ── BOTÃO GRANDE PRA ABRIR ABASTECIMENTO ── */
-.btn-abrir-abastecer{ width:100%; background:linear-gradient(135deg,var(--signal),#E89A0F); color:#1a0e00; border:none; border-radius:14px; padding:16px; font-size:var(--f4); font-weight:800; cursor:pointer; margin-bottom:18px; font-family:'Inter'; box-shadow:0 6px 18px rgba(255,176,32,.25); }
-.btn-abrir-abastecer:active{ transform:scale(.98); }
+/* ══════════ AÇÃO PRINCIPAL ══════════
+   ⚠️ Cada tela tinha um botão principal com forma diferente: Combustível com
+   16px de altura e brilho laranja, Finanças com 14px e brilho verde, Documentos
+   com 14px, fonte menor e sem brilho. Três "primários" com três pesos — e aí
+   nenhum é primário de verdade, porque o olho não aprende a reconhecer nenhum.
+   Agora a FORMA é uma só e só a COR muda pelo assunto: verde é dinheiro,
+   laranja é combustível. O motorista aprende a forma uma vez e reconhece em
+   qualquer tela.
+   ⚠️ E o brilho colorido (box-shadow) saiu. É o recurso que mais data uma
+   interface — faz o botão parecer adesivo colado, não parte do app. */
+.btn-primario{ width:100%; border:none; border-radius:14px; padding:15px;
+  font-family:'Inter'; font-size:var(--f4); font-weight:800; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; gap:8px; }
+.btn-primario:active{ transform:scale(.98); }
+.btn-primario.dinheiro{ background:linear-gradient(135deg,var(--money),var(--money2)); color:#04120c; }
+.btn-primario.combustivel{ background:linear-gradient(135deg,var(--signal),#E89A0F); color:#1a0e00; }
+
+.btn-abrir-abastecer{ margin-bottom:18px; }
 /* linha com dois campos lado a lado (litros + posto) */
 .linha-dupla{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 
@@ -602,8 +627,7 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .fh-det .v{ font-family:'Sora'; font-weight:700; color:var(--text); }
 
 /* ── BOTÃO PÍLULA REGISTRAR (Finanças) ── */
-.btn-registrar-pill{ display:block; width:100%; background:linear-gradient(135deg,var(--money),var(--money2)); color:#04120c; border:none; border-radius:14px; padding:14px; font-size:var(--f4); font-weight:800; cursor:pointer; margin-bottom:14px; font-family:'Inter'; box-shadow:0 6px 18px rgba(0,224,138,.2); }
-.btn-registrar-pill:active{ transform:scale(.98); }
+.btn-registrar-pill{ margin-bottom:14px; }
 
 /* ── CARD COMPARATIVO HOJE vs SEU NORMAL ── */
 .comp-personal{ background:var(--elev); border:1px solid var(--line); border-radius:14px; padding:14px 16px; margin-bottom:14px; cursor:pointer; transition:border-color .15s; }
@@ -683,8 +707,19 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .gauge-wrap{ position:relative; margin-top:4px; z-index:1; }
 #gaugeArc{ transition:stroke-dashoffset .9s cubic-bezier(.2,.8,.2,1); }
 #gaugePonteiro{ transition:transform .9s cubic-bezier(.2,.8,.2,1); }
-.gauge-center{ position:absolute; left:0; right:0; top:50%; text-align:center; pointer-events:none; }
-.gauge-center .banner-valor{ font-size:29px; margin-top:0; line-height:1.05; }
+.gauge-center{ position:absolute; left:0; right:0; bottom:13%; text-align:center; pointer-events:none; }
+/* ⚠️ O texto ficava no MEIO do arco (top:50%) — e no meio o semicírculo já
+   estreitou. O vão ali é de ~149px; "R$ 87,50" em 34px ocupa 150. Por isso
+   encostava. A largura máxima do arco é embaixo, perto da base: descendo o
+   texto pra lá, o vão vai a ~177px sem mexer no tamanho do número. */
+.gauge-center .banner-valor{ font-size:34px; margin-top:0; line-height:1.05;
+  white-space:nowrap; transition:font-size .18s ease; }
+.gauge-center .banner-sub{ position:relative; top:2px; }
+/* ⚠️ O número transbordava por cima do arco a partir de R$ 100. A causa não era
+   o número: era o velocímetro espremido em 185px numa tela de 390. Ele é a
+   estrela do app e ocupava metade do espaço que tinha. Agora vai a 240px — o
+   vão interno passa de 131px pra 183px — e o JS ainda encolhe a fonte se o
+   valor for comprido demais (dia de R$ 1.000, ou prejuízo com o sinal). */
 .gauge-center .banner-sub{ margin-top:4px; font-size:var(--f1); color:var(--dim); white-space:nowrap; }
 .gc-breakdown{ font-size:var(--f1); color:var(--dim); text-align:center; margin-top:5px; position:relative; z-index:1; }
 .gc-meta{ display:inline-block; margin-top:6px; font-size:var(--f1); color:var(--signal); background:rgba(255,176,32,.1); border:1px solid rgba(255,176,32,.3); border-radius:16px; padding:4px 12px; font-weight:700; cursor:pointer; position:relative; z-index:1; }
