@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=367">
+    <link rel="stylesheet" href="style.css?v=368">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=367"></script>
+    <script src="supabase-service.js?v=368"></script>
   </head>
   <body>
 
@@ -1062,7 +1062,7 @@
             <div class="aj-sec-tit"><svg class="ico"><use href="#i-pessoa"></use></svg> Perfil</div>
             <label class="aj-label" for="ajNome">Seu nome</label>
             <input type="text" id="ajNome" class="aj-input" placeholder="Seu nome" autocomplete="off">
-            <button class="modal-btn cancelar" id="ajBtnSalvarNome" style="margin-top:10px; width:100%;">Salvar nome</button>
+            <button class="modal-btn cancelar" id="ajBtnSalvarNome" style="margin-top:10px; width:100%; display:none;">Salvar nome</button>
           </div>
 
           <div class="aj-sec">
@@ -1090,22 +1090,40 @@
             <div class="aj-dica">Toque num veículo pra passar a rodar nele. Trocar e adicionar nunca apagam histórico.</div>
           </div>
 
-          <div class="aj-sec">
-            <div class="aj-sec-tit"><svg class="ico"><use href="#i-salvar"></use></svg> Dados</div>
-            <button class="modal-btn cancelar" id="ajBtnSair" style="width:100%; display:none;">Sair da conta</button>
-            <div class="aj-dica" id="ajSairDica" style="display:none; margin-bottom:12px;">Você pode entrar de novo quando quiser.</div>
-            <button class="modal-btn cancelar" id="ajBtnEnviarTudo" style="width:100%; display:none;">Enviar tudo pra nuvem</button>
-            <div class="aj-dica" id="ajEnviarDica" style="display:none; margin-bottom:12px;">Manda o histórico deste aparelho pra sua conta. Não apaga nada — só completa o que estiver faltando lá.</div>
-            <button class="modal-btn cancelar" id="ajBtnApagar" style="width:100%; color:var(--danger); border-color:var(--danger);">Apagar tudo deste aparelho</button>
-            <div class="aj-dica">Limpa só este celular. Sua conta e seu histórico continuam salvos.</div>
-            <button class="modal-btn cancelar" id="ajBtnExcluirConta" style="width:100%; margin-top:10px; color:var(--danger); border-color:var(--danger); display:none;">Excluir minha conta</button>
-            <div class="aj-dica" id="ajExcluirDica" style="display:none;">Apaga a conta e todo o histórico, aqui e na nuvem. Não tem volta.</div>
-            <input type="file" id="ajInputRestore" accept="application/json,.json" style="display:none;">
-            <div style="display:flex; gap:16px; justify-content:center; margin-top:16px;">
-              <button id="ajBtnBackup" class="aj-link">Baixar cópia</button>
-              <button id="ajBtnRestaurar" class="aj-link">Restaurar cópia</button>
+          <!-- ⚠️ Aqui era uma seção "Dados" com 4 botões grandes, 4 parágrafos de
+               explicação e 2 links, tudo aberto de uma vez. A tela virava uma
+               parede — e o pior: coisas que o motorista faz UMA VEZ NA VIDA
+               (excluir conta) ocupavam o mesmo tamanho da que ele faz sempre
+               (trocar de veículo). Agora ficam dobradas: o texto de ajuda só
+               custa espaço na hora em que ele realmente precisa ler.
+               ⚠️ O título diz "excluir conta" de propósito: a Play Store exige
+               que o caminho de exclusão seja fácil de achar dentro do app. Um
+               toque numa seção com esse nome cumpre; esconder não cumpriria. -->
+          <details class="aj-fold">
+            <summary><span><svg class="ico"><use href="#i-salvar"></use></svg> Conta e cópia de segurança</span></summary>
+            <div class="aj-fold-corpo">
+              <button class="modal-btn cancelar" id="ajBtnSair" style="width:100%; display:none;">Sair da conta</button>
+              <div class="aj-dica" id="ajSairDica" style="display:none; margin-bottom:12px;">Você pode entrar de novo quando quiser.</div>
+              <button class="modal-btn cancelar" id="ajBtnEnviarTudo" style="width:100%; display:none;">Enviar tudo pra nuvem</button>
+              <div class="aj-dica" id="ajEnviarDica" style="display:none; margin-bottom:12px;">Manda o histórico deste aparelho pra sua conta. Não apaga nada — só completa o que estiver faltando lá.</div>
+              <input type="file" id="ajInputRestore" accept="application/json,.json" style="display:none;">
+              <div style="display:flex; gap:16px; justify-content:center;">
+                <button id="ajBtnBackup" class="aj-link">Baixar cópia</button>
+                <button id="ajBtnRestaurar" class="aj-link">Restaurar cópia</button>
+              </div>
+              <div class="aj-dica" style="text-align:center;">A cópia é um arquivo no seu celular. Serve pra quem não está logado.</div>
             </div>
-          </div>
+          </details>
+
+          <details class="aj-fold aj-fold-perigo">
+            <summary><span><svg class="ico"><use href="#i-lixeira"></use></svg> Apagar dados e excluir conta</span></summary>
+            <div class="aj-fold-corpo">
+              <button class="modal-btn cancelar" id="ajBtnApagar" style="width:100%; color:var(--danger); border-color:var(--danger);">Apagar tudo deste aparelho</button>
+              <div class="aj-dica">Limpa só este celular. Sua conta e seu histórico continuam salvos.</div>
+              <button class="modal-btn cancelar" id="ajBtnExcluirConta" style="width:100%; margin-top:10px; color:var(--danger); border-color:var(--danger); display:none;">Excluir minha conta</button>
+              <div class="aj-dica" id="ajExcluirDica" style="display:none;">Apaga a conta e todo o histórico, aqui e na nuvem. Não tem volta.</div>
+            </div>
+          </details>
         </div>
       </div>
 
@@ -1125,7 +1143,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=367"></script>
+    <script src="script.js?v=368"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       if ('serviceWorker' in navigator) {

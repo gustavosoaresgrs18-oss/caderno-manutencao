@@ -4044,6 +4044,12 @@ function abrirAjustes() {
   document.getElementById('ajEnviarDica').style.display    = logado ? 'block' : 'none';
   document.getElementById('ajBtnExcluirConta').style.display = logado ? 'block' : 'none';
   document.getElementById('ajExcluirDica').style.display     = logado ? 'block' : 'none';
+  // ⚠️ O "Salvar nome" ficava sempre ali, ocupando uma fileira inteira pra uma
+  // ação que o motorista faz uma vez. Agora só aparece quando o nome MUDA —
+  // e aí ele é óbvio, porque surgiu na hora em que fazia sentido.
+  document.getElementById('ajBtnSalvarNome').style.display = 'none';
+  // as seções dobradas voltam fechadas toda vez que ele reabre os Ajustes
+  document.querySelectorAll('#modalAjustes .aj-fold').forEach(function (d) { d.open = false; });
   document.getElementById('modalAjustes').style.display = 'flex';
 }
 // "Enviar tudo pra nuvem" — a subida em massa tinha trava de uma-vez-so, entao
@@ -4281,6 +4287,12 @@ function ajSelTipo(t) {
   });
 })();
 
+document.getElementById('ajNome').addEventListener('input', function () {
+  const atual = (getPerfil().nome || '').trim();
+  const novo  = this.value.trim();
+  document.getElementById('ajBtnSalvarNome').style.display =
+    (novo && novo !== atual) ? 'block' : 'none';
+});
 document.getElementById('ajBtnSalvarNome').addEventListener('click', function() {
   const nome = document.getElementById('ajNome').value.trim();
   if (!nome) { toast('Digite seu nome', 'erro'); return; }
@@ -4293,6 +4305,7 @@ document.getElementById('ajBtnSalvarNome').addEventListener('click', function() 
     hSaud.textContent = saud + ' ' + arrumarNome(nome.split(' ')[0]) + ' 👋';
   }
   toast('✅ Nome salvo!');
+  this.style.display = 'none';   // salvou: o botão some de novo
 });
 
 // ── BACKUP: baixa um JSON com TODO o localStorage ──
