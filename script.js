@@ -840,7 +840,13 @@ document.getElementById('btnEsqueciSenha').addEventListener('click', async funct
     // Sucesso NÃO usa a caixa de erro: texto verde dentro de caixa vermelha
     // se contradiz e faz parecer que deu errado.
     erro.style.display = 'none';
-    toast('📧 Enviei um e-mail para você criar uma senha nova');
+    // ⚠️ O texto era "Enviei um e-mail para você criar uma senha nova" — uma
+    // afirmação que o app NÃO tem como garantir. Por segurança, o Supabase
+    // responde "ok" mesmo quando não existe conta com aquele e-mail (senão
+    // qualquer um descobriria quem usa o app testando endereços). Resultado:
+    // quem digitava um e-mail errado ficava esperando pra sempre uma mensagem
+    // que nunca foi mandada. A forma condicional é honesta e continua segura.
+    toast('📧 Se existir conta com esse e-mail, o link já está a caminho');
   } else {
     erro.textContent = r.limite
       ? 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.'
