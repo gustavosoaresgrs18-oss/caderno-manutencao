@@ -65,6 +65,15 @@ function isoLocal(d) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 function ontemISO() { const d = new Date(); d.setDate(d.getDate() - 1); return isoLocal(d); }
+// ISO ("2026-08-23") -> exibicao ("sab, 23/08"). Usa meio-dia porque
+// new Date('2026-08-23') e lido como UTC: as 21h no Brasil isso vira o dia
+// ANTERIOR na tela. Mesmo cuidado que o hojeISO() ja tomava.
+function isoParaExibicao(iso) {
+  if (!iso) return '';
+  const d = new Date(String(iso).slice(0, 10) + 'T12:00:00');
+  if (isNaN(d)) return String(iso);
+  return d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' });
+}
 function esc(s) {
   return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
@@ -947,6 +956,7 @@ function iniciarApp(perfil) {
   aplicarVeiculoNaTela();   // header, ícone, manutenção e odômetro do veículo ATIVO
   atualizarRotulosMes();  // rótulo de mês dinâmico (corrige 'Junho 2025' chumbado)
   migrarIdsAbastecimento();  // garante id em lançamentos antigos (pra apagar/editar)
+  repararAbastecimentosRestaurados();   // conserta o que voltou da nuvem sem vid/ppl
 
   // NOVO: se tinha um turno rodando quando fechou o app, restaura o estado
   const ta = lerLS('turnoAtivo', null);
@@ -2574,7 +2584,8 @@ document.querySelector('#btnSalvarTela').addEventListener('click', function() {
       if (typeof salvarRegistroHibrido === 'function') {
         salvarRegistroHibrido('abastecimentos', {
           id: r.id, data_iso: r.dataISO, tipo: r.tipo, valor: r.valor,
-          litros: r.litros, km: r.km, cpm: r.cpm, posto: r.posto
+          litros: r.litros, km: r.km, cpm: r.cpm, posto: r.posto,
+          veiculo_id: r.vid || null
         }, 'id').catch(function () {});
       }
       refreshAposAbast();
@@ -2637,6 +2648,27 @@ document.getElementById('btnCancelarAbastecer').addEventListener('click', functi
 
 // ─── SALVAR ABASTECIMENTO ────────────────────────────────────
 function gerarIdAbast() { return 'ab' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+// Conserta abastecimentos que voltaram da nuvem antes da correção: eles vinham
+// sem `vid` (invisíveis pra TODA conta por veículo), sem `ppl` (sem selinho de
+// caro/barato e sem aviso de preço) e com `data` em ISO em vez do formato de
+// exibição. Roda a cada abertura, mas só toca no que está faltando — rodar
+// várias vezes não muda nada.
+function repararAbastecimentosRestaurados() {
+  const h = lerLS('historicoAbastecimentos', []);
+  if (!h.length) return;
+  const veics = lerVeiculos();
+  // Só carimba o veículo quando existe UM só: aí não há chute. Com 2+ veículos
+  // a nuvem antiga não sabe de qual era, e adivinhar misturaria a média de um
+  // carro com a de uma moto — o oposto do que o app existe pra fazer.
+  const vidUnico = (veics.length === 1) ? veics[0].id : null;
+  let mudou = false;
+  h.forEach(r => {
+    if (!r.vid && vidUnico)                      { r.vid = vidUnico; mudou = true; }
+    if (!r.ppl && r.valor > 0 && r.litros > 0)   { r.ppl = (r.valor / r.litros).toFixed(2); mudou = true; }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(r.data || '')) { r.data = isoParaExibicao(r.data); mudou = true; }
+  });
+  if (mudou) salvarLS('historicoAbastecimentos', h);
+}
 function migrarIdsAbastecimento() {
   const h = lerLS('historicoAbastecimentos', []);
   let mudou = false;
@@ -2661,7 +2693,8 @@ function salvarAbastecimento(tipo, valor, litros, km, cpm, posto) {
     salvarRegistroHibrido('abastecimentos', {
       id: registro.id, data_iso: registro.dataISO, tipo: registro.tipo,
       valor: registro.valor, litros: registro.litros, km: registro.km,
-      cpm: registro.cpm, posto: registro.posto
+      cpm: registro.cpm, posto: registro.posto,
+      veiculo_id: registro.vid || null   // sem isto a nuvem nao sabe de qual veiculo e
     }, 'id').catch(function () {});
   }
   refreshAposAbast();

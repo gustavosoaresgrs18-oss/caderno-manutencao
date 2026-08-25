@@ -466,7 +466,8 @@ async function migrarMotoristaAntigo(userId) {
         litros:      a.litros || null,
         km:          a.km     || null,
         cpm:         a.cpm    || null,
-        posto:       a.posto  || null
+        posto:       a.posto  || null,
+        veiculo_id:  a.vid    || null
       }, { onConflict: 'id' });
       if (error) erros.push('abast ' + a.id + ': ' + error.message);
     }
@@ -614,14 +615,33 @@ async function restaurarDoSupabase(userId) {
     const { data: abs } = await sb.from('abastecimentos').select('*').eq('usuario_id', userId);
     if (abs && abs.length) {
       achouAlgo = true;
-      salvarLS('historicoAbastecimentos', abs.map(a => ({
-        id: a.id, data: a.data_iso, dataISO: a.data_iso,
-        tipo: a.tipo || 'Gasolina', valor: a.valor || 0,
-        litros: a.litros != null ? a.litros : null,
-        km: a.km != null ? a.km : null,
-        cpm: a.cpm != null ? a.cpm : null,
-        posto: a.posto || null
-      })));
+      // ⚠️ CORREÇÃO: o que voltava da nuvem vinha SEM `vid` (nenhum veículo),
+      // SEM `ppl` (preço por litro) e com `data` em formato ISO em vez do
+      // formato de exibição. Consequência silenciosa: todo cálculo por veículo
+      // (custo real por km, bloco "por tipo", detector de km furado, selinho de
+      // caro/barato, aviso de preço no posto) enxergava ZERO registros — o
+      // motorista via 6 abastecimentos no extrato e "aprendendo · 0
+      // abastecimentos" no Início, com o detector de erro desligado.
+      // ppl e data são recalculados aqui; o vid vem da coluna veiculo_id, e
+      // quem for antigo (NULL) é carimbado com o veículo ativo.
+      const vidFallback = (typeof vidAtivo === 'function' ? vidAtivo() : null);
+      const paraExibicao = (typeof isoParaExibicao === 'function')
+        ? isoParaExibicao
+        : function (iso) { return iso; };
+      salvarLS('historicoAbastecimentos', abs.map(a => {
+        const valor  = a.valor || 0;
+        const litros = a.litros != null ? a.litros : null;
+        return {
+          id: a.id, data: paraExibicao(a.data_iso), dataISO: a.data_iso,
+          vid: a.veiculo_id || vidFallback || null,
+          tipo: a.tipo || 'Gasolina', valor: valor,
+          litros: litros,
+          km: a.km != null ? a.km : null,
+          cpm: a.cpm != null ? a.cpm : null,
+          ppl: (valor && litros) ? (valor / litros).toFixed(2) : null,
+          posto: a.posto || null
+        };
+      }));
     }
 
     // 5. DOCUMENTOS
