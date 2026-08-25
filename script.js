@@ -65,6 +65,13 @@ function isoLocal(d) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 function ontemISO() { const d = new Date(); d.setDate(d.getDate() - 1); return isoLocal(d); }
+// dia anterior a uma data ISO qualquer (o ontemISO() só sabe olhar pra hoje)
+function diaAnteriorISO(iso) {
+  const d = new Date(String(iso).slice(0, 10) + 'T12:00:00');
+  if (isNaN(d)) return ontemISO();
+  d.setDate(d.getDate() - 1);
+  return isoLocal(d);
+}
 // ISO ("2026-08-23") -> exibicao ("sab, 23/08"). Usa meio-dia porque
 // new Date('2026-08-23') e lido como UTC: as 21h no Brasil isso vira o dia
 // ANTERIOR na tela. Mesmo cuidado que o hojeISO() ja tomava.
@@ -434,6 +441,22 @@ function registrosHojeFin() {
 function lucroHojeVal()   { return registrosHojeFin().reduce((s, r) => s + r.lucro, 0); }
 function horasHojeVal()   { const h = lerLS('horasPorDia', {}); return h[hojeISO()] || 0; }
 
+// ─── DE QUE DIA É ESTE FECHAMENTO ────────────────────────────
+// ⚠️ Tudo no fecha-turno era carimbado com hojeISO() — o dia do RELÓGIO na hora
+// de encerrar. Quem começa 23:58 e fecha 00:20 tinha o turno inteiro lançado no
+// dia seguinte: o dia trabalhado ficava sem registro nenhum, o streak zerava
+// sem o motorista ter falhado, e a reserva e as horas iam pro dia errado.
+// Motorista de app roda de madrugada — isso não é caso raro.
+// Agora o turno pertence ao dia em que COMEÇOU. Sem turno aberto (situação de
+// borda), cai no dia de hoje, como era antes.
+function diaDoTurno() {
+  const ta = lerLS('turnoAtivo', null);
+  if (ta && ta.inicio) {
+    const d = new Date(ta.inicio);
+    if (!isNaN(d)) return isoLocal(d);
+  }
+  return hojeISO();
+}
 // streak zera se o motorista pulou mais de 1 dia (regra: streak zera, o resto não)
 function verificarStreak() {
   const ultimo = localStorage.getItem('streakUltimoDia');
@@ -1579,14 +1602,17 @@ function atualizarReserva() {
 }
 
 // NOVO: separa a reserva do dia (uma vez por dia) ao finalizar o turno
-function guardarReservaDoDia() {
+// `dia` = o dia a que o fechamento pertence (ver diaDoTurno). Sem argumento,
+// vale hoje — é assim que os outros pontos do app chamam.
+function guardarReservaDoDia(dia) {
+  const alvo = dia || hojeISO();
   const perfil = getPerfil();
   const ultimoDia = localStorage.getItem('reservaUltimoDia');
-  if (ultimoDia === hojeISO()) return;               // já guardou hoje
+  if (ultimoDia === alvo) return;                    // já guardou nesse dia
   const atual = Number(localStorage.getItem('reservaAcumulada')) || 0;
   salvarLS('reservaAcumulada', atual + (perfil.reservaDia || 20));
   sincronizarPerfil();
-  salvarLS('reservaUltimoDia', hojeISO());
+  salvarLS('reservaUltimoDia', alvo);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -2426,7 +2452,9 @@ function diasDesdeUltimoRegistro() {
   const base = (rh && rh.data) ? rh : ra;                 // o registro que serve de régua
   if (!base || !base.data) return 1;
   const d1 = new Date(String(base.data).slice(0, 10) + 'T12:00:00');
-  const d2 = new Date(hojeISO() + 'T12:00:00');
+  // compara com o DIA DO TURNO: fechando 00:20, o turno é da véspera, então
+  // o vão é contado a partir dela — senão acusaria um dia a mais.
+  const d2 = new Date(diaDoTurno() + 'T12:00:00');
   if (isNaN(d1) || isNaN(d2)) return 1;
   const dias = Math.round((d2 - d1) / 86400000);
   return dias > 0 ? dias : 1;
@@ -2437,7 +2465,9 @@ function aplicarKmEFecharTurno(valor) {
   // diferentes pro mesmo dia). Era o ÚNICO lugar do app que não usava
   // hojeISO(). Se o motorista mudasse o idioma do celular entre dois
   // fechamentos, a comparação de "mesmo dia" quebrava silenciosamente.
-  const hoje    = hojeISO();
+  // `hoje` aqui é o DIA DO TURNO, não o do relógio: turno que vira a meia-noite
+  // pertence ao dia em que começou. Ver diaDoTurno().
+  const hoje    = diaDoTurno();
   const vidUsar = vidAtivo();
   const registroAtual = lerLS('registroHoje', null);
   const _diasDoFechamento = diasDesdeUltimoRegistro();   // ANTES de sobrescrever o registroHoje
@@ -2463,7 +2493,7 @@ function aplicarKmEFecharTurno(valor) {
     // `dias` = quantos dias esse km cobre. 1 é o normal. Mais que isso quer
     // dizer que ele ficou sem registrar e esse número NÃO é de um dia só —
     // quem consome média por dia precisa saber disso pra não se enganar.
-    mapa[hojeISO()] = { km: kmD, vid: vidUsar, dias: _diasDoFechamento || 1 };
+    mapa[hoje] = { km: kmD, vid: vidUsar, dias: _diasDoFechamento || 1 };
     salvarLS('kmPorDia', mapa);
   }
 
@@ -2475,14 +2505,14 @@ function aplicarKmEFecharTurno(valor) {
     if (horas > 16) horas = 16;
     if (horas >= 0.1) {
       const hp = lerLS('horasPorDia', {});
-      hp[hojeISO()] = (hp[hojeISO()] || 0) + horas;
+      hp[hoje] = (hp[hoje] || 0) + horas;
       salvarLS('horasPorDia', hp);
     }
     localStorage.removeItem('turnoAtivo');
   }
   esconderTurnoLive();
-  ptsHook('turno', 'tur:' + hojeISO());
-  guardarReservaDoDia();
+  ptsHook('turno', 'tur:' + hoje);
+  guardarReservaDoDia(hoje);
 
   atualizarTodosAlertas();
   atualizarTelaManutencao();
@@ -2493,11 +2523,12 @@ function aplicarKmEFecharTurno(valor) {
 
   // streak: conta 1 vez por dia; se pulou mais de 1 dia, a sequência recomeça do 1
   const ultimoDiaStreak = localStorage.getItem('streakUltimoDia');
-  if (ultimoDiaStreak !== hojeISO()) {
-    streak = (ultimoDiaStreak === ontemISO()) ? streak + 1 : 1;
+  if (ultimoDiaStreak !== hoje) {
+    // "ontem" em relação ao DIA DO TURNO, não ao relógio de agora.
+    streak = (ultimoDiaStreak === diaAnteriorISO(hoje)) ? streak + 1 : 1;
     salvarLS('streak', streak);
     sincronizarPerfil();
-    salvarLS('streakUltimoDia', hojeISO());
+    salvarLS('streakUltimoDia', hoje);
   }
   streakDisplay.textContent = '🔥 ' + streak;
   modal.style.display = 'none';
