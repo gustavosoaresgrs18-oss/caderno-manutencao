@@ -1655,7 +1655,7 @@ function atualizarCustoRealKm() {
   const botaoCorrigir =
       '<br><button onclick="event.stopPropagation();irCorrigirAbastecimento()" ' +
       'style="margin-top:7px;background:rgba(255,176,32,.14);border:1px solid rgba(255,176,32,.45);' +
-      'color:var(--signal);font-family:inherit;font-size:11.5px;font-weight:700;padding:6px 14px;' +
+      'color:var(--signal);font-family:inherit;font-size:var(--f1);font-weight:700;padding:6px 14px;' +
       'border-radius:16px;cursor:pointer;">Corrigir agora ' + ico('seta-dir') + '</button>';
 
   if (suspeito) {
@@ -1679,7 +1679,7 @@ function atualizarCustoRealKm() {
           ? 'sem o de ' + identificaAbast(_f.reg) + ' (km errado)'
           : 'sem ' + nFurados + ' abastecimentos de km errado';
         custoRealSub.innerHTML = esc(contaOk) +
-          '<br><span style="color:var(--faint);font-size:11px;">' + esc(quais) +
+          '<br><span style="color:var(--faint);font-size:var(--f1);">' + esc(quais) +
           '</span>' + botaoCorrigir;
       } else {
         custoRealSub.textContent = contaOk;
@@ -3183,7 +3183,7 @@ function atualizarTelaCombustivel() {
   if (cmSuspeito || nFuradosMes > 0) {
     _elSub.innerHTML = subCm + '<br><button onclick="event.stopPropagation();irCorrigirAbastecimento()" ' +
       'style="margin-top:7px;background:rgba(255,176,32,.14);border:1px solid rgba(255,176,32,.45);' +
-      'color:var(--signal);font-family:inherit;font-size:11.5px;font-weight:700;padding:6px 14px;' +
+      'color:var(--signal);font-family:inherit;font-size:var(--f1);font-weight:700;padding:6px 14px;' +
       'border-radius:16px;cursor:pointer;">Corrigir agora ' + ico('seta-dir') + '</button>';
   } else { _elSub.textContent = subCm; }
 }
@@ -3443,7 +3443,7 @@ function renderPorTipo(registros) {
     const melhor = comCpk[0], pior = comCpk[comCpk.length - 1];
     const diff   = Math.round(((pior.cpk - melhor.cpk) / pior.cpk) * 100);
     const nota = temFurado
-      ? '<br><span style="font-size:11px;color:var(--faint)">Deixei de fora um abastecimento com o km errado — corrija pra conta ficar completa.</span>'
+      ? '<br><span style="font-size:var(--f1);color:var(--faint)">Deixei de fora um abastecimento com o km errado — corrija pra conta ficar completa.</span>'
       : '';
     // Porcentagem sozinha e abstrata: o motorista pensa em DINHEIRO. Mostra
     // a diferenca por km E quanto isso daria nos km que ele ja rodou no periodo.
@@ -3542,15 +3542,15 @@ function imprimirPDF(titulo, subtitulo, resumoLinhas, tabelaHeader, tabelaLinhas
     <style>
       *{font-family:Arial,Helvetica,sans-serif;color:#111}
       body{padding:28px;max-width:720px;margin:auto}
-      h1{font-size:20px;margin:0} .sub{color:#666;font-size:13px;margin:2px 0 18px}
-      .who{font-size:12px;color:#888;margin-bottom:18px}
+      h1{font-size:var(--f5);margin:0} .sub{color:#666;font-size:var(--f3);margin:2px 0 18px}
+      .who{font-size:var(--f2);color:#888;margin-bottom:18px}
       .resumo{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
-      .rz{display:flex;justify-content:space-between;border:1px solid #ddd;border-radius:8px;padding:9px 12px;font-size:13px}
+      .rz{display:flex;justify-content:space-between;border:1px solid #ddd;border-radius:8px;padding:9px 12px;font-size:var(--f3)}
       .rz b{color:#000}
-      table{width:100%;border-collapse:collapse;font-size:12px}
+      table{width:100%;border-collapse:collapse;font-size:var(--f2)}
       th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #eee}
-      th{background:#f5f5f5;font-size:11px;text-transform:uppercase;color:#555}
-      .foot{margin-top:24px;font-size:10px;color:#aaa;text-align:center}
+      th{background:#f5f5f5;font-size:var(--f1);text-transform:uppercase;color:#555}
+      .foot{margin-top:24px;font-size:var(--f1);color:#aaa;text-align:center}
     </style></head><body>
     <h1>${titulo}</h1><div class="sub">${subtitulo}</div>
     <div class="who">${perfil.nome || ''} · ${perfil.modelo || ''}${perfil.placa ? ' · ' + perfil.placa : ''}</div>

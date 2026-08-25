@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=369">
+    <link rel="stylesheet" href="style.css?v=370">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=369"></script>
+    <script src="supabase-service.js?v=370"></script>
   </head>
   <body>
 
@@ -125,7 +125,7 @@
           <div class="cad-step" id="cadStep2">
             <div class="cad-step-title">Seu veículo</div>
             <div class="cad-step-sub">Moto ou carro — cada um tem sua manutenção</div>
-            <div style="font-size:11px;color:var(--dim);margin-bottom:8px">Tipo de veículo</div>
+            <div style="font-size:var(--f1);color:var(--dim);margin-bottom:8px">Tipo de veículo</div>
             <div class="veiculo-grid">
               <div class="veiculo-btn on" id="btnMoto" onclick="selecionarVeiculo('moto')"><div class="veiculo-icon"><svg class="ico"><use href="#i-moto"></use></svg></div><div class="veiculo-label">Moto</div></div>
               <div class="veiculo-btn" id="btnCarro" onclick="selecionarVeiculo('carro')"><div class="veiculo-icon"><svg class="ico"><use href="#i-carro"></use></svg></div><div class="veiculo-label">Carro</div></div>
@@ -258,7 +258,7 @@
         <div class="card clicavel doc-wide" id="cardDocumento" onclick="irParaDocumentos()">
           <div class="dw-flex">
             <span class="card-label" id="cardDocLabel">Documentos</span>
-            <span class="card-valor amarelo num" id="cardDocValor" style="font-size:16px;">—</span>
+            <span class="card-valor amarelo num" id="cardDocValor" style="font-size:var(--f4);">—</span>
           </div>
           <span class="card-sub" id="cardDocSub"></span>
         </div>
@@ -383,8 +383,8 @@
           <div class="comb-field destaque-km">
             <label>Km desde o último abastecimento <span style="color:var(--dim);font-weight:400;">(opcional)</span></label>
             <input type="text" inputmode="numeric" id="inputKmTela" placeholder="Ex: 320" oninput="calcCustoPorKmTela()">
-            <div id="dicaKmTurno" style="display:none;font-size:11.5px;color:var(--money);margin-top:5px;">Já preenchi com o km que você acabou de rodar. Ajuste se precisar.</div>
-            <div id="dicaKmNormal" style="font-size:11.5px;color:var(--dim);margin-top:5px;">Se souber, eu calculo o rendimento desse tanque. Pode deixar em branco.</div>
+            <div id="dicaKmTurno" style="display:none;font-size:var(--f1);color:var(--money);margin-top:5px;">Já preenchi com o km que você acabou de rodar. Ajuste se precisar.</div>
+            <div id="dicaKmNormal" style="font-size:var(--f1);color:var(--dim);margin-top:5px;">Se souber, eu calculo o rendimento desse tanque. Pode deixar em branco.</div>
           </div>
           <div class="linha-dupla">
             <div class="comb-field"><label>Litros <span style="color:var(--faint)">· opcional</span></label><input type="text" inputmode="decimal" id="inputLitrosTela" placeholder="Ex: 7,5" oninput="calcCustoPorKmTela()"></div>
@@ -420,7 +420,7 @@
           <div class="ext-stat"><div class="ext-stat-label">Preço médio/L</div><div class="ext-stat-val num" id="extPreco">—</div></div>
           <div class="ext-stat"><div class="ext-stat-label">Combustível / km</div><div class="ext-stat-val verde num" id="extCpk">—</div></div>
         </div>
-        <div id="extCpkAviso" style="display:none;font-size:11.5px;color:var(--signal);background:rgba(255,176,32,.1);border:1px solid rgba(255,176,32,.35);border-radius:9px;padding:8px 11px;margin-bottom:12px;line-height:1.45;"></div>
+        <div id="extCpkAviso" style="display:none;font-size:var(--f1);color:var(--signal);background:rgba(255,176,32,.1);border:1px solid rgba(255,176,32,.35);border-radius:9px;padding:8px 11px;margin-bottom:12px;line-height:1.45;"></div>
         <div class="ext-export">
           <button class="ext-exp-btn" id="extCombPDF"><svg class="ico"><use href="#i-impressora"></use></svg> Exportar PDF</button>
           <button class="ext-exp-btn" id="extCombCSV"><svg class="ico"><use href="#i-grafico"></use></svg> Exportar CSV</button>
@@ -506,8 +506,8 @@
       <div class="modal-overlay" id="modalAjudaComp">
         <div class="modal-caixa">
           <h2 class="modal-titulo"><svg class="ico"><use href="#i-grafico"></use></svg> Hoje vs. seu normal</h2>
-          <p style="font-size:13.5px;color:var(--dim);line-height:1.6;">Compara o lucro que você fez hoje com sua <b style="color:var(--text)">média dos últimos 30 dias em que você rodou</b>. Serve pra saber, num piscar de olhos, se hoje foi um dia acima ou abaixo do seu normal.</p>
-          <p style="font-size:12px;color:var(--faint);line-height:1.5;margin-top:12px;">Só aparece depois de 5 dias registrados. Antes disso, ainda tô aprendendo o seu ritmo.</p>
+          <p style="font-size:var(--f3);color:var(--dim);line-height:1.6;">Compara o lucro que você fez hoje com sua <b style="color:var(--text)">média dos últimos 30 dias em que você rodou</b>. Serve pra saber, num piscar de olhos, se hoje foi um dia acima ou abaixo do seu normal.</p>
+          <p style="font-size:var(--f2);color:var(--faint);line-height:1.5;margin-top:12px;">Só aparece depois de 5 dias registrados. Antes disso, ainda tô aprendendo o seu ritmo.</p>
           <div class="modal-botoes" style="margin-top:16px;"><button class="modal-btn confirmar" id="btnFecharAjudaComp" style="flex:1;">Entendi</button></div>
         </div>
       </div>
@@ -680,7 +680,7 @@
             <button class="modal-btn cancelar" id="btnCancelarLogin">Agora não</button>
             <button class="modal-btn confirmar" id="btnConfirmarLogin">Entrar</button>
           </div>
-          <button id="btnEsqueciSenha" style="width:100%;margin-top:10px;background:none;border:none;color:var(--dim);font-size:13px;text-decoration:underline;cursor:pointer;">Esqueci minha senha</button>
+          <button id="btnEsqueciSenha" style="width:100%;margin-top:10px;background:none;border:none;color:var(--dim);font-size:var(--f3);text-decoration:underline;cursor:pointer;">Esqueci minha senha</button>
         </div>
       </div>
 
@@ -796,12 +796,12 @@
       <div class="modal-overlay" id="modalReceita">
         <div class="modal-caixa">
           <h2 class="modal-titulo" id="modalReceitaTitulo"><svg class="ico"><use href="#i-dinheiro"></use></svg> Receita do dia</h2>
-          <div style="font-size:11px;color:var(--dim);margin-bottom:8px">O valor que você vai digitar é:</div>
+          <div style="font-size:var(--f1);color:var(--dim);margin-bottom:8px">O valor que você vai digitar é:</div>
           <div class="tipo-grid tipo-grid-2" style="margin-bottom:14px;">
             <div class="tipo-btn" id="tipoBruto" onclick="selecionarTipoReceita('bruto')">Valor bruto</div>
             <div class="tipo-btn ativo" id="tipoLiquido" onclick="selecionarTipoReceita('liquido')">Já recebi líquido</div>
           </div>
-          <div style="font-size:10px;color:var(--dim);margin-bottom:12px" id="receitaDica">Esse é o valor certo — o que caiu na sua conta.</div>
+          <div style="font-size:var(--f1);color:var(--dim);margin-bottom:12px" id="receitaDica">Esse é o valor certo — o que caiu na sua conta.</div>
           <div class="comb-field"><label>Quanto você recebeu hoje? (R$)</label><input type="text" inputmode="decimal" id="inputReceita" placeholder="Ex: 312,00" class="modal-input" oninput="calcPreviewReceita()"></div>
           <div class="comb-field" id="campoTaxa" style="display:none;"><label>Taxa da sua plataforma (%) <span style="color:var(--faint)">· só na primeira vez</span></label><input type="text" inputmode="decimal" id="inputTaxaPct" placeholder="Ex: 25" oninput="calcPreviewReceita()"></div>
           <div class="fin-preview">
@@ -819,7 +819,7 @@
       <div class="modal-overlay" id="modalDoc">
         <div class="modal-caixa">
           <h2 class="modal-titulo" id="modalDocTitulo"><svg class="ico"><use href="#i-doc"></use></svg> Documento</h2>
-          <div class="comb-field"><label>Data de vencimento</label><input type="date" id="inputDocVencimento" class="modal-input" style="font-size:14px;text-align:left;"></div>
+          <div class="comb-field"><label>Data de vencimento</label><input type="date" id="inputDocVencimento" class="modal-input" style="font-size:var(--f3);text-align:left;"></div>
           <button class="btn-sugerir-data" id="btnSugerirData" type="button" style="display:none;"><svg class="ico"><use href="#i-calendario"></use></svg> Renovou? Adiantar 1 ano</button>
           <div class="comb-field"><label>Observações <span style="color:var(--faint)">· opcional</span></label><input type="text" id="inputDocObs" placeholder="Ex: Renovar na DETRAN"></div>
           <div class="modal-botoes"><button class="modal-btn cancelar" id="btnCancelarDoc">Cancelar</button><button class="modal-btn confirmar" id="btnSalvarDoc"><svg class="ico"><use href="#i-check"></use></svg> Salvar</button></div>
@@ -831,7 +831,7 @@
         <div class="modal-caixa">
           <h2 class="modal-titulo"><svg class="ico"><use href="#i-prancheta"></use></svg> Novo documento</h2>
           <div class="comb-field"><label>Nome do documento</label><input type="text" id="inputNovoDocNome" placeholder="Ex: Alvará MEI, Seguro vida..."></div>
-          <div class="comb-field"><label>Data de vencimento</label><input type="date" id="inputNovoDocVenc" class="modal-input" style="font-size:14px;text-align:left;"></div>
+          <div class="comb-field"><label>Data de vencimento</label><input type="date" id="inputNovoDocVenc" class="modal-input" style="font-size:var(--f3);text-align:left;"></div>
           <div class="comb-field"><label>Observações <span style="color:var(--faint)">· opcional</span></label><input type="text" id="inputNovoDocObs" placeholder="Ex: Renovar online"></div>
           <div class="modal-botoes"><button class="modal-btn cancelar" id="btnCancelarNovoDoc">Cancelar</button><button class="modal-btn confirmar" id="btnSalvarNovoDoc"><svg class="ico"><use href="#i-check"></use></svg> Salvar</button></div>
         </div>
@@ -964,17 +964,17 @@
       <div class="modal-overlay" id="modalPatente">
         <div class="modal-caixa">
           <div style="text-align:center;">
-            <div style="font-size:11px;letter-spacing:.08em;color:#c9a8ff;font-weight:800;margin-bottom:8px;" id="modPatNivel">NÍVEL 1 · PATENTE 1 DE 15</div>
+            <div style="font-size:var(--f1);letter-spacing:.08em;color:#c9a8ff;font-weight:800;margin-bottom:8px;" id="modPatNivel">NÍVEL 1 · PATENTE 1 DE 15</div>
             <div class="crm-modal-palco crm-vivo" id="modPatCaramelo"></div>
             <div class="crm-modal-fase" id="modPatFase">Filhote · fase 1 de 5</div>
-            <div style="font-size:22px;font-weight:800;color:var(--text);margin-top:8px;" id="modPatNome">Pé de Chumbo</div>
-            <div class="crm-modal-pedra"><span id="modPatPedra"></span><span style="font-size:11px;color:var(--dim);letter-spacing:.05em;text-transform:uppercase;font-weight:700;" id="modPatPedraNome">Rubi</span></div>
+            <div style="font-size:var(--f6);font-weight:800;color:var(--text);margin-top:8px;" id="modPatNome">Pé de Chumbo</div>
+            <div class="crm-modal-pedra"><span id="modPatPedra"></span><span style="font-size:var(--f1);color:var(--dim);letter-spacing:.05em;text-transform:uppercase;font-weight:700;" id="modPatPedraNome">Rubi</span></div>
           </div>
           <div style="margin:16px 0;">
             <div class="pat-barra"><span id="modPatBarra" style="width:0%"></span></div>
             <div class="pat-prox" id="modPatProx" style="text-align:center;margin-top:6px;">próxima: —</div>
           </div>
-          <div style="font-size:10.5px;color:var(--faint);letter-spacing:.06em;text-transform:uppercase;font-weight:700;margin-bottom:8px;">Sua coleção de pedras</div>
+          <div style="font-size:var(--f1);color:var(--faint);letter-spacing:.06em;text-transform:uppercase;font-weight:700;margin-bottom:8px;">Sua coleção de pedras</div>
           <div class="pat-colecao" id="modPatColecao" style="border:none;padding:0;"></div>
           <div class="modal-botoes" style="margin-top:16px;">
             <button class="modal-btn cancelar" id="btnFecharModPat">Fechar</button>
@@ -1022,7 +1022,7 @@
       <div class="modal-overlay" id="modalManualPat">
         <div class="modal-caixa" style="max-height:82vh;overflow-y:auto;">
           <h2 class="modal-titulo" style="text-align:center;"><svg class="ico"><use href="#i-bandeira"></use></svg> Sua jornada de patentes</h2>
-          <div style="text-align:center;font-size:12px;color:var(--dim);margin-bottom:16px;">Sobe fazendo ações no app · nunca cai</div>
+          <div style="text-align:center;font-size:var(--f2);color:var(--dim);margin-bottom:16px;">Sobe fazendo ações no app · nunca cai</div>
           <div id="manualLista"></div>
           <button class="modal-btn confirmar" id="btnFecharManual" style="width:100%;margin-top:14px;">Fechar</button>
         </div>
@@ -1032,7 +1032,7 @@
       <div class="modal-overlay" id="modalAjudaCard">
         <div class="modal-caixa">
           <h2 class="modal-titulo" id="ajudaCardTitulo">—</h2>
-          <p style="font-size:13.5px;color:#d7dee6;line-height:1.65;" id="ajudaCardTexto">—</p>
+          <p style="font-size:var(--f3);color:#d7dee6;line-height:1.65;" id="ajudaCardTexto">—</p>
           <div class="ajuda-exemplo" id="ajudaCardExemplo" style="display:none;"></div>
           <div class="modal-botoes" style="margin-top:16px;"><button class="modal-btn confirmar" id="btnFecharAjudaCard" style="flex:1;">Entendi</button></div>
         </div>
@@ -1055,7 +1055,7 @@
         <div class="modal-caixa" style="text-align:left; max-height:85vh; overflow-y:auto;">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
             <h2 class="modal-titulo" style="margin:0;"><svg class="ico"><use href="#i-engrenagem"></use></svg> Ajustes</h2>
-            <span class="ajuda-x" onclick="fecharAjustes()" style="cursor:pointer; font-size:20px; line-height:1;"><svg class="ico"><use href="#i-x"></use></svg></span>
+            <span class="ajuda-x" onclick="fecharAjustes()" style="cursor:pointer; font-size:var(--f5); line-height:1;"><svg class="ico"><use href="#i-x"></use></svg></span>
           </div>
 
           <div class="aj-sec">
@@ -1081,7 +1081,7 @@
               <label class="aj-label" for="ajVeicKm" style="margin-top:8px;">Km do painel agora (opcional)</label>
               <input type="text" inputmode="numeric" id="ajVeicKm" class="aj-input" placeholder="Ex: 42000" autocomplete="off">
               <div class="aj-dica">O km deixa o primeiro dia nesse veículo já sair certinho. Pode pular se não souber.</div>
-              <div id="ajAddVeicErro" style="display:none; color:var(--danger); font-size:12px; margin-top:6px;"></div>
+              <div id="ajAddVeicErro" style="display:none; color:var(--danger); font-size:var(--f2); margin-top:6px;"></div>
               <div style="display:flex; gap:8px; margin-top:10px;">
                 <button class="modal-btn cancelar" id="ajAddVeicCancelar" style="flex:1;">Cancelar</button>
                 <button class="modal-btn confirmar" id="ajAddVeicSalvar" style="flex:1;">Salvar</button>
@@ -1143,7 +1143,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=369"></script>
+    <script src="script.js?v=370"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       if ('serviceWorker' in navigator) {
