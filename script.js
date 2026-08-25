@@ -4975,19 +4975,25 @@ function calcSimulador() {
     <div class="sim-linha"><span class="ajuda-clic" onclick="abrirAjudaCard('ritmo')">${ico('grafico')} Seu ritmo real <span class="int">ⓘ</span></span><span>${fmtBRL0(phReal)}/h (${phAmostras.length} dias)</span></div>
     <div class="sim-linha"><span>${ico('alvo')} No seu ritmo, ${horas}h rendem</span><span style="color:${rende >= meta ? 'var(--money)' : 'var(--signal)'}">~${fmtBRL0(rende)}</span></div>`;
   } else {
-    vd.innerHTML = dot('amarelo') + ' Ainda aprendendo seu ritmo';
-    vd.style.color = 'var(--signal)';
-    linhaRitmo = `
-    <div class="sim-linha"><span class="ajuda-clic" onclick="abrirAjudaCard('ritmo')">${ico('grafico')} Seu ritmo real <span class="int">ⓘ</span></span><span>use o "Bora rodar" + registre receitas</span></div>`;
+    // ⚠️ Aqui saía um SEGUNDO aviso amarelo ("Ainda aprendendo seu ritmo") logo
+    // abaixo do aviso amarelo do topo, que já explica exatamente isso — e a
+    // linha "Seu ritmo real: use o Bora rodar + registre receitas" repetia pela
+    // TERCEIRA vez a mesma instrução, espremida em duas linhas quebradas.
+    // Falar três vezes não convence mais; só faz o motorista parar de ler.
+    // Sem ritmo, este bloco entrega só o que ele veio buscar: quanto precisa
+    // render. O porquê da falta fica no aviso de cima, uma vez só.
+    vd.style.display = 'none';
+    linhaRitmo = '';
   }
+  if (temRitmo) vd.style.display = '';
 
   document.getElementById('simLinhas').innerHTML = `
     <div class="sim-linha sim-linha-forte"><span>${ico('relogio')} Precisa render</span><span>${fmtBRL(phNecessario)}/h</span></div>${linhaRitmo}
     <details class="sim-detalhes">
       <summary>ver a conta completa ›</summary>
       <div class="sim-linha"><span>${ico('dinheiro')} Receita bruta necessária</span><span>${fmtBRL(receita)}</span></div>
-      <div class="sim-linha"><span>${ico('bomba')} Deve gastar de combustível</span><span>~${fmtBRL0(combEst)} (uns ${kmEst} km)</span></div>
-      <div class="sim-linha"><span>${ico('bomba')} Conta feita com o litro a</span><span>${fmtBRL(precoComb)}${comLitros.length > 0 ? ' (seu último posto)' : ' (média — registre um abastecimento!)'}</span></div>
+      <div class="sim-linha"><span>${ico('bomba')} Combustível estimado</span><span>~${fmtBRL0(combEst)} · ${kmEst} km</span></div>
+      <div class="sim-linha"><span>${ico('bomba')} Litro a</span><span>${fmtBRL(precoComb)}${comLitros.length > 0 ? ' · seu último posto' : ' · média (registre um abastecimento)'}</span></div>
     </details>`;
   const avisoEl = document.getElementById('simAviso');
   if (aviso) { avisoEl.textContent = aviso; avisoEl.style.display = 'block'; } else { avisoEl.style.display = 'none'; }
