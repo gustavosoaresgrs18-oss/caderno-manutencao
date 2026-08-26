@@ -1241,3 +1241,35 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .aj-fold > summary:active{ background:var(--elev2); border-radius:12px; }
 .aj-fold-corpo{ padding:2px 11px 11px; }
 .aj-fold-perigo > summary{ color:var(--danger); opacity:.85; }
+
+/* ══════════ RELATÓRIO DO MÊS — a carta do Isaac ══════════
+   Tipografia de CARTA, não de painel: linha alta, largura confortável,
+   texto corrido. Se virar grade de números, vira o Drivvo. */
+.mes-caixa{ max-height:88vh; overflow-y:auto; text-align:left; }
+.mes-topo{ display:flex; align-items:center; justify-content:space-between;
+  gap:10px; margin-bottom:14px; text-align:center; }
+.mes-titulo{ font-size:var(--f5); font-weight:800; color:var(--text);
+  text-transform:capitalize; line-height:1.2; }
+.mes-sub{ font-size:var(--f1); color:var(--faint); margin-top:2px; }
+.mes-nav{ background:var(--elev2); border:1px solid var(--line); border-radius:50%;
+  width:34px; height:34px; color:var(--dim); cursor:pointer; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; }
+.mes-nav:disabled{ opacity:.3; cursor:default; }
+.mes-nav:active:not(:disabled){ transform:scale(.92); }
+
+.mes-carta{ font-size:var(--f3); line-height:1.75; color:var(--dim);
+  background:var(--elev); border:1px solid var(--line); border-radius:14px;
+  padding:16px 15px; }
+.mes-carta b{ color:var(--text); }
+.mes-vazio{ font-size:var(--f2); color:var(--faint); text-align:center;
+  padding:26px 10px; line-height:1.6; }
+
+/* o gancho do premium: presente, mas sem gritar. Ele fica DEPOIS de tudo
+   que é grátis — cobrar antes de entregar é o que a categoria odeia. */
+.mes-lupa{ margin-top:12px; border:1px dashed rgba(155,107,255,.45);
+  background:rgba(155,107,255,.07); border-radius:14px; padding:13px 14px; }
+.mes-lupa-tit{ font-size:var(--f2); font-weight:800; color:var(--purple); margin-bottom:5px; }
+.mes-lupa-txt{ font-size:var(--f1); color:var(--dim); line-height:1.6; }
+
+.mes-selo{ font-size:var(--f1); font-weight:800; background:var(--money);
+  color:#04120c; border-radius:20px; padding:2px 9px; margin-left:6px; }

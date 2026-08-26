@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=373">
+    <link rel="stylesheet" href="style.css?v=376">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=373"></script>
+    <script src="supabase-service.js?v=376"></script>
   </head>
   <body>
 
@@ -566,6 +566,14 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>
           Compartilhar meu fechamento
         </button>
+        <!-- ⚠️ O relatório do mês fica DEPOIS do fechamento do dia, de propósito:
+             o hábito que sustenta o app é o diário. O mensal é o evento que
+             recompensa quem manteve o hábito, não o que substitui ele. -->
+        <button class="cade-share" id="cadeMesBtn" style="display:none;" onclick="abrirRelatorioMes()">
+          <svg class="ico"><use href="#i-calendario"></use></svg>
+          <span id="cadeMesLabel">Ver o fechamento do mês</span>
+          <span class="mes-selo" id="cadeMesSelo" style="display:none;">novo</span>
+        </button>
         <div class="cade-dica">Registre sua receita do dia pra eu fechar a conta completa.</div>
       </div>
 
@@ -614,6 +622,39 @@
         <button class="nav-item" id="navDocumentos"><span class="nav-badge" id="navDocsBadge" style="display:none;">1</span><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v4h4"/><path d="M9 13h6M9 17h6"/></svg><span>Docs</span></button>
         <button class="nav-item" id="navCade"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 2.6 C4.5 6 4.7 8.4 4.9 10 C4.6 14 6.6 17.4 12 20.8 C17.4 17.4 19.4 14 19.1 10 C19.3 8.4 19.5 6 19.8 2.6 L15.4 7 L8.6 7 Z"/><path d="M9.2 11.4 L10.7 11.4"/><path d="M13.3 11.4 L14.8 11.4"/><path d="M10.6 15.2 L12 16.4 L13.4 15.2"/><path d="M12 16.4 L12 18"/></svg><span id="navCadeLabel">Isaac</span></button>
       </nav>
+
+      <!-- ══════════ RELATÓRIO DO MÊS — a carta do Isaac ══════════
+           Não é painel de propósito. Painel de números o Drivvo já faz há anos
+           com 2 milhões de usuários; competir ali é perder. O que eles não têm
+           é alguém falando com o motorista.
+           E a carta resolve a divisão grátis/pago sozinha: NARRAR o que
+           aconteceu é espelho (grátis); APONTAR o que fazer é lupa (pago). -->
+      <div class="modal-overlay" id="modalMes">
+        <div class="modal-caixa mes-caixa">
+          <div class="mes-topo">
+            <button class="mes-nav" id="mesPrev" title="Mês anterior"><svg class="ico"><use href="#i-seta-esq"></use></svg></button>
+            <div>
+              <div class="mes-titulo" id="mesTitulo">—</div>
+              <div class="mes-sub">fechamento do mês</div>
+            </div>
+            <button class="mes-nav" id="mesNext" title="Mês seguinte"><svg class="ico"><use href="#i-seta-dir"></use></svg></button>
+          </div>
+
+          <div class="mes-carta" id="mesCarta">—</div>
+
+          <!-- o gancho pro premium. Fica no FIM, depois de entregar tudo que é
+               espelho — nunca no meio, cortando a leitura. -->
+          <div class="mes-lupa" id="mesLupa" style="display:none;">
+            <div class="mes-lupa-tit"><svg class="ico"><use href="#i-lampada"></use></svg> Tem uma coisa nesses números que eu vi e você não</div>
+            <div class="mes-lupa-txt" id="mesLupaTxt">—</div>
+          </div>
+
+          <div class="modal-botoes" style="margin-top:14px;">
+            <button class="modal-btn cancelar" onclick="fecharRelatorioMes()">Fechar</button>
+            <button class="modal-btn confirmar" id="mesShareBtn" onclick="compartilharMes()"><svg class="ico"><use href="#i-enviar"></use></svg> Compartilhar</button>
+          </div>
+        </div>
+      </div>
 
       <!-- ══════════ MODAL KM ══════════ -->
       <div class="modal-overlay" id="modalKm">
@@ -1153,10 +1194,17 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=373"></script>
+    <script src="script.js?v=376"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
-      if ('serviceWorker' in navigator) {
+      // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra
+      // sobreviver. Um service worker ali só criaria uma SEGUNDA cópia dos
+      // mesmos arquivos, e depois de uma atualização do app ele poderia
+      // servir a versão velha e fazer parecer que a correção não subiu.
+      // No navegador (GitHub Pages) ele continua sendo essencial.
+      var _ehApp = !!(window.Capacitor && window.Capacitor.isNativePlatform &&
+                      window.Capacitor.isNativePlatform());
+      if ('serviceWorker' in navigator && !_ehApp) {
         window.addEventListener('load', function () {
           navigator.serviceWorker.register('sw.js').catch(function () {
             /* sem service worker o app continua funcionando normal */

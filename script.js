@@ -16,15 +16,32 @@ const ARTIGO_ASSISTENTE = 'o';
 //    fuso que jogava a receita da noite no dia seguinte)
 //  - esc: limpa texto digitado antes de virar HTML
 // ═══════════════════════════════════════════════════════════════
+// ⚠️ BUG SILENCIOSO QUE MOROU AQUI (achado em v3.72)
+// salvarLS gravava string CRUA (sem aspas) e lerLS fazia JSON.parse.
+// Resultado: salvar "Gasolina" gravava Gasolina, e JSON.parse("Gasolina")
+// estourava — o catch devolvia o padrão, e o valor sumia em silêncio.
+//
+// Quem pagou: `ultimoTipoComb`. O código dizia "lembra pro próximo" e NUNCA
+// lembrou. Motorista de GNV, Etanol ou Diesel trocava o tipo TODA VEZ que
+// abastecia. Passou despercebido porque o padrão é 'Gasolina' e a maioria
+// usa gasolina — pra esses, o bug parecia funcionar.
+// Atrito no registro é o campo de batalha do produto (ver RETOMADA).
+//
+// Duas correções, e as duas precisam existir:
+//   · salvarLS agora sempre serializa  → conserta daqui pra frente
+//   · lerLS aceita texto cru de volta  → conserta o que JÁ está gravado no
+//     aparelho de quem usa o app, sem precisar apagar nada
 function lerLS(chave, padrao) {
   try {
     const v = localStorage.getItem(chave);
-    return v === null ? padrao : JSON.parse(v);
-  } catch (e) { return padrao; }   // dado corrompido? ignora, não mata o app
+    if (v === null) return padrao;
+    try { return JSON.parse(v); }
+    catch (e) { return v; }   // texto cru gravado pela versão antiga: devolve como está
+  } catch (e) { return padrao; }   // storage bloqueado? ignora, não mata o app
 }
 function salvarLS(chave, valor) {
   try {
-    localStorage.setItem(chave, typeof valor === 'string' ? valor : JSON.stringify(valor));
+    localStorage.setItem(chave, JSON.stringify(valor));
     return true;
   } catch (e) {
     if (typeof toast === 'function') toast('⚠️ Não consegui salvar — armazenamento cheio ou bloqueado', 'erro');
@@ -2009,7 +2026,18 @@ function salvarManutencao() {
   const salvos = lerManutVeic();
   [1, 2, 3].forEach(n => {
     const it = manutencoes['item' + n];
-    if (it.key) salvos[it.key] = { kmUltima: it.kmUltima, intervalo: it.intervalo };
+    if (!it.key) return;
+    const antes = salvos[it.key] || {};
+    // ⚠️ `dataUltima` NÃO existia. A nuvem recebia hojeISO() como se fosse a
+    // data da troca — ou seja, toda troca antiga virava "hoje" no banco.
+    // Agora só carimba a data quando o KM MUDOU (que é quando houve troca de
+    // verdade); mexer no intervalo não é trocar peça.
+    const trocou = (antes.kmUltima !== it.kmUltima) && it.kmUltima > 0;
+    salvos[it.key] = {
+      kmUltima: it.kmUltima,
+      intervalo: it.intervalo,
+      dataUltima: trocou ? hojeISO() : (antes.dataUltima || null)
+    };
   });
   salvarManutVeic(salvos);
   // Supabase: uma linha por item de manutenção do veículo. A identidade é
@@ -2020,10 +2048,16 @@ function salvarManutencao() {
     [1, 2, 3].forEach(n => {
       const it = manutencoes['item' + n];
       if (!it.key || it.kmUltima == null) return;
+      // ⚠️ Subia hojeISO() SEMPRE — a nuvem passou a achar que toda troca foi
+      // feita no dia em que o motorista mexeu na tela. Trocar o óleo em maio e
+      // ajustar o intervalo em agosto gravava "trocou em agosto".
+      // Agora vai a data guardada de verdade, e null quando o app não sabe —
+      // null é honesto, data errada é pior que dado nenhum.
+      const _mv = (lerManutVeic() || {})[it.key] || {};
       salvarRegistroHibrido('manutencao', {
         veiculo_id:  vid,
         tipo:        it.key,
-        data_ultima: hojeISO(),
+        data_ultima: _mv.dataUltima || null,
         km_ultimo:   it.kmUltima,
         km_proximo:  (it.kmUltima != null && it.intervalo) ? (it.kmUltima + it.intervalo) : null
       }, 'usuario_id,veiculo_id,tipo').catch(function () {});
@@ -4754,6 +4788,402 @@ function mostrarTela(tela) {
   tela.style.display = 'block';
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  FECHAMENTO DO MÊS — os números
+// ═══════════════════════════════════════════════════════════════
+// ⚠️ Esta função NÃO escreve texto. Ela só apura o que aconteceu, e diz
+// honestamente o que NÃO sabe (campos em null). Quem escreve é a carta —
+// e a carta só pode falar do que vier preenchido aqui.
+// Regra sagrada nº 2: o app nunca inventa número. Um mês com 3 dias
+// registrados não vira "seu mês foi ruim".
+function fecharMes(ym) {
+  const fin  = lerLS('historicoFinancas', []).filter(r => (r.dataISO || '').slice(0, 7) === ym);
+  if (!fin.length) return null;
+
+  const horas = lerLS('horasPorDia', {});
+  const kmMap = lerLS('kmPorDia', {});
+  const abast = lerLS('historicoAbastecimentos', []).filter(r => (r.dataISO || '').slice(0, 7) === ym);
+
+  // ── dinheiro ──
+  const receita = fin.reduce((t, r) => t + (r.receita || 0), 0);
+  const taxa    = fin.reduce((t, r) => t + (r.taxa    || 0), 0);
+  const desp    = fin.reduce((t, r) => t + (r.desp    || 0), 0);
+  const lucro   = fin.reduce((t, r) => t + (r.lucro   || 0), 0);
+  // combustível vem do que ele PAGOU no posto, não do rateio por dia:
+  // é o dinheiro que saiu do bolso dele naquele mês
+  const comb    = abast.reduce((t, r) => t + (r.valor || 0), 0);
+
+  // ── esforço ──
+  const dias = fin.length;
+  const horasTotal = fin.reduce((t, r) => t + (horas[r.dataISO] || 0), 0);
+  // ⚠️ só dias com hora marcada entram no R$/hora — senão a conta divide o
+  // lucro do mês inteiro por meia dúzia de horas e inventa um número lindo
+  const diasComHora = fin.filter(r => (horas[r.dataISO] || 0) >= 0.5).length;
+  const lucroComHora = fin.filter(r => (horas[r.dataISO] || 0) >= 0.5)
+                          .reduce((t, r) => t + (r.lucro || 0), 0);
+  const porHora = (diasComHora >= 2 && horasTotal > 0) ? (lucroComHora / horasTotal) : null;
+
+  // ── km: só dias de 1 dia (registro que cobre vários não se reparte) ──
+  let km = 0, temKm = false;
+  fin.forEach(r => {
+    const k = kmMap[r.dataISO];
+    if (k && k.km > 0 && (k.dias || 1) === 1) { km += k.km; temKm = true; }
+  });
+  const custoKm = (temKm && km > 0) ? ((comb + desp + taxa) / km) : null;
+
+  // ── o melhor dia (um FATO pontual, não um padrão) ──
+  // ⚠️ "qual DIA DA SEMANA rende mais" é padrão — isso é lupa, é premium.
+  // "seu melhor dia foi 14/08" é só um fato do espelho. A diferença importa.
+  let melhor = null;
+  fin.forEach(r => { if (!melhor || (r.lucro || 0) > (melhor.lucro || 0)) melhor = r; });
+  if (melhor && (melhor.lucro || 0) <= 0) melhor = null;
+
+  // ── combustível ──
+  const litros = abast.reduce((t, r) => t + (r.litros || 0), 0);
+  const precoL = litros > 0 ? (comb / litros) : null;
+  const postos = new Set(abast.map(r => (r.posto || '').trim().toLowerCase()).filter(Boolean)).size;
+
+  // ── mês anterior, pra comparar ──
+  const d = new Date(ym + '-15T12:00:00');
+  d.setMonth(d.getMonth() - 1);
+  const ymAnt = isoLocal(d).slice(0, 7);
+  const finAnt = lerLS('historicoFinancas', []).filter(r => (r.dataISO || '').slice(0, 7) === ymAnt);
+  // ⚠️ só compara se o mês anterior tiver corpo. Comparar 22 dias com 2 dias
+  // e dizer "você caiu 80%" é mentira com cara de número.
+  const anterior = finAnt.length >= 5
+    ? { dias: finAnt.length, lucro: finAnt.reduce((t, r) => t + (r.lucro || 0), 0) }
+    : null;
+
+  return {
+    ym, dias, receita, taxa, comb, desp, lucro,
+    horasTotal, diasComHora, porHora,
+    km: temKm ? km : null, custoKm,
+    litros, precoL, postos, abastecimentos: abast.length,
+    melhor, anterior,
+    // um mês com menos de 5 dias não sustenta frase de conclusão
+    magro: dias < 5
+  };
+}
+function nomeDoMes(ym) {
+  const d = new Date(ym + '-15T12:00:00');
+  const mes = d.toLocaleDateString('pt-BR', { month: 'long' });
+  // ⚠️ só a PRIMEIRA letra sobe. O CSS capitalize subia a de cada palavra e
+  // escrevia "Julho De 2026".
+  return mes.charAt(0).toUpperCase() + mes.slice(1) + ' de ' + d.getFullYear();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  A CARTA DO ISAAC — o fechamento do mês
+// ═══════════════════════════════════════════════════════════════
+// Por que é CARTA e não painel:
+//
+// Painel de números o Drivvo já faz — e faz há anos, com 2 milhões de
+// usuários. Competir ali é perder. O que eles não têm é alguém falando.
+//
+// E a carta resolve sozinha a divisão grátis/pago: NARRAR o que aconteceu
+// é espelho (grátis, nunca trancar). APONTAR o que fazer com isso é lupa
+// (pago). A mesma informação, e o corte fica natural no fim do texto.
+//
+// ⚠️ O que NÃO pode entrar aqui, por decisão de produto:
+//   · "qual dia da semana rende mais"  → é padrão, é lupa
+//   · "qual posto sai mais barato"     → é padrão, é lupa
+//   · qualquer conselho que não venha de um número que ele registrou
+// "Seu melhor dia foi 14/08" pode: é um fato pontual, não um padrão.
+function cartaDoMes(m) {
+  if (!m) return '';
+  const V = x => `[[v:${x}]]`, R = x => `[[r:${x}]]`, A = x => `[[a:${x}]]`;
+  const nome = arrumarNome((getPerfil().nome || '').split(' ')[0]) || 'motorista';
+  const p = [];
+
+  // ── abertura: o mês pelo nome, e o número que ele veio buscar ──
+  p.push(`${nome}, fechei o seu ${nomeDoMes(m.ym)}.\n`);
+
+  if (m.magro) {
+    // ⚠️ Regra sagrada nº 2. Com 3 dias registrados eu não sei como foi o mês
+    // dele — sei como foram 3 dias. Dizer "seu mês foi fraco" seria inventar.
+    p.push(`Antes de tudo: você registrou ${A(m.dias + (m.dias === 1 ? ' dia' : ' dias'))} neste mês. ` +
+           `É pouco pra eu falar do mês inteiro, então vou falar só desses dias — e não tire conclusão daqui.\n`);
+  }
+
+  const sobrou = m.lucro >= 0;
+  p.push(sobrou
+    ? `Entraram ${V(fmtBRL0(m.receita))}. Saíram ${R(fmtBRL0(m.receita - m.lucro))}. ` +
+      `Sobrou ${V(fmtBRL0(m.lucro))} no seu bolso.\n`
+    : `Entraram ${A(fmtBRL0(m.receita))}, mas saíram ${R(fmtBRL0(m.receita - m.lucro))}. ` +
+      `O mês fechou ${R('no vermelho')}: ${R(fmtBRL0(Math.abs(m.lucro)))} a menos do que entrou.\n`);
+
+  // ── pra onde foi o que saiu ──
+  const saidas = [];
+  if (m.comb > 0) saidas.push(`${fmtBRL0(m.comb)} de combustível`);
+  if (m.taxa > 0) saidas.push(`${fmtBRL0(m.taxa)} de taxa das plataformas`);
+  if (m.desp > 0) saidas.push(`${fmtBRL0(m.desp)} de despesas`);
+  if (saidas.length) {
+    const fatia = (m.receita > 0) ? Math.round(m.comb / m.receita * 100) : 0;
+    let bomba = '\n';
+    // ⚠️ "a bomba levou 104% do que entrou" é matematicamente verdade e soa
+    // como erro de conta — o motorista para de confiar no número seguinte.
+    // Acima de 100% a frase muda pra dizer a MESMA coisa em português.
+    if (m.comb > 0 && m.receita > 0) {
+      if (fatia >= 100)     bomba = ` Só a bomba custou ${R('mais do que entrou o mês inteiro')}.\n`;
+      else if (fatia >= 10) bomba = ` Só a bomba levou ${A(fatia + '%')} de tudo que entrou.\n`;
+    }
+    p.push(`O que saiu foi ${saidas.join(', ')}.` + bomba);
+  }
+
+  // ── esforço: o número que quase ninguém sabe ──
+  if (m.porHora !== null) {
+    const h = Math.round(m.horasTotal);
+    const inicio = `Você rodou ${m.dias} ${m.dias === 1 ? 'dia' : 'dias'} e ${h} ${h === 1 ? 'hora' : 'horas'}. `;
+    // ⚠️ Com hora negativa, "esse é o número que o motorista do lado não sabe"
+    // vira deboche — ele acabou de descobrir que trabalhou de graça.
+    p.push(m.porHora >= 0
+      ? inicio + `Sua hora valeu ${V(fmtBRL(m.porHora))} — esse é o número que o motorista do lado não sabe do dele.\n`
+      : inicio + `Cada hora ao volante te custou ${R(fmtBRL(Math.abs(m.porHora)))} do seu bolso. ` +
+                 `Não é falta de esforço: as ${h} horas estão aí. É a conta que não fecha.\n`);
+  } else {
+    p.push(`Você rodou ${m.dias} ${m.dias === 1 ? 'dia' : 'dias'}. ` +
+           `Não sei quanto valeu sua hora porque faltou marcar o "Bora rodar" — sem as horas, essa conta não existe.\n`);
+  }
+
+  // ── a comparação que ninguém faz: km em algo que ele enxerga ──
+  if (m.km !== null && m.km > 0) {
+    let linha = `Foram ${V(fmtKm(m.km) + ' km')}`;
+    const ref = referenciaDeDistancia(m.km);
+    if (ref) linha += ` — ${ref}`;
+    if (m.custoKm !== null) linha += `. Cada km te custou ${A(fmtBRL(m.custoKm))}`;
+    p.push(linha + `.\n`);
+  }
+
+  // ── o melhor dia: fato pontual, não padrão (padrão é lupa) ──
+  if (m.melhor && m.dias >= 5) {   // com menos de 5 dias não existe "melhor": existe o menos pior
+    const d = new Date(m.melhor.dataISO + 'T12:00:00');
+    p.push(`Seu melhor dia foi ${V(d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }))}: ` +
+           `${V(fmtBRL0(m.melhor.lucro))} líquidos.\n`);
+  }
+
+  // ── mês anterior (só se o anterior tiver corpo) ──
+  if (m.anterior) {
+    const dif = m.lucro - m.anterior.lucro;
+    const pct = m.anterior.lucro !== 0 ? Math.round(Math.abs(dif / m.anterior.lucro) * 100) : 0;
+    if (Math.abs(dif) < 20) {
+      p.push(`Comparado ao mês passado, ficou praticamente igual.\n`);
+    } else if (dif > 0) {
+      p.push(`Comparado ao mês passado, você levou ${V(fmtBRL0(dif) + ' a mais')} pra casa` +
+             (pct ? ` (${pct}%)` : '') + `.\n`);
+    } else {
+      p.push(`Comparado ao mês passado, sobrou ${R(fmtBRL0(Math.abs(dif)) + ' a menos')}` +
+             (pct ? ` (${pct}%)` : '') +
+             `. Você rodou ${m.dias} dias contra ${m.anterior.dias}.\n`);
+    }
+  }
+
+  // ── combustível, sem virar análise ──
+  if (m.abastecimentos > 0 && m.precoL !== null) {
+    p.push(`${m.abastecimentos === 1 ? 'Foi 1 abastecimento' : 'Foram ' + m.abastecimentos + ' abastecimentos'}` +
+           (m.postos > 1 ? ` em ${m.postos} postos` : '') +
+           `, a ${fmtBRL(m.precoL)} o litro em média.\n`);
+  }
+
+  return p.join('\n');
+}
+
+// A comparação que ninguém faz. Não é análise — é o mesmo km numa unidade
+// que ele enxerga. Serve pro motorista sentir o tamanho do que rodou, e é a
+// frase que ele manda no grupo.
+// ⚠️ Distâncias rodoviárias aproximadas, e o texto diz "mais ou menos".
+const _REFERENCIAS = [
+  { km:  430, txt: 'Belo Horizonte a São Paulo' },
+  { km:  600, txt: 'São Paulo a Curitiba' },
+  { km:  900, txt: 'Belo Horizonte ao Rio, ida e volta' },
+  { km: 1200, txt: 'São Paulo a Salvador' },
+  { km: 2000, txt: 'São Paulo a Fortaleza' },
+  { km: 3000, txt: 'Porto Alegre a Belém' },
+  { km: 4300, txt: 'a BR-116 inteira, de ponta a ponta' }
+];
+function referenciaDeDistancia(km) {
+  if (!km || km < 300) return null;   // abaixo disso a comparação não impressiona nem ajuda
+  for (let i = _REFERENCIAS.length - 1; i >= 0; i--) {
+    const r = _REFERENCIAS[i];
+    if (km >= r.km * 0.85 && km <= r.km * 1.3) return `mais ou menos ${r.txt}`;
+    if (km >= r.km * 1.8) {
+      const vezes = Math.floor(km / r.km);
+      if (vezes >= 2 && vezes <= 4) return `${vezes}x ${r.txt}`;
+    }
+  }
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  RELATÓRIO DO MÊS — a tela
+// ═══════════════════════════════════════════════════════════════
+let _mesAberto = null;   // 'AAAA-MM'
+
+// Quais meses têm dado? (do mais novo pro mais velho)
+function mesesComRegistro() {
+  const ms = new Set();
+  lerLS('historicoFinancas', []).forEach(r => { if (r.dataISO) ms.add(r.dataISO.slice(0, 7)); });
+  return [...ms].sort().reverse();
+}
+// O último mês JÁ FECHADO (não o corrente — mês em andamento não se fecha).
+function ultimoMesFechado() {
+  const atual = hojeISO().slice(0, 7);
+  return mesesComRegistro().find(m => m < atual) || null;
+}
+
+function abrirRelatorioMes(ym) {
+  const meses = mesesComRegistro();
+  if (!meses.length) { toast('Ainda não tenho mês nenhum pra fechar'); return; }
+  // abre no último mês fechado; se ele ainda não existe, no mês corrente
+  _mesAberto = ym || ultimoMesFechado() || meses[0];
+  // ⚠️ marca como visto: o selo "novo" some depois que ele abriu uma vez
+  salvarLS('mesRelatorioVisto', _mesAberto);
+  pintarSeloMes();
+  renderRelatorioMes();
+  document.getElementById('modalMes').style.display = 'flex';
+}
+function fecharRelatorioMes() { document.getElementById('modalMes').style.display = 'none'; }
+
+function renderRelatorioMes() {
+  const m = fecharMes(_mesAberto);
+  document.getElementById('mesTitulo').textContent = nomeDoMes(_mesAberto);
+
+  const carta = document.getElementById('mesCarta');
+  const lupa  = document.getElementById('mesLupa');
+  const share = document.getElementById('mesShareBtn');
+
+  if (!m) {
+    carta.innerHTML = '<div class="mes-vazio">Não tenho nenhum dia registrado neste mês.</div>';
+    lupa.style.display = 'none';
+    share.style.display = 'none';
+  } else {
+    carta.innerHTML = cadeParaHTML(cartaDoMes(m));
+    share.style.display = '';
+    // ── o gancho do premium ──
+    // ⚠️ Só aparece quando existe MESMO algo a analisar. Prometer análise num
+    // mês de 3 dias é vender o que não tem — e o motorista descobre na hora.
+    const vale = !m.magro && (m.abastecimentos >= 3 || m.dias >= 8);
+    lupa.style.display = vale ? 'block' : 'none';
+    if (vale) {
+      document.getElementById('mesLupaTxt').textContent =
+        'Qual dia da semana te paga melhor, qual posto te custou mais caro no mês, ' +
+        'e quanto isso deu de diferença em dinheiro. Isso é a lupa — ainda estou montando.';
+    }
+  }
+
+  // navegação: só habilita pra onde existe mês
+  const meses = mesesComRegistro();
+  const i = meses.indexOf(_mesAberto);
+  document.getElementById('mesPrev').disabled = (i < 0 || i >= meses.length - 1);
+  document.getElementById('mesNext').disabled = (i <= 0);
+}
+
+// O selo "novo" na aba do Isaac. Só acende quando fechou um mês que ele
+// ainda não viu — e some no primeiro toque.
+function pintarSeloMes() {
+  const btn  = document.getElementById('cadeMesBtn');
+  const selo = document.getElementById('cadeMesSelo');
+  if (!btn) return;
+  const temMes = mesesComRegistro().length > 0;
+  btn.style.display = temMes ? '' : 'none';
+  if (!selo) return;
+  const fechado = ultimoMesFechado();
+  const visto   = lerLS('mesRelatorioVisto', null);
+  selo.style.display = (fechado && visto !== fechado) ? '' : 'none';
+}
+
+document.getElementById('mesPrev').addEventListener('click', function () {
+  const meses = mesesComRegistro();
+  const i = meses.indexOf(_mesAberto);
+  if (i >= 0 && i < meses.length - 1) { _mesAberto = meses[i + 1]; renderRelatorioMes(); }
+});
+document.getElementById('mesNext').addEventListener('click', function () {
+  const meses = mesesComRegistro();
+  const i = meses.indexOf(_mesAberto);
+  if (i > 0) { _mesAberto = meses[i - 1]; renderRelatorioMes(); }
+});
+
+// ── compartilhar: texto puro, sem marcador ──
+// ⚠️ Aqui o texto SAI do app (WhatsApp). Marcador [[v:]] e SVG não existem lá
+// fora — por isso passa pelo cadeParaVoz(), que devolve texto limpo.
+function compartilharMes() {
+  const m = fecharMes(_mesAberto);
+  if (!m) return;
+  const linhas = [
+    'Meu ' + nomeDoMes(_mesAberto) + ' no Copiloto:',
+    '',
+    'Entrou: ' + fmtBRL0(m.receita),
+    'Saiu: '   + fmtBRL0(m.receita - m.lucro),
+    'Sobrou: ' + fmtBRL0(m.lucro),
+    m.dias + (m.dias === 1 ? ' dia rodado' : ' dias rodados')
+  ];
+  if (m.porHora !== null) linhas.push('Minha hora valeu ' + fmtBRL(m.porHora));
+  if (m.km !== null)      linhas.push(fmtKm(m.km) + ' km rodados');
+  const txt = linhas.join('\n');
+  if (navigator.share) {
+    navigator.share({ text: txt }).catch(function () {});
+    return;
+  }
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(txt).then(function () { toast('Copiado! É só colar.'); })
+      .catch(function () { toast('Não consegui copiar', 'erro'); });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BOTÃO VOLTAR DO ANDROID (só existe quando vira app nativo)
+// ═══════════════════════════════════════════════════════════════
+// ⚠️ No navegador o botão voltar não faz nada aqui, porque o app é uma
+// página só. No Android ele é FÍSICO e o motorista usa o tempo todo — e
+// sem tratamento ele FECHA O APP INTEIRO, mesmo com um modal aberto no
+// meio de um lançamento. Perder o registro dele por causa disso é
+// exatamente o que a regra sagrada nº 10 proíbe.
+//
+// A ordem que ele espera: fecha o que está por cima primeiro.
+//   1. modal aberto      → fecha o modal
+//   2. sub-tela          → volta pra tela mãe
+//   3. aba que não Início→ volta pro Início
+//   4. Início            → aí sim, sai (com confirmação)
+function voltarUmPasso() {
+  // 1. algum modal aberto? o de cima fecha primeiro
+  const abertos = [...document.querySelectorAll('.modal-overlay')]
+    .filter(m => m.style.display && m.style.display !== 'none');
+  if (abertos.length) {
+    abertos[abertos.length - 1].style.display = 'none';
+    return true;
+  }
+  // 2. sub-telas: cada uma sabe pra onde volta
+  const visivel = id => { const e = document.getElementById(id); return e && e.style.display !== 'none'; };
+  if (visivel('telaExtrato'))    { atualizarTelaCombustivel(); mostrarTela(telaCombustivel); navCombustivel.classList.add('ativo'); return true; }
+  if (visivel('telaExtratoFin')) { atualizarTelaFinancas();    mostrarTela(telaFinancas);    navFinancas.classList.add('ativo');    return true; }
+  if (visivel('telaDespesas'))   { atualizarTelaFinancas();    mostrarTela(telaFinancas);    navFinancas.classList.add('ativo');    return true; }
+  // 3. qualquer aba que não seja o Início volta pro Início
+  if (!visivel('telaInicio') && !visivel('telaCadastro')) {
+    mostrarTela(telaInicio); navInicio.classList.add('ativo'); return true;
+  }
+  return false;   // não havia pra onde voltar
+}
+// Registra só quando o app está rodando como aplicativo. No navegador o
+// Capacitor não existe e este bloco simplesmente não roda.
+function ligarBotaoVoltar() {
+  const Cap = window.Capacitor;
+  if (!Cap || !Cap.Plugins || !Cap.Plugins.App) return;
+  Cap.Plugins.App.addListener('backButton', function () {
+    if (voltarUmPasso()) return;
+    // Estamos no Início e sem nada aberto. Fechar o app é decisão dele,
+    // não acidente — mas só confirma se tiver turno em andamento, senão
+    // vira pergunta chata toda vez.
+    if (lerLS('turnoAtivo', null)) {
+      pedirConfirmacao('Sair do Copiloto?',
+        'Seu turno está em andamento. Ele continua contando mesmo com o app fechado.',
+        function () { Cap.Plugins.App.exitApp(); });
+      return;
+    }
+    Cap.Plugins.App.exitApp();
+  });
+}
+document.addEventListener('deviceready', ligarBotaoVoltar);
+if (window.Capacitor) ligarBotaoVoltar();
+
 // ─── EXTRATO COMBUSTÍVEL: botões ──────────────────────────────
 document.getElementById('btnVerExtrato').addEventListener('click', abrirExtrato);
 document.getElementById('extBack').addEventListener('click', () => { atualizarTelaCombustivel(); mostrarTela(telaCombustivel); navCombustivel.classList.add('ativo'); });
@@ -4823,6 +5253,7 @@ navCade.addEventListener('click', () => {
   document.getElementById('cadeBalao').innerHTML = cadeParaHTML(texto);
   renderCarameloCade();
   document.getElementById('cadeShareBtn').style.display = registrosHojeFin().length ? 'inline-flex' : 'none';
+  pintarSeloMes();   // o botão do mês e o selo "novo" acendem aqui
   mostrarTela(telaCade);
   navCade.classList.add('ativo');
 });

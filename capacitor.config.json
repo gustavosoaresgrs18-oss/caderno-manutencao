@@ -1,0 +1,20 @@
+{
+  "appId": "br.app.copiloto",
+  "appName": "Copiloto",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0B0F14"
+  },
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 600,
+      "backgroundColor": "#0B0F14",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false
+    }
+  }
+}

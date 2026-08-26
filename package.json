@@ -1,0 +1,19 @@
+{
+  "name": "copiloto",
+  "version": "3.70.0",
+  "private": true,
+  "description": "Copiloto — o caderninho do motorista de app",
+  "scripts": {
+    "build": "node copiar-para-www.js",
+    "android": "npm run build && npx cap sync android && npx cap open android",
+    "sync": "npm run build && npx cap sync android"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0"
+  }
+}

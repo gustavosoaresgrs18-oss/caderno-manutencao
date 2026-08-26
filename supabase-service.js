@@ -506,7 +506,7 @@ async function migrarMotoristaAntigo(userId, forcar) {
           usuario_id:  userId,
           veiculo_id:  vid,
           tipo:        tipo,
-          data_ultima: null,   // o app não guarda a data da troca, só o km
+          data_ultima: it.dataUltima || null,   // v3.72: o app guarda a data quando sabe; null quando não
           km_ultimo:   it.kmUltima,
           km_proximo:  it.intervalo ? (it.kmUltima + it.intervalo) : null
         }, { onConflict: 'usuario_id,veiculo_id,tipo' });
