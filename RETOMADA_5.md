@@ -1,7 +1,7 @@
-# 🚦 COPILOTO — Ponto de retomada (v3.70)
+# 🚦 COPILOTO — Ponto de retomada (v3.81)
 
 Cole este arquivo na primeira mensagem da conversa nova, junto dos arquivos ATUAIS (baixados DO GITHUB).
-**Versão atual: v3.70** · `?v=373` · Hospedagem: GitHub Pages · **Supabase: Fatia 1 COMPLETA ✅**
+**Versão atual: v3.81** · `?v=389` · Hospedagem: GitHub Pages · **Supabase: Fatia 1 COMPLETA ✅**
 
 ---
 
@@ -9,7 +9,8 @@ Cole este arquivo na primeira mensagem da conversa nova, junto dos arquivos ATUA
 
 **Meta: app na Play Store antes do Natal de 2026.**
 
-A sessão v3.61 → v3.70 fechou duas frentes: **os avisos passaram a apontar o culpado** e o
+A sessão v3.61 → v3.81 fechou quatro frentes (ver o bloco novo mais abaixo)
+As duas primeiras: **os avisos passaram a apontar o culpado** e o
 **passe visual inteiro** (tipografia, contraste, botões, cabeçalho, rodapé).
 
 O app está pronto pra ser visto por motorista. O que trava agora **não é código**.
@@ -90,7 +91,7 @@ Uma linha de cada vez (as 3 coladas dão `unknown switch 'm'`).
 
 ⚠️ **REGRA:** ao mexer em script.js / style.css / supabase-service.js, **subir o `?v=NNN`** no index.html.
 
-**Tamanho (v3.70):** script.js 5.669 · index.html 1.167 · style.css 1.243 · supabase-service.js 836 · sw.js 100
+**Tamanho (v3.81):** script.js 6.770 · index.html 1.282 · style.css 1.373 · supabase-service.js 836 · sw.js 100
 
 ---
 
@@ -208,6 +209,102 @@ significado em todas as outras telas.
 
 ---
 
+## 🆕 O QUE MUDOU DA v3.71 À v3.81
+
+### 7. Carta do Isaac — o relatório mensal (v3.72)
+
+Saiu da Fatia 3 e entrou agora. **Não é painel: é carta.** O Isaac narra o mês em 1ª pessoa
+com os números dele (dias rodados, receita, taxa, combustível, despesas, lucro, R$/hora,
+custo/km, melhor dia, comparação com o mês anterior). Compartilhável no WhatsApp e em card
+de imagem.
+
+A divisão grátis/pago cai naturalmente: **narrar é espelho** (grátis), **apontar é lupa**
+(pago). *"Você gastou R$ 38 a mais no Ipiranga que no Tupi"* é lupa e fica pra Fatia 3.
+
+⚠️ Duas frases foram reescritas por serem tecnicamente certas e humanamente erradas:
+*"a bomba levou 104%"* (lê-se como erro de conta) e um comentário cínico sobre o motorista
+do lado, num mês em que ele descobriu que trabalhou de graça.
+
+### 8. BUG SILENCIOSO: `salvarLS`/`lerLS` (v3.72)
+
+`salvarLS` gravava string crua e `lerLS` fazia `JSON.parse` — que engasgava. Efeito real:
+**`ultimoTipoComb` nunca era lembrado.** Todo motorista de GNV, Etanol ou Diesel reescolhia
+o tipo de combustível a cada abastecimento, pra sempre. Nada avisava.
+
+### 9. Isaac com o veículo do motorista nos cards (v3.73)
+
+Nos dois cards (dia e mês), o Isaac aparece com **o veículo que ele usa** — carro ou moto,
+lido do veículo ativo. As cores dos SVG precisaram ser **resolvidas em tempo de execução**
+(`var(--coat)` não existe dentro de um `data:` URL: o Isaac saía preto).
+
+### 10. O PISO POR KM ⭐ (v3.76 → v3.79)
+
+**O maior recurso desta sessão.** O motorista tem ~7 segundos pra aceitar. Vê "R$ 12" e
+"5 km" e pensa R$ 2,40/km — mas com 4 km até o passageiro foram 9 km, e o real é R$ 1,33.
+É aí que mora o *"troca dinheiro e acha que tá no lucro"*.
+
+**Piso = custo real por km + (meta ÷ horas típicas) ÷ km/h real.** Tudo medido do histórico
+dele, nada de média de mercado.
+
+⚠️ **O piso sozinho não bastava** — ele ainda teria que DIVIDIR. Por isso existe a **tabela
+de multiplicação pronta** (5/10/15/20 km), que sempre **arredonda pra cima**: arredondar pra
+baixo faria o app autorizar corrida abaixo do próprio piso que ele mandou decorar.
+
+**Onde mora:** dentro do guia (aba do Isaac), não na Início. Foi tentado na Início e virou o
+segundo maior bloco da tela, disputando espaço com o velocímetro. Régua se consulta, não se
+acompanha. O Isaac chama pra ver em 2 momentos só: quando o piso **nasce** e quando ele
+**mexe mais de 15%** (`avisarPisoSeMudou`).
+
+### 11. Tutorial de primeiro acesso (v3.80)
+
+6 passos com holofote (`box-shadow: 0 0 0 9999px`) e o Isaac explicando cada rotina:
+velocímetro → hora → Bora rodar → luzes de manutenção → odômetro → aba do Isaac.
+Dispara depois do presente de boas-vindas. **Pulou ou terminou, não insiste mais.**
+
+### 12. Botão voltar do Android (v3.71)
+
+No navegador não faz nada; no Android fecharia o app inteiro no meio de um lançamento.
+Ordem: fecha modal → volta da sub-tela → volta pro Início → só então sai.
+
+### 13. A saída do beco do km errado (v3.81) ⚠️ IMPORTANTE
+
+**Buraco encontrado pelo dono do produto:** um abastecimento marcado como "km errado" ficava
+fora da conta **pra sempre**, com alerta vermelho **pra sempre**, e não havia como dizer
+*"eu conferi, foi isso mesmo"*. E acontece de verdade: quem põe R$ 50 (7 L) e roda 9 km até
+o próximo abastecimento tem 1,3 km/L reais naquele registro. O app cobrava uma correção
+impossível — não havia o que corrigir. **Mesmo beco que a v3.32 fechou no km do turno.**
+
+Agora existe **"Está certo, pode contar"** em dois lugares: no selinho do registro (extrato
+e lista) e dentro do modal de edição — que é onde o *"Corrigir agora →"* larga o motorista.
+Marca `kmOk: true` no registro, ele volta pra conta e o selinho vira *"Km conferido por
+você · desfazer"*. Dá pra voltar atrás — senão seria outro beco.
+
+⚠️ **`kmOk` NÃO sobe pra nuvem** (a tabela `abastecimentos` não tem essa coluna). Trocando de
+aparelho, o registro volta a ser marcado como furado. Corrigir com um `ALTER TABLE` quando
+for mexer no Supabase de novo.
+
+### 14. "Alguns dias" virou número (v3.81)
+
+O card do piso dizia *"marque o Bora rodar e o km por alguns dias"*. O dono do produto
+perguntou **quantos** — e o app sabia: são **2**. Agora conta o que ele já tem:
+*"São 2 dias com o Bora rodar marcado e o km fechado. Você já tem 1, falta 1."*
+Espera vira progresso.
+
+Junto: **meta zerada** caía no ramo errado e mandava marcar turno — ele marcaria a semana
+inteira e o piso não nasceria nunca. Agora diz *"toque na meta, ali no velocímetro"*.
+
+### 15. Sair da conta era um beco (v3.81)
+
+A tela de login pós-logout não tinha X, não tinha cancelar e **não tinha cadastro**. Quem
+emprestou o aparelho, digitou o e-mail errado ou quis recomeçar só tinha uma saída:
+desinstalar. Agora tem **"Criar uma conta nova"** — com aviso claro de que a conta antiga
+continua na nuvem e que este aparelho será limpo.
+
+Junto: `#modalConfirm` estava em `z-index:50` e o login em 150 — a confirmação nascia
+**atrás** do login e a tela parecia travada. Agora o confirm é 160 (acima de tudo).
+
+---
+
 ## 🏪 GOOGLE PLAY — o que já foi descoberto
 
 ### 1. Conta pessoal exige 12 testadores por 14 dias
@@ -296,6 +393,14 @@ têm anos de vantagem. **Não entra antes do lançamento.**
       — ele já aparece no selinho
 - [ ] **Rótulos da barra de navegação** a 11px em 6 colunas: cabe, mas está justo
 
+### 🔴 Novas (v3.81)
+- [ ] **`kmOk` não sobe pra nuvem** — falta a coluna em `abastecimentos`. Trocando de
+      aparelho, o registro conferido volta a ser marcado como errado
+- [ ] **Testar o tutorial num aparelho de verdade** — o holofote foi validado só em 390px
+      de navegador
+- [ ] **Testar "Criar uma conta nova"** no fluxo real (sair → criar → o app volta ao
+      onboarding limpo)
+
 ### Decisões de produto em aberto
 - [ ] **Combustível de dia sem receita some do lucro.** Abastecimento em dia sem receita
       registrada não entra em nenhuma conta. É de nascença, não é bug — mas quem abastece na
@@ -305,10 +410,12 @@ têm anos de vantagem. **Não entra antes do lançamento.**
       some. Morre sozinho quando virar nativo
 
 ### ⚫ Fatia 3 — depois do lançamento
-- **Relatório mensal do Isaac** ⭐ — **não cabe no teste** (14 dias, e precisa de um mês de
-  dado pra não falar bobagem). Divisão: o relatório mostra *o que* aconteceu (grátis); a lupa
-  responde *por quê* (pago)
-- **O piso por km (a régua)** + calculadora de corrida
+- ~~**Relatório mensal do Isaac**~~ ✅ **FEITO na v3.72** (carta, não painel). O que sobra
+  pra Fatia 3 é a **lupa**: *"você gastou R$ 38 a mais no Ipiranga que no Tupi"*
+- ~~**O piso por km (a régua)**~~ ✅ **FEITO na v3.76–v3.79** (mora no guia, com tabela pronta)
+- **Análise separada por veículo** (moto vs carro rendendo diferente) — o campo `vid` já é
+  salvo em tudo; falta a lupa que compara. A receita continua **junta** de propósito: é isso
+  que separa o Copiloto do Drivvo (app de motorista, não de veículo)
 - **Comparação de postos** (versão pessoal)
 - **Checklist do veículo** e **transferir histórico ao vender o carro** (ideias do Drivvo)
 - **Indique e ganhe**

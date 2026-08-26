@@ -233,6 +233,15 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
    empatam em z-index 50 com os demais e o navegador desempata pela ordem do
    HTML — o login acabava escondido atrás do formulário. */
 #modalLogin, #modalNovaSenha{ z-index:150; }
+/* A confirmação decide sobre o que está aberto — então fica acima de TUDO.
+   Em 50 ela nascia ATRÁS do login (150) e o motorista via a tela congelar. */
+#modalConfirm{ z-index:160; }
+/* saída do registro marcado como km errado — ver kmSuspeito()/kmOk */
+.comb-conferir{ display:block; width:100%; margin-top:8px; padding:8px 10px; border-radius:10px;
+  border:1px solid rgba(0,224,138,.45); background:rgba(0,224,138,.10); color:var(--money);
+  font-size:var(--f2); font-weight:800; cursor:pointer; }
+.comb-desfazer{ background:none; border:none; padding:0; color:var(--dim); font-size:var(--f1);
+  font-weight:700; text-decoration:underline; cursor:pointer; }
 .modal-caixa{ background:var(--elev); border:1px solid var(--line); border-radius:20px; padding:24px; width:100%; max-width:340px; max-height:90vh; overflow-y:auto; }
 .modal-titulo{ font-size:var(--f5); font-weight:800; margin-bottom:12px; text-align:center; }
 .modal-desc{ font-size:var(--f2); color:var(--dim); text-align:center; }

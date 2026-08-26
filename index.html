@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=388">
+    <link rel="stylesheet" href="style.css?v=389">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=388"></script>
+    <script src="supabase-service.js?v=389"></script>
   </head>
   <body>
 
@@ -405,6 +405,10 @@
           </div>
           <div class="comb-preview"><span class="comb-preview-label">Custo por km</span><span class="comb-preview-val num" id="combPreviewValTela">— /km</span></div>
           <div class="km-erro" id="combAvisoTela" style="display:none; color:var(--signal); border-color:rgba(255,176,32,.4); background:rgba(255,176,32,.1);"></div>
+          <!-- Saída pro registro que JÁ foi salvo e o app marcou como km errado:
+               o "Corrigir agora" traz o motorista pra cá, e quem digitou o km
+               certo precisa poder dizer isso sem ter que voltar pro extrato. -->
+          <div id="abastConferirBox" style="display:none;"></div>
           <div class="modal-botoes" style="margin-top:14px;">
             <button class="modal-btn cancelar" id="btnCancelarAbastecer">Cancelar</button>
             <button class="modal-btn confirmar" id="btnSalvarTela"><svg class="ico"><use href="#i-check"></use></svg> Registrar</button>
@@ -768,6 +772,9 @@
             <button class="modal-btn confirmar" id="btnConfirmarLogin">Entrar</button>
           </div>
           <button id="btnEsqueciSenha" style="width:100%;margin-top:10px;background:none;border:none;color:var(--dim);font-size:var(--f3);text-decoration:underline;cursor:pointer;">Esqueci minha senha</button>
+          <!-- Só aparece pra quem saiu da conta e ficou preso aqui: sem isto, a tela
+               de login é um beco (não tem X, não tem cancelar, não tem cadastro). -->
+          <button id="btnCriarConta" style="display:none;width:100%;margin-top:8px;background:none;border:none;color:var(--dim);font-size:var(--f3);text-decoration:underline;cursor:pointer;">Criar uma conta nova</button>
         </div>
       </div>
 
@@ -1254,7 +1261,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=388"></script>
+    <script src="script.js?v=389"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra

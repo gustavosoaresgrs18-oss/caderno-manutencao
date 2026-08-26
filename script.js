@@ -897,10 +897,30 @@ function abrirLoginExistente(emailSugerido) {
   document.getElementById('loginEmail').value = emailSugerido || (p && p.email) || '';
   document.getElementById('loginSenha').value = '';
   document.getElementById('loginErro').style.display = 'none';
+  // por padrão escondido: só a tela TRAVADA (pós-sair) oferece recomeçar
+  const bc = document.getElementById('btnCriarConta'); if (bc) bc.style.display = 'none';
   document.getElementById('modalLogin').style.display = 'flex';
 }
 document.getElementById('btnFecharLogin').addEventListener('click', function () {
   document.getElementById('modalLogin').style.display = 'none';
+});
+// ⚠️ Sair da conta trancava o motorista numa tela sem NENHUMA saída: sem X,
+// sem cancelar e sem cadastro. Quem emprestou o aparelho, quem digitou o e-mail
+// errado no cadastro ou quem simplesmente quis recomeçar ficava preso — e a
+// única saída era desinstalar o app. Quem chega aqui SEMPRE teve conta (o botão
+// Sair só existe logado), então o histórico dele está na nuvem: limpar este
+// aparelho é seguro, desde que o app diga isso com todas as letras.
+document.getElementById('btnCriarConta').addEventListener('click', function () {
+  pedirConfirmacao(
+    ico('alerta') + ' Começar com outra conta',
+    'A conta que você usava continua guardada na nuvem: nada dela se perde, e você volta '
+    + 'quando quiser entrando com o e-mail e a senha dela aqui em cima. '
+    + 'Mas este aparelho vai ser limpo pra começar do zero — turno, abastecimentos e '
+    + 'documentos saem daqui da tela. Quer continuar?',
+    function () {
+      try { localStorage.clear(); } catch (e) {}
+      location.reload();
+    });
 });
 document.getElementById('btnEsqueciSenha').addEventListener('click', async function () {
   const btn   = this;
@@ -1584,6 +1604,13 @@ function faixaConsumo() {
 }
 function kmSuspeito(r) {
   if (!r) return false;
+  // ⚠️ A SAÍDA DO BECO. Sem isto, um registro que está CERTO ficava marcado de
+  // vermelho pra sempre e fora da conta pra sempre — sem nenhum jeito de o
+  // motorista dizer "eu conferi, foi isso mesmo". E acontece de verdade: quem
+  // abastece R$ 50 a cada 9 km (parcial, ou dia de trânsito parado) tem 1,3 km/L
+  // real naquele registro. O app cobrava uma correção impossível, porque não
+  // havia o que corrigir. Mesmo beco que a v3.32 fechou no km do turno.
+  if (r.kmOk) return false;
   const v = r.valor, k = r.km, l = r.litros;
   if (!(k > 0 && v > 0)) return false;          // sem km informado: nada a julgar
   if (v / k > 3) return true;                   // custo por km impossível (vale pra todo combustível)
@@ -1696,6 +1723,38 @@ function kmPorHoraReal() {
   return amostras.reduce(function (a, b) { return a + b; }, 0) / amostras.length;
 }
 
+// ⚠️ "por alguns dias" não é resposta. O motorista perguntou QUANTOS — e o app
+// sabe: são 2 dias com o "Bora rodar" marcado E o km fechado (é o mínimo pra
+// uma média não ser um chute). Contar o que ele JÁ tem transforma espera em
+// progresso: "falta 1 dia" faz voltar amanhã, "alguns dias" faz desistir.
+const PISO_AMOSTRAS = 2;
+function amostrasDoPiso() {
+  const mapaKm = lerLS('kmPorDia', {});
+  const horas  = lerLS('horasPorDia', {});
+  const vidS   = vidAtivo();
+  let n = 0;
+  // mesma peneira do kmPorHoraReal() — se divergir, o app promete um dia que não conta
+  Object.keys(mapaKm).sort().reverse().slice(0, 14).forEach(function (iso) {
+    const r = mapaKm[iso], h = horas[iso];
+    if (!r || !(r.km > 0) || (r.dias || 1) !== 1) return;
+    if (vidS && r.vid && r.vid !== vidS) return;
+    if (!(h >= 1)) return;
+    const v = r.km / h;
+    if (v >= 5 && v <= 70) n++;
+  });
+  return n;
+}
+function faltamDiasPiso(comHtml) {
+  const n = amostrasDoPiso();
+  const falta = Math.max(0, PISO_AMOSTRAS - n);
+  const b = comHtml ? ['<b>', '</b>'] : ['', ''];
+  const d = function (x) { return b[0] + x + (x === 1 ? ' dia' : ' dias') + b[1]; };
+  if (falta <= 0) return '';   // já tem o bastante; o que falta é outra coisa
+  const pedido = 'São ' + d(PISO_AMOSTRAS) + ' com o "Bora rodar" marcado e o '
+               + 'km fechado no fim do turno';
+  if (n === 0) return pedido + '. Você ainda não tem nenhum.';
+  return pedido + ' — você já tem ' + d(n) + ', ' + (falta === 1 ? 'falta ' : 'faltam ') + d(falta) + '.';
+}
 function pisoPorKm() {
   const custo = combustivelKmMes() + reservaKmAtual();   // o que sai do bolso por km
   if (!(custo > 0)) return null;
@@ -1716,7 +1775,10 @@ function pisoPorKm() {
   // Abaixo do custo é prejuízo, e isso não depende de meta nenhuma.
   if (kmh === null || horasTipicas === null || meta <= 0) {
     return { custo: custo, piso: null, kmh: kmh, horasTipicas: horasTipicas,
-             ganhoHora: null, falta: (kmh === null ? 'km' : 'horas') };
+             ganhoHora: null,
+             // ⚠️ meta zerada caía em 'horas' e o app mandava marcar turno —
+             // ele marcaria a semana inteira e o piso não nasceria nunca.
+             falta: (meta <= 0 ? 'meta' : (kmh === null ? 'km' : 'horas')) };
   }
 
   const ganhoHora = meta / horasTipicas;        // quanto a meta dele exige por hora
@@ -1778,8 +1840,10 @@ function cardDoPiso() {
     return {
       ic: ico('alvo'), cor: 'var(--signal)', tit: 'Seu piso por km', hero: fmtBRL(d.custo),
       isaac: 'Esse é o que SAI do seu bolso a cada km — abaixo disso é prejuízo puro, sem discussão. '
-           + 'Pra eu calcular o piso da sua meta (o valor abaixo do qual você não bate o dia) eu preciso '
-           + 'saber quantos km você faz por hora: marque o "Bora rodar" e o km por alguns dias.',
+           + 'Pra eu calcular o piso da sua meta (o valor abaixo do qual você não bate o dia) '
+           + (d.falta === 'meta'
+               ? 'eu preciso saber qual é a sua meta do dia: toque na meta, ali no velocímetro do Início.'
+               : 'eu preciso saber quantos km você faz por hora. ' + faltamDiasPiso(false) + ' Aí o número aparece sozinho aqui.'),
       fonte: 'medido do seu tanque, não de média de mercado'
     };
   }
@@ -2129,8 +2193,11 @@ function abrirAjuda(qual, ev) {
             + 'ou a meta está acima do que o dia dá, ou o dia vai ser mais longo. O número não mente pra te agradar.';
     } else if (d) {
       conta = 'Por enquanto eu só sei o <b>chão</b>: cada km te custa <b>' + fmtBRL(d.custo) + '</b>, '
-            + 'e abaixo disso é prejuízo puro, sem discussão. Pro piso da sua meta eu preciso saber '
-            + 'quantos km você faz por hora — marque o "Bora rodar" e o km por alguns dias.';
+            + 'e abaixo disso é prejuízo puro, sem discussão. Pro piso da sua meta '
+            + (d.falta === 'meta'
+                ? 'eu preciso saber quanto você quer fazer por dia: toque na <b>meta</b>, ali no velocímetro do Início.'
+                : 'eu preciso saber quantos km você faz por hora. ' + faltamDiasPiso(true)
+                  + ' Aí o número aparece sozinho aqui — não precisa fazer mais nada.');
     }
   }
   else if (qual === 'km') {
@@ -3182,8 +3249,72 @@ function editarAbastecimento(id) {
   tipoSelecionadoTela = r.tipo || 'Gasolina';
   document.querySelectorAll('#modalAbastecer .tipo-btn').forEach(b => b.classList.toggle('ativo', b.textContent.trim() === tipoSelecionadoTela));
   calcCustoPorKmTela();
+  // Se este é o registro que o app vem cobrando, a saída aparece AQUI — que é
+  // onde o "Corrigir agora" larga o motorista.
+  const cx = document.getElementById('abastConferirBox');
+  if (cx) {
+    if (kmSuspeito(r)) {
+      cx.innerHTML = '<div style="font-size:var(--f1);color:var(--dim);margin-top:8px;">'
+                   + 'Se esse km está certo mesmo, não precisa mudar nada:</div>'
+                   + '<button class="comb-conferir" onclick="conferirDaEdicao()">'
+                   + ico('check') + ' Está certo, pode contar</button>';
+      cx.style.display = 'block';
+    } else if (r.kmOk) {
+      cx.innerHTML = '<div style="font-size:var(--f1);color:var(--dim);margin-top:8px;">'
+                   + ico('check') + ' Km conferido por você. '
+                   + '<button class="comb-desfazer" onclick="desfazerDaEdicao()">desfazer</button></div>';
+      cx.style.display = 'block';
+    } else { cx.style.display = 'none'; cx.innerHTML = ''; }
+  }
   document.querySelector('#btnSalvarTela').innerHTML = ico('check') + ' Salvar alteração';
   document.getElementById('modalAbastecer').style.display = 'flex';
+}
+// O motorista assume o número. A conta volta a usá-lo e o alerta some.
+function confirmarKmAbastecimento(id) {
+  const h = lerLS('historicoAbastecimentos', []);
+  const r = h.find(x => x.id === id);
+  if (!r) return;
+  pedirConfirmacao(
+    ico('check') + ' Esse km está certo?',
+    'Você está dizendo que rodou mesmo ' + fmtKm(r.km) + ' km com esse abastecimento. '
+    + 'Ele volta a contar no seu custo por km, e o número da tela vai mudar. '
+    + 'Se o km estiver errado de verdade, o custo por km fica errado junto — e é ele que '
+    + 'define o seu piso. Na dúvida, cancele e ajuste o km no lápis.',
+    function () {
+      const h2 = lerLS('historicoAbastecimentos', []);
+      const alvo = h2.find(x => x.id === id);
+      if (!alvo) return;
+      alvo.kmOk = true;
+      salvarLS('historicoAbastecimentos', h2);
+      refreshAposAbast();
+      toast('Pronto — esse abastecimento voltou pra conta');
+    });
+}
+// Dá pra voltar atrás: se ele conferiu errado, não pode virar outro beco.
+function desfazerKmAbastecimento(id) {
+  const h = lerLS('historicoAbastecimentos', []);
+  const r = h.find(x => x.id === id);
+  if (!r) return;
+  delete r.kmOk;
+  salvarLS('historicoAbastecimentos', h);
+  refreshAposAbast();
+  toast('Voltou a ficar de fora da conta');
+}
+// atalhos do modal de edição — fecham o modal antes, senão a confirmação
+// nasce atrás dele e a tela parece travada.
+function conferirDaEdicao() {
+  const id = editandoAbastId; if (!id) return;
+  editandoAbastId = null;
+  document.querySelector('#btnSalvarTela').innerHTML = ico('check') + ' Registrar';
+  document.getElementById('modalAbastecer').style.display = 'none';
+  confirmarKmAbastecimento(id);
+}
+function desfazerDaEdicao() {
+  const id = editandoAbastId; if (!id) return;
+  editandoAbastId = null;
+  document.querySelector('#btnSalvarTela').innerHTML = ico('check') + ' Registrar';
+  document.getElementById('modalAbastecer').style.display = 'none';
+  desfazerKmAbastecimento(id);
 }
 function excluirAbastecimento(id) {
   pedirConfirmacao(ico('lixeira') + ' Apagar abastecimento', 'Quer apagar este lançamento? Isso não dá pra desfazer.', function() {
@@ -3521,9 +3652,18 @@ function renderItensAbastecimento(elLista, registros, baseParaPadrao) {
     // O selinho de preço some no registro furado: comparar R$/L de um dado que o
     // app sabe estar errado é dar crédito a ele. No lugar entra o motivo.
     if (furado) {
+      // ⚠️ Duas saídas, não uma. Antes só existia "ajuste o km" — e quem tinha
+      // digitado o km CERTO ficava preso: nada a ajustar, alerta pra sempre.
       badge = `<div class="comb-badge comb-badge-erro">${ico('alerta')} Km errado — fora da conta de R$/km<br>` +
               `<span style="font-weight:600;">${esc(porqueSuspeito(r, true))}</span><br>` +
-              `<span style="font-weight:600;opacity:.85;">Toque no ${ico('lapis')} aqui do lado e ajuste o km.</span></div>`;
+              `<span style="font-weight:600;opacity:.85;">Ajuste o km no ${ico('lapis')} aqui do lado — ou, se foi isso mesmo:</span>` +
+              `<button class="comb-conferir" onclick="confirmarKmAbastecimento('${r.id}')">${ico('check')} Está certo, pode contar</button></div>`;
+    }
+    // Conferido à mão continua visível: se o custo por km ficar estranho depois,
+    // ele precisa saber por onde começar a olhar.
+    if (r.kmOk) {
+      badge += `<div class="comb-badge comb-badge-neutro">${ico('check')} Km conferido por você ` +
+               `<button class="comb-desfazer" onclick="desfazerKmAbastecimento('${r.id}')">desfazer</button></div>`;
     }
     // ⚠️ O km NÃO aparecia em lugar nenhum da lista. O app pedia "corrija o km"
     // num registro onde o motorista não conseguia nem VER o km atual.
@@ -3654,9 +3794,15 @@ function renderExtrato() {
         '<ul style="margin:6px 0 0;padding-left:16px;">' + itens + '</ul>' + resto +
         '<div style="margin-top:6px;">' +
         (kmLimpo > 0
-          ? 'O número acima usa só os que estão certos. Ache o registro marcado de vermelho na lista, toque no ' + ico('lapis') + ' e ajuste o km.'
-          : 'Sem nenhum km confiável eu não consigo calcular o custo por km. ' +
-            'Toque no ' + ico('lapis') + ' do registro marcado de vermelho e ajuste o km.') + '</div>';
+          ? 'O número acima usa só os que estão certos. Ache o registro marcado de vermelho na lista '
+            + 'e ajuste o km no ' + ico('lapis') + '.'
+          : 'Sem nenhum km confiável eu não consigo calcular o custo por km. '
+            + 'Ache o registro marcado de vermelho na lista e ajuste o km no ' + ico('lapis') + '.')
+        // ⚠️ Existe um segundo caminho e ele PRECISA estar aqui: quem digitou o km
+        // certo não tem nada a ajustar, e sem esta frase o aviso vira uma ordem
+        // impossível que fica na tela pra sempre.
+        + ' Se o km estiver certo mesmo, o próprio registro tem o botão <b>Está certo, pode contar</b>.'
+        + '</div>';
       avisoCpk.style.display = 'block';
     } else {
       avisoCpk.textContent = '';
@@ -4465,6 +4611,7 @@ function travarNaTelaDeLogin() {
   abrirLoginExistente(p && p.email);
   document.getElementById('btnFecharLogin').style.display = 'none';   // sem X: não dá pra escapar
   document.getElementById('btnCancelarLogin').style.display = 'none';
+  document.getElementById('btnCriarConta').style.display = '';        // ...mas dá pra recomeçar
 }
 
 // Devolve o app depois que ele entra de novo.
@@ -4475,6 +4622,7 @@ function destravarDaTelaDeLogin() {
   if (nav) nav.style.display = 'flex';
   document.getElementById('btnFecharLogin').style.display = '';
   document.getElementById('btnCancelarLogin').style.display = '';
+  document.getElementById('btnCriarConta').style.display = 'none';
   if (typeof telaInicio !== 'undefined' && telaInicio) {
     mostrarTela(telaInicio);
     if (typeof navInicio !== 'undefined' && navInicio) navInicio.classList.add('ativo');
