@@ -1477,6 +1477,7 @@ function initDashboard() {
 
   atualizarResumoDia();       // ganho/hora + meta
   atualizarCustoRealKm();     // custo real por km
+  pintarPiso();               // o piso que ele decora
   atualizarReserva();         // reserva acumulada
   atualizarTodosAlertas();
   atualizarTelaManutencao();
@@ -1646,6 +1647,165 @@ function textoSuspeito(s) {
   return ico('alerta') + ' ' + esc(identificaAbast(s.reg)) + ': ' + esc(porqueSuspeito(s.reg, false));
 }
 
+
+// ═══════════════════════════════════════════════════════════════
+//  O PISO — o número que o motorista decora
+// ═══════════════════════════════════════════════════════════════
+// O problema que isto resolve:
+//
+// Ele tem ~7 segundos pra aceitar. Vê "R$ 12" e "5 km" e pensa R$ 2,40/km.
+// Mas com 4 km até o passageiro, o número real é R$ 12 ÷ 9 = R$ 1,33/km.
+// Ninguém faz essa divisão em 7 segundos — e é aí que mora o
+// "troca dinheiro e acha que tá no lucro".
+//
+// A saída NÃO é uma calculadora: ninguém abre outro app nesse tempo.
+// A saída é UM número que ele decora e reconhece de bate-pronto.
+//
+// ⚠️ Tudo aqui sai do histórico DELE. Nenhuma média de mercado, nenhum chute.
+// Quando falta dado, devolve null e a tela diz o que falta — regra sagrada nº 2.
+
+// km/h REAL: km rodado dividido pelas horas marcadas, não por 8 chumbado.
+function kmPorHoraReal() {
+  const mapaKm = lerLS('kmPorDia', {});
+  const horas  = lerLS('horasPorDia', {});
+  const vidS   = vidAtivo();
+  const amostras = [];
+  Object.keys(mapaKm).sort().reverse().slice(0, 14).forEach(function (iso) {
+    const r = mapaKm[iso], h = horas[iso];
+    // registro que cobre vários dias não entra: dividir seria inventar
+    if (!r || !(r.km > 0) || (r.dias || 1) !== 1) return;
+    if (vidS && r.vid && r.vid !== vidS) return;
+    if (!(h >= 1)) return;                       // menos de 1h distorce demais
+    const v = r.km / h;
+    if (v >= 5 && v <= 70) amostras.push(v);     // fora disso é dado furado
+  });
+  if (amostras.length < 2) return null;
+  return amostras.reduce(function (a, b) { return a + b; }, 0) / amostras.length;
+}
+
+function pisoPorKm() {
+  const custo = combustivelKmMes() + reservaKmAtual();   // o que sai do bolso por km
+  if (!(custo > 0)) return null;
+
+  const kmh = kmPorHoraReal();
+  const p   = getPerfil();
+  const meta = p.metaDiaria || 0;
+
+  // Horas típicas: as que ele realmente marca. Sem isso não dá pra converter
+  // "quanto quero por dia" em "quanto preciso por hora".
+  const horas = lerLS('horasPorDia', {});
+  const hs = Object.keys(horas).sort().reverse().slice(0, 14)
+               .map(function (k) { return horas[k]; }).filter(function (h) { return h >= 1; });
+  const horasTipicas = hs.length >= 2
+    ? hs.reduce(function (a, b) { return a + b; }, 0) / hs.length : null;
+
+  // Sem km/h ou sem horas, o app ainda sabe UMA coisa com certeza: o custo.
+  // Abaixo do custo é prejuízo, e isso não depende de meta nenhuma.
+  if (kmh === null || horasTipicas === null || meta <= 0) {
+    return { custo: custo, piso: null, kmh: kmh, horasTipicas: horasTipicas,
+             ganhoHora: null, falta: (kmh === null ? 'km' : 'horas') };
+  }
+
+  const ganhoHora = meta / horasTipicas;        // quanto a meta dele exige por hora
+  const lucroPorKm = ganhoHora / kmh;           // ...convertido pra km, no ritmo dele
+  return { custo: custo, piso: custo + lucroPorKm, kmh: kmh,
+           horasTipicas: horasTipicas, ganhoHora: ganhoHora, falta: null };
+}
+
+// ⚠️ O PISO SOZINHO NÃO BASTA — e isso quase passou batido.
+// Com o piso na mão ele ainda precisa DIVIDIR: "R$ 12 em 9 km, dá quanto?".
+// Divisão de cabeça, em 7 segundos, no trânsito. Não acontece. A própria
+// categoria diz: "o serviço é SOMAR e SUBTRAIR, mas nem isso querem fazer".
+//
+// A saída é virar a conta do avesso: em vez de ELE dividir, o APP multiplica
+// antes e entrega a tabela pronta. Aí a decisão vira comparar dois valores em
+// reais — que é o que qualquer pessoa faz sem pensar:
+//   "9 km... a linha dos 10 diz R$ 23. Estão pagando R$ 12. Não."
+function tabelaDoPiso(piso) {
+  if (!(piso > 0)) return '';
+  return [5, 10, 15, 20].map(function (km) {
+    // ⚠️ ARREDONDA PRA CIMA, sempre. Com piso de R$ 2,25 os 5 km dão R$ 11,25;
+    // arredondar pra baixo escreveria "R$ 11" — e o app estaria autorizando
+    // uma corrida ABAIXO do próprio piso que ele acabou de mandar decorar.
+    // A tabela existe pra proteger o motorista, não pra caber num número bonito.
+    return '<div class="piso-t-col"><div class="piso-t-km">' + km + ' km</div>' +
+           '<div class="piso-t-val">' + fmtBRL0(Math.ceil(piso * km)) + '</div></div>';
+  }).join('');
+}
+// Quando o piso cai perto de um número redondo, existe uma regra de bolso ainda
+// mais simples que a tabela — e regra decorada vence tabela consultada.
+function regraDeBolso(piso) {
+  if (!(piso > 0)) return '';
+  const mult = [
+    { v: 1.5, txt: 'o km e mais metade' },
+    { v: 2,   txt: 'o dobro do km' },
+    { v: 2.5, txt: 'duas vezes e meia o km' },
+    { v: 3,   txt: 'o triplo do km' }
+  ];
+  for (const m of mult) {
+    // só sugere se o piso estiver REALMENTE perto: a regra tem que ser segura,
+    // e arredondar pra baixo faria ele aceitar corrida abaixo do piso
+    if (piso >= m.v * 0.94 && piso <= m.v * 1.06) {
+      return 'Regra de bolso: a corrida precisa pagar <b>' + m.txt + '</b>.';
+    }
+  }
+  return '';
+}
+
+function pintarPiso() {
+  const card = document.getElementById('pisoCard');
+  if (!card) return;
+  const d = pisoPorKm();
+  const val  = document.getElementById('pisoValor');
+  const sub  = document.getElementById('pisoSub');
+  const chao = document.getElementById('pisoChao');
+
+  if (!d) {   // nem o custo o app conhece ainda
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = 'block';
+
+  if (d.piso === null) {
+    // ⚠️ Mostra o que SABE (o custo) e diz o que falta pro número completo.
+    // Chutar uma velocidade média de mercado seria inventar o número dele.
+    val.textContent = fmtBRL(d.custo);
+    val.style.color = 'var(--signal)';
+    sub.innerHTML = 'é o que <b>sai do seu bolso</b> por km. Abaixo disso é prejuízo puro.';
+    const f0 = document.getElementById('pisoFonte');
+    if (f0) {
+      f0.innerHTML = 'Medido do <b>seu tanque</b>, não de média de mercado.';
+      f0.style.display = 'block';
+    }
+    chao.innerHTML = d.falta === 'km'
+      ? ico('alerta') + ' Pra eu calcular o piso da sua meta, preciso de mais dias com <b>km e horas</b> marcados.'
+      : ico('alerta') + ' Marque as horas com o <b>"Bora rodar"</b> que eu calculo o piso da sua meta.';
+    chao.style.display = 'block';
+    // sem piso não há tabela: multiplicar por um número que o app não tem
+    // seria inventar exatamente o número que ele vai usar pra decidir
+    return;
+  }
+
+  val.textContent = fmtBRL(d.piso);
+  val.style.color = 'var(--money)';
+  const regra = regraDeBolso(d.piso);
+  sub.innerHTML = regra || 'Abaixo disso você <b>não bate sua meta</b>.';
+  // ⚠️ Sem esta linha o motorista não tem como saber que o número é DELE.
+  // Ela cita os três dados de entrada de propósito: dá pra conferir.
+  const fonte = document.getElementById('pisoFonte');
+  if (fonte) {
+    fonte.innerHTML = 'Feito com <b>o seu consumo</b>, <b>o seu ritmo</b> (' +
+      Math.round(d.kmh) + ' km/h) e <b>a sua meta</b>. Não é média de mercado.';
+    fonte.style.display = 'block';
+  }
+
+  // ⚠️ A tabela NÃO mora aqui. Ela é tutorial: ensina a régua nas primeiras
+  // semanas e depois fica ocupando 79px que ninguém olha. Foi pro balão de
+  // ajuda (toque no card), onde cabe COM o contexto que ela precisa pra
+  // fazer sentido — e onde só aparece pra quem foi procurar.
+  chao.innerHTML = 'chão absoluto: <b>' + fmtBRL(d.custo) + '/km</b> — abaixo daí é prejuízo puro';
+  chao.style.display = 'block';
+}
 
 function atualizarCustoRealKm() {
   const reservaKm = reservaKmAtual();
@@ -1880,7 +2040,49 @@ function abrirAjuda(qual, ev) {
     else
       conta = 'Pra essa conta aparecer, preciso de 2 coisas no mesmo dia: <b>deslizar o "Bora rodar" ao começar e encerrar</b> (me diz as horas) + <b>registrar a receita</b> (me diz o lucro).';
   }
+  else if (qual === 'piso') {
+    titulo = ico('lampada') + ' Seu piso por km';
+    const d = pisoPorKm();
+    texto = '<b>Este número é só seu.</b> Ele sai do que VOCÊ pagou no último abastecimento, '
+          + 'de quantos km VOCÊ faz por hora e da meta que VOCÊ escolheu. Outro motorista, '
+          + 'na mesma cidade e no mesmo carro, vai ter um piso diferente do seu.<br><br>'
+          + 'Os apps que estimam usam média de mercado. Média não paga a sua conta.<br><br>'
+          + 'Você tem uns <b>7 segundos</b> pra aceitar uma corrida. Não dá tempo de fazer conta — '
+          + 'e é exatamente aí que o motorista se engana.<br><br>'
+          + '<b>O erro que quase todo mundo comete:</b> a corrida mostra R$ 12 por 5 km. '
+          + 'Parece R$ 2,40 por km, ótimo. Mas se você roda 4 km só pra buscar o passageiro, '
+          + 'foram <b>9 km</b> no total — e o valor real é <b>R$ 1,33 por km</b>.<br><br>'
+          + 'Some sempre os dois: <b>o km pra buscar + o km da corrida</b>. É essa soma que conta.';
+    if (d && d.piso !== null) {
+      const regra = regraDeBolso(d.piso);
+      // ⚠️ O bloco da tabela é o CORAÇÃO desta ajuda, não um apêndice: é o que
+      // dispensa o motorista de dividir. Por isso vem antes da conta detalhada
+      // — quem só quer saber "aceito ou não" para de ler aqui e já resolveu.
+      texto += '<br><br><div class="ajuda-piso-bloco">'
+            +   '<div class="ajuda-piso-tit">' + ico('alvo') + ' Não precisa dividir nada</div>'
+            +   '<div class="ajuda-piso-txt">Some os dois km e olhe quanto a corrida '
+            +   '<b>precisa pagar</b>:</div>'
+            +   '<div class="piso-tabela">' + tabelaDoPiso(d.piso) + '</div>'
+            +   '<div class="ajuda-piso-ex">9 km e estão pagando R$ 12? A linha dos 10 km pede '
+            +   '<b>' + fmtBRL0(Math.ceil(d.piso * 10)) + '</b>. Recusa.</div>'
+            +   (regra ? '<div class="ajuda-piso-regra">' + regra + '</div>' : '')
+            + '</div>';
+      conta = 'De onde sai o seu piso: cada km te custa <b>' + fmtBRL(d.custo) + '</b>. '
+            + 'Sua meta de <b>' + fmtBRL0(getPerfil().metaDiaria || 0) + '</b> em <b>'
+            + d.horasTipicas.toFixed(1).replace('.', ',') + 'h</b> pede <b>' + fmtBRL0(d.ganhoHora) + ' por hora</b>. '
+            + 'No seu ritmo de <b>' + Math.round(d.kmh) + ' km/h</b>, isso vira <b>'
+            + fmtBRL(d.piso - d.custo) + '</b> de lucro por km.<br><br>'
+            + fmtBRL(d.custo) + ' + ' + fmtBRL(d.piso - d.custo) + ' = <b>' + fmtBRL(d.piso) + ' por km</b>.<br><br>'
+            + '⚠️ Se esse número parece alto demais pra realidade da sua praça, não é o app que está errado: '
+            + 'ou a meta está acima do que o dia dá, ou o dia vai ser mais longo. O número não mente pra te agradar.';
+    } else if (d) {
+      conta = 'Por enquanto eu só sei o <b>chão</b>: cada km te custa <b>' + fmtBRL(d.custo) + '</b>, '
+            + 'e abaixo disso é prejuízo puro, sem discussão. Pro piso da sua meta eu preciso saber '
+            + 'quantos km você faz por hora — marque o "Bora rodar" e o km por alguns dias.';
+    }
+  }
   else if (qual === 'km') {
+
     // ── LINGUAGEM: pra ler de capacete, entre uma corrida e outra.
     // A palavra "guardada" saiu: ela fazia o cara achar que o desgaste ia
     // pro cofrinho 🐷 — e não vai. O balão agora diz onde o dinheiro NÃO está.

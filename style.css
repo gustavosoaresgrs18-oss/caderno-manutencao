@@ -1288,3 +1288,46 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .cad-privacidade{ font-size:var(--f1); color:var(--faint); line-height:1.55;
   text-align:center; margin-top:12px; }
 .cad-privacidade a, .aj-link-priv{ color:var(--info); text-decoration:underline; }
+
+/* ══════════ O PISO ══════════
+   O número existe pra ser DECORADO — por isso é grande e sozinho no card.
+   Enterrá-lo entre outros numerinhos derrotaria o propósito inteiro. */
+.piso-card{ background:var(--elev); border:1px solid rgba(0,224,138,.28);
+  border-radius:16px; padding:13px 15px 14px; margin-bottom:6px; cursor:pointer; }
+.piso-card:active{ transform:scale(.995); }
+.piso-topo{ font-size:var(--f1); font-weight:800; letter-spacing:.08em;
+  color:var(--dim); text-transform:uppercase; margin-bottom:4px; }
+.piso-topo .ico{ width:1.15em; height:1.15em; vertical-align:-.2em; }
+.piso-valor{ font-family:'Sora'; font-size:38px; font-weight:800;
+  color:var(--money); line-height:1.1; }
+.piso-sub{ font-size:var(--f2); color:var(--dim); margin-top:3px; line-height:1.5; }
+.piso-sub b{ color:var(--text); }
+.piso-chao{ font-size:var(--f1); color:var(--faint); margin-top:8px;
+  padding-top:8px; border-top:1px solid var(--line); line-height:1.5; }
+.piso-chao b{ color:var(--dim); }
+
+/* a tabela de bolso: quanto a corrida precisa pagar por faixa de distância */
+.piso-tabela{ display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:7px; }
+.piso-t-col{ background:var(--elev2); border:1px solid var(--line); border-radius:10px;
+  padding:7px 4px; text-align:center; }
+.piso-t-km{ font-size:var(--f1); color:var(--faint); font-weight:700; }
+.piso-t-val{ font-family:'Sora'; font-size:var(--f4); font-weight:800;
+  color:var(--money); margin-top:2px; line-height:1.15; }
+
+
+/* ══════════ O BLOCO DA TABELA, dentro da ajuda ══════════
+   Aqui ele é o ponto de atenção da tela: quem abriu a ajuda veio justamente
+   descobrir como decidir. Por isso ganha moldura e cor — no card do Início
+   ele seria móvel; aqui é a resposta. */
+.ajuda-piso-bloco{ border:1px solid rgba(0,224,138,.35); background:rgba(0,224,138,.06);
+  border-radius:14px; padding:13px 13px 14px; text-align:left; }
+.ajuda-piso-tit{ font-size:var(--f3); font-weight:800; color:var(--money); margin-bottom:5px; }
+.ajuda-piso-txt{ font-size:var(--f2); color:var(--dim); line-height:1.55; margin-bottom:9px; }
+.ajuda-piso-ex{ font-size:var(--f2); color:var(--dim); line-height:1.55; margin-top:10px; }
+.ajuda-piso-ex b{ color:var(--money); }
+.ajuda-piso-regra{ font-size:var(--f2); color:var(--text); line-height:1.5;
+  margin-top:10px; padding-top:9px; border-top:1px solid rgba(0,224,138,.25); }
+
+/* a origem do número — o que separa o Copiloto de quem estima por média */
+.piso-fonte{ font-size:var(--f1); color:var(--faint); margin-top:7px; line-height:1.5; }
+.piso-fonte b{ color:var(--money); }
