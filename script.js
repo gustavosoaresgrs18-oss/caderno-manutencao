@@ -1130,7 +1130,10 @@ function iniciarApp(perfil) {
 window.addEventListener('DOMContentLoaded', function () {
   const perfil = lerLS('perfilUsuario', null);
   if (perfil && perfil.nome) iniciarApp(perfil);
-  else document.getElementById('telaCadastro').style.display = 'block';
+  else {
+    document.getElementById('telaCadastro').style.display = 'block';
+    renderCarameloCadastro();
+  }
 
   // Supabase (Fatia 1): inicia em paralelo — se estiver offline ou o CDN falhar,
   // o app segue 100% funcional local (é só a nuvem que fica pra depois).
@@ -5354,6 +5357,11 @@ navCombustivel.addEventListener('click', () => { atualizarTelaCombustivel();   m
 navFinancas.addEventListener('click',    () => { atualizarTelaFinancas();      mostrarTela(telaFinancas);    navFinancas.classList.add('ativo'); });
 navDocumentos.addEventListener('click',  () => { atualizarTelaDocumentos();    mostrarTela(telaDocumentos);  navDocumentos.classList.add('ativo'); });
 // desenha o lobo na aba, na fase que ele está hoje (filhote → lenda)
+// o Isaac na tela de cadastro — filhote, que é a fase de quem está chegando
+function renderCarameloCadastro() {
+  const box = document.getElementById('cadIsaac');
+  if (box) box.innerHTML = svgCaramelo('filhote', 'feliz', 118, false);
+}
 function renderCarameloCade() {
   const box = document.getElementById('cadeBicho');
   if (!box) return;

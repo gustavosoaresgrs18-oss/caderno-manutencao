@@ -1278,3 +1278,13 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 
 .mes-selo{ font-size:var(--f1); font-weight:800; background:var(--money);
   color:#04120c; border-radius:20px; padding:2px 9px; margin-left:6px; }
+
+/* ══════════ PORTA DE ENTRADA ══════════ */
+.cad-isaac{ display:flex; justify-content:center; margin-bottom:6px; }
+.cad-isaac svg{ display:block; }
+.cad-fala{ font-size:var(--f2); color:var(--dim); line-height:1.55;
+  max-width:290px; margin:12px auto 0; background:var(--elev);
+  border:1px solid rgba(155,107,255,.3); border-radius:14px; padding:11px 14px; }
+.cad-privacidade{ font-size:var(--f1); color:var(--faint); line-height:1.55;
+  text-align:center; margin-top:12px; }
+.cad-privacidade a, .aj-link-priv{ color:var(--info); text-decoration:underline; }

@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=380">
+    <link rel="stylesheet" href="style.css?v=381">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=380"></script>
+    <script src="supabase-service.js?v=381"></script>
   </head>
   <body>
 
@@ -96,10 +96,14 @@
       <!-- ══════════ TELA CADASTRO ══════════ -->
       <div class="tela-cadastro" id="telaCadastro" style="display: none;">
         <div class="cadastro-content">
+          <!-- ⚠️ O Isaac é o que o app tem e o Drivvo não. Ele não podia estrear
+               só DEPOIS do cadastro — a porta de entrada é onde o motorista
+               decide se vale a pena preencher três telas de formulário. -->
           <div class="cadastro-logo">
-            <div class="cadastro-logo-icon"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#0B0F14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 18a9 9 0 1 1 15 0"/><path d="M12 14a2 2 0 0 0 1.6-3.2L16.5 7"/><circle cx="12" cy="12" r="1.1" fill="#0B0F14"/></svg></div>
+            <div class="cad-isaac" id="cadIsaac"></div>
             <div class="cadastro-logo-nome">Copiloto</div>
             <div class="cadastro-logo-sub">O painel do seu dinheiro na estrada</div>
+            <div class="cad-fala">Eu sou o Isaac. Vou fechar sua conta todo dia e te mostrar quanto sobra de verdade.</div>
           </div>
           <div class="step-ind">
             <div class="step-dot on" id="dot1"></div>
@@ -149,6 +153,15 @@
             </div>
             <div class="plats-sel" id="platsSel"><svg class="ico"><use href="#i-check"></use></svg> Uber selecionado</div>
             <button class="cad-btn-next" onclick="finalizarCadastro()"><svg class="ico"><use href="#i-check"></use></svg> Começar a usar</button>
+            <!-- ⚠️ NÃO EXISTIA em lugar nenhum do app. A página estava publicada no
+                 GitHub Pages e nenhuma tela apontava pra ela. Sem isto a Play Store
+                 reprova, e a LGPD exige que ele saiba o que é coletado ANTES de
+                 entregar os dados — por isso o link fica aqui, junto do botão. -->
+            <div class="cad-privacidade">
+              Ao começar, você aceita a
+              <a href="privacidade.html" target="_blank" rel="noopener">política de privacidade</a>.
+              Seus dados são seus — e dá pra apagar tudo quando quiser.
+            </div>
             <button class="cad-btn-back" onclick="cadIrPara(2)"><svg class="ico"><use href="#i-seta-esq"></use></svg> Voltar</button>
           </div>
         </div>
@@ -1184,6 +1197,9 @@
                 <button id="ajBtnRestaurar" class="aj-link">Restaurar cópia</button>
               </div>
               <div class="aj-dica" style="text-align:center;">A cópia é um arquivo no seu celular. Serve pra quem não está logado.</div>
+              <div class="aj-dica" style="text-align:center; margin-top:10px;">
+                <a href="privacidade.html" target="_blank" rel="noopener" class="aj-link-priv">Política de privacidade</a>
+              </div>
             </div>
           </details>
 
@@ -1215,7 +1231,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=380"></script>
+    <script src="script.js?v=381"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra
