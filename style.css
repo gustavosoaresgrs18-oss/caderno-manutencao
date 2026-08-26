@@ -410,7 +410,11 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .cade-share:active{ transform:scale(.97); }
 .cade-share svg{ width:16px; height:16px; }
 .share-canvas-wrap{ width:100%; border-radius:14px; overflow:hidden; margin-bottom:14px; border:1px solid var(--line); }
-#shareCanvas{ display:block; width:100%; height:auto; }
+/* ⚠️ Era #shareCanvas — presa ao ID do card DIÁRIO. Quando nasceu o card do
+   mês, o canvas dele ficou em 1080px de largura dentro de um modal de 350px e
+   vazou pra fora da tela. Regra amarrada a um ID não vale pro irmão: agora
+   qualquer canvas dentro do wrap se ajusta, e o próximo card já nasce certo. */
+.share-canvas-wrap canvas{ display:block; width:100%; height:auto; }
 .share-toggle{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:var(--elev2); border:1px solid var(--line); border-radius:12px; padding:11px 14px; cursor:pointer; }
 .share-toggle-txt{ font-size:var(--f2); color:var(--text); font-weight:600; }
 .share-toggle input{ position:absolute; width:0; height:0; opacity:0; }
@@ -1248,8 +1252,9 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .mes-caixa{ max-height:88vh; overflow-y:auto; text-align:left; }
 .mes-topo{ display:flex; align-items:center; justify-content:space-between;
   gap:10px; margin-bottom:14px; text-align:center; }
-.mes-titulo{ font-size:var(--f5); font-weight:800; color:var(--text);
-  text-transform:capitalize; line-height:1.2; }
+/* ⚠️ sem text-transform: capitalize sobe a letra de CADA palavra e escreve
+   "Julho De 2026". Quem capitaliza só a primeira é o nomeDoMes(), no JS. */
+.mes-titulo{ font-size:var(--f5); font-weight:800; color:var(--text); line-height:1.2; }
 .mes-sub{ font-size:var(--f1); color:var(--faint); margin-top:2px; }
 .mes-nav{ background:var(--elev2); border:1px solid var(--line); border-radius:50%;
   width:34px; height:34px; color:var(--dim); cursor:pointer; flex-shrink:0;

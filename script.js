@@ -3588,16 +3588,31 @@ function imprimirPDF(titulo, subtitulo, resumoLinhas, tabelaHeader, tabelaLinhas
     <style>
       *{font-family:Arial,Helvetica,sans-serif;color:#111}
       body{padding:28px;max-width:720px;margin:auto}
-      h1{font-size:var(--f5);margin:0} .sub{color:#666;font-size:var(--f3);margin:2px 0 18px}
-      .who{font-size:var(--f2);color:#888;margin-bottom:18px}
+      /* ⚠️ px LITERAL aqui, nunca var(--fN): esta folha vive numa janela nova
+         (window.open), que não tem o :root do app. Com var() o navegador
+         descarta a regra e o PDF sai inteiro no tamanho padrão. */
+      h1{font-size:20px;margin:0} .sub{color:#666;font-size:13px;margin:2px 0 18px}
+      .who{font-size:12px;color:#888;margin-bottom:18px}
       .resumo{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
-      .rz{display:flex;justify-content:space-between;border:1px solid #ddd;border-radius:8px;padding:9px 12px;font-size:var(--f3)}
+      .rz{display:flex;justify-content:space-between;border:1px solid #ddd;border-radius:8px;padding:9px 12px;font-size:13px}
       .rz b{color:#000}
-      table{width:100%;border-collapse:collapse;font-size:var(--f2)}
+      table{width:100%;border-collapse:collapse;font-size:12px}
       th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #eee}
-      th{background:#f5f5f5;font-size:var(--f1);text-transform:uppercase;color:#555}
-      .foot{margin-top:24px;font-size:var(--f1);color:#aaa;text-align:center}
+      th{background:#f5f5f5;font-size:11px;text-transform:uppercase;color:#555}
+      .foot{margin-top:24px;font-size:11px;color:#aaa;text-align:center}
+      .marca{display:flex;align-items:center;gap:7px;margin-bottom:14px;
+        padding-bottom:12px;border-bottom:2px solid #00b473}
+      .marca-nome{font-size:15px;font-weight:bold;letter-spacing:.14em;color:#0b7a52}
+      .marca-tag{font-size:11px;color:#999;margin-left:auto}
     </style></head><body>
+    <div class="marca">
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#00b473"
+           stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3.5 17a9 9 0 1 1 17 0"/><path d="M12 17l4.2-5"/><circle cx="12" cy="17" r="1.4"/>
+      </svg>
+      <span class="marca-nome">COPILOTO</span>
+      <span class="marca-tag">caderno digital do motorista de app</span>
+    </div>
     <h1>${titulo}</h1><div class="sub">${subtitulo}</div>
     <div class="who">${perfil.nome || ''} · ${perfil.modelo || ''}${perfil.placa ? ' · ' + perfil.placa : ''}</div>
     <div class="resumo">${resumoHTML}</div>
