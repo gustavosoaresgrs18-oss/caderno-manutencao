@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=387">
+    <link rel="stylesheet" href="style.css?v=388">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=387"></script>
+    <script src="supabase-service.js?v=388"></script>
   </head>
   <body>
 
@@ -189,7 +189,7 @@
         </div>
 
         <!-- ═══ VELOCÍMETRO DO LUCRO (a estrela) ═══ -->
-        <div class="gauge-card">
+        <div class="gauge-card" id="tutGauge">
           <div class="gc-label">Lucro de hoje</div>
           <div class="gauge-wrap" onclick="gaugeClique()" style="cursor:pointer;" title="Registrar receita do dia">
             <svg viewBox="0 0 270 152" width="100%" style="max-width:240px;display:block;margin:0 auto;">
@@ -219,7 +219,7 @@
           <div class="gc-meta" id="metaCard" onclick="editarMeta()"><svg class="ico"><use href="#i-alvo"></use></svg> <b class="num" id="metaPct">—</b> da meta · <span id="metaFalta">Meta R$ 250</span> <span class="int" onclick="abrirAjuda('meta', event)">ⓘ</span></div>
           <span style="display:none" id="metaValorTexto">R$ 250</span>
           <div class="meta-bar" style="display:none"><span id="metaBarra" style="width:0%"></span></div>
-          <div class="hero-strip">
+          <div class="hero-strip" id="tutStrip">
             <div class="hero-m gold ajuda" onclick="abrirAjuda('hora', event)"><div class="v num" id="ganhoHoraValor">—</div><div class="k">/ hora real <span class="int">ⓘ</span></div></div>
             <div class="hero-m ajuda" onclick="abrirAjuda('km', event)"><div class="v num" id="custoKmStrip">—</div><div class="k">/ km real <span class="int">ⓘ</span></div></div>
             <div class="hero-m ajuda" onclick="editarReserva()"><div class="v num" style="color:var(--money)" id="reservaValor">R$ 0</div><div class="k">reserva 🐷</div></div>
@@ -234,7 +234,7 @@
 
         <!-- ═══ ODÔMETRO + TANQUE DO MÊS ═══ -->
         <div class="odo-row">
-          <div class="odo-card" onclick="abrirCorrigirKm()" style="cursor:pointer;">
+          <div class="odo-card" id="odoCardAlvo" onclick="abrirCorrigirKm()" style="cursor:pointer;">
             <div class="odo-label"><svg class="ico"><use href="#i-odometro"></use></svg> Odômetro <span style="color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0;">· toque p/ corrigir</span></div>
             <div class="odo" id="odoDigitos"></div>
             <div class="odo-hoje num" id="odoHoje">+<span class="num" id="kmHojeValor">0 km</span> hoje</div>
@@ -243,7 +243,7 @@
         </div>
 
         <!-- ═══ LUZES DE MANUTENÇÃO ═══ -->
-        <div class="luzes">
+        <div class="luzes" id="tutLuzes">
           <div class="luzes-top"><span class="luzes-t"><svg class="ico"><use href="#i-chave"></use></svg> Painel de manutenção</span><span class="luzes-dica">toque numa luz</span></div>
           <div class="luzes-row">
             <div class="luz" id="alertaItem1" onclick="abrirManutencao(1)">
@@ -665,6 +665,29 @@
           <div class="modal-botoes" style="margin-top:14px;">
             <button class="modal-btn cancelar" onclick="fecharRelatorioMes()">Fechar</button>
             <button class="modal-btn confirmar" id="mesShareBtn" onclick="compartilharMes()"><svg class="ico"><use href="#i-enviar"></use></svg> Compartilhar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════ TUTORIAL DA PRIMEIRA VEZ ══════════
+           Por que existe, se o guia já explica os conceitos:
+           o guia diz O QUE o app faz; o tutorial diz ONDE FICA. São coisas
+           diferentes, e o motorista precisa das duas — ele abre a tela pela
+           primeira vez e vê seis blocos sem saber por onde começar.
+           ⚠️ Curto de propósito (6 passos) e com "pular" desde o primeiro:
+           tutorial longo é tutorial que o cara fecha na cara. -->
+      <div class="tut-overlay" id="tutOverlay" style="display:none;">
+        <div class="tut-buraco" id="tutBuraco"></div>
+        <div class="tut-balao" id="tutBalao">
+          <div class="tut-topo">
+            <span class="tut-lobo" id="tutLobo"></span>
+            <span class="tut-nome">Isaac</span>
+            <span class="tut-passo" id="tutPasso">1 de 6</span>
+          </div>
+          <div class="tut-texto" id="tutTexto">—</div>
+          <div class="tut-botoes">
+            <button class="tut-pular" onclick="fecharTutorial(true)">pular</button>
+            <button class="tut-ok" id="tutOk" onclick="tutorialProximo()">Entendi</button>
           </div>
         </div>
       </div>
@@ -1231,7 +1254,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=387"></script>
+    <script src="script.js?v=388"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra

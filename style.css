@@ -1331,3 +1331,34 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 /* a origem do número — o que separa o Copiloto de quem estima por média */
 .piso-fonte{ font-size:var(--f1); color:var(--faint); margin-top:7px; line-height:1.5; }
 .piso-fonte b{ color:var(--money); }
+
+.ajuda-piso-vivo{ font-size:var(--f1); color:var(--dim); line-height:1.55;
+  margin-top:9px; padding-top:9px; border-top:1px solid rgba(0,224,138,.25); }
+.ajuda-piso-vivo b{ color:var(--money); }
+.ajuda-piso-vivo .ico{ vertical-align:-.15em; color:var(--money); }
+
+/* ══════════ TUTORIAL DA PRIMEIRA VEZ ══════════
+   O escurecimento é feito com um box-shadow gigante em volta do "buraco":
+   é o jeito mais leve de abrir um holofote sem máscara SVG nem canvas, e
+   funciona em qualquer WebView — inclusive a do app nativo. */
+.tut-overlay{ position:fixed; inset:0; z-index:200; }
+.tut-buraco{ position:absolute; border-radius:16px; pointer-events:none;
+  box-shadow:0 0 0 9999px rgba(5,8,12,.88), 0 0 0 2px var(--money);
+  transition:top .3s ease, left .3s ease, width .3s ease, height .3s ease; }
+.tut-balao{ position:absolute; left:14px; right:14px; background:var(--elev);
+  border:1px solid var(--purple); border-radius:16px; padding:14px 15px;
+  box-shadow:0 12px 40px rgba(0,0,0,.6); transition:top .3s ease; }
+.tut-topo{ display:flex; align-items:center; gap:7px; margin-bottom:7px; }
+.tut-lobo svg{ display:block; }
+.tut-nome{ font-weight:800; color:var(--purple); font-size:var(--f2);
+  letter-spacing:.06em; text-transform:uppercase; }
+.tut-passo{ margin-left:auto; font-size:var(--f1); color:var(--faint); }
+.tut-texto{ font-size:var(--f3); color:var(--text); line-height:1.6; }
+.tut-texto b{ color:var(--money); }
+.tut-botoes{ display:flex; align-items:center; gap:10px; margin-top:13px; }
+.tut-pular{ background:none; border:none; color:var(--faint); cursor:pointer;
+  font-family:'Inter'; font-size:var(--f2); text-decoration:underline; padding:6px 2px; }
+.tut-ok{ margin-left:auto; background:linear-gradient(135deg,var(--money),var(--money2));
+  color:#04120c; border:none; border-radius:12px; padding:10px 22px; cursor:pointer;
+  font-family:'Inter'; font-size:var(--f3); font-weight:800; }
+.tut-ok:active{ transform:scale(.97); }

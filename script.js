@@ -1063,6 +1063,10 @@ function revelarCaramelo() {
 function fecharPresenteCaramelo() {
   const ov = document.getElementById('modalPresente');
   if (ov) ov.style.display = 'none';
+  // ⚠️ O tutorial entra DEPOIS do presente, nunca junto: dois modais na cara
+  // ao mesmo tempo é o jeito mais rápido de fazer o motorista fechar os dois.
+  // E só na primeira vez da vida — quem já viu não vê de novo.
+  if (!tutorialJaViu()) setTimeout(abrirTutorial, 450);
 }
 
 // ─── INÍCIO DO APP ───────────────────────────────────────────
@@ -1788,7 +1792,7 @@ function cardDoPiso() {
          + 'Abaixo de ' + fmtBRL(d.piso) + ' você não bate sua meta. '
          + (regra ? regra.replace(/<[^>]+>/g, '') + ' ' : '')
          + 'Toque aqui embaixo que eu te mostro a tabela pronta — não precisa dividir nada.',
-    fonte: 'feito com o seu consumo, o seu ritmo e a sua meta',
+    fonte: 'recalculado a cada registro seu — nunca é média de mercado',
     piso: d
   };
 }
@@ -1805,6 +1809,12 @@ function blocoTabelaPiso(d) {
       'Sua meta de <b>' + fmtBRL0(getPerfil().metaDiaria || 0) + '</b> em <b>' +
       d.horasTipicas.toFixed(1).replace('.', ',') + 'h</b>, no seu ritmo de <b>' +
       Math.round(d.kmh) + ' km/h</b>, pede mais <b>' + fmtBRL(d.piso - d.custo) + '</b> por km.</div>' +
+    // ⚠️ Sem esta linha o motorista pode achar que é número fixo, chutado uma
+    // vez no cadastro — e aí não confia. Dizer que ele SE MEXE é o que mostra
+    // que o app está medindo, e não estimando como os concorrentes.
+    '<div class="ajuda-piso-vivo">' + ico('atualizar') +
+      ' <b>Este número está vivo.</b> Cada abastecimento que você registra e cada dia ' +
+      'que você fecha refazem a conta. Gasolina subiu? O piso sobe junto, no mesmo dia.</div>' +
     '</div>';
 }
 
@@ -5493,6 +5503,87 @@ function compartilharMesTexto() {
     navigator.clipboard.writeText(txt).then(function () { toast('Copiado! É só colar.'); })
       .catch(function () { toast('Não consegui copiar', 'erro'); });
   }
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  TUTORIAL DA PRIMEIRA VEZ — o Isaac mostra ONDE fica cada coisa
+// ═══════════════════════════════════════════════════════════════
+// O guia (os 9 cards) explica O QUE o app faz. Isso é outra coisa: mostra
+// ONDE fica. O motorista abre a tela pela primeira vez e vê seis blocos sem
+// saber por onde começar — e quem não sabe por onde começar, não começa.
+//
+// ⚠️ Seis passos, e só. Tutorial longo é tutorial que o cara fecha na cara,
+// e aí ele perde os seis. O "pular" fica visível desde o primeiro passo:
+// esconder a saída é o que faz a pessoa desistir do app, não do tutorial.
+const TUTORIAL = [
+  { alvo: 'tutGauge',
+    txt: 'Este é o número que importa: <b>o que sobrou no seu bolso hoje</b>. Não é o que a plataforma mostra — é o que sobra depois da taxa dela e da gasolina.' },
+  { alvo: 'tutStrip',
+    txt: 'Aqui embaixo: <b>quanto valeu sua hora</b>, <b>quanto te custa cada km</b> e <b>o que eu guardei</b> pra quando a conta grande chegar. Toque em qualquer um que eu explico.' },
+  { alvo: 'sliderContainer',
+    txt: 'Comece o dia por aqui. <b>Deslize ao sair e deslize ao voltar</b> — é assim que eu sei quantas horas você rodou. Sem isso eu não consigo dizer quanto vale sua hora.' },
+  { alvo: 'tutLuzes',
+    txt: 'Registrou a última troca de óleo, pneu e freio? <b>Eu conto os km e grito ANTES de quebrar</b>. Quebrar na rua é caro e a pé.' },
+  { alvo: 'odoCardAlvo',
+    txt: 'O km do painel do seu carro. <b>Toque aqui pra corrigir</b> se digitar errado — e vai acontecer, todo mundo erra um dia.' },
+  { alvo: 'navCade',
+    txt: 'E aqui sou eu. <b>Todo dia eu fecho sua conta</b> e te falo a verdade dela, sem passar a mão na cabeça. Bora rodar.' }
+];
+let _tutIdx = 0;
+
+function tutorialJaViu()  { return lerLS('tutorialVisto', false) === true; }
+function marcarTutorial() { salvarLS('tutorialVisto', true); }
+
+function abrirTutorial() {
+  if (!document.getElementById('tutOverlay')) return;
+  _tutIdx = 0;
+  const lobo = document.getElementById('tutLobo');
+  if (lobo) lobo.innerHTML = svgCaramelo('filhote', 'feliz', 34, false);
+  document.getElementById('tutOverlay').style.display = 'block';
+  pintarPassoTutorial();
+}
+function fecharTutorial(pulou) {
+  const ov = document.getElementById('tutOverlay');
+  if (ov) ov.style.display = 'none';
+  marcarTutorial();   // pulou ou terminou: não insiste — insistir irrita
+}
+function tutorialProximo() {
+  _tutIdx++;
+  if (_tutIdx >= TUTORIAL.length) { fecharTutorial(false); return; }
+  pintarPassoTutorial();
+}
+function pintarPassoTutorial() {
+  const passo = TUTORIAL[_tutIdx];
+  const alvo  = document.getElementById(passo.alvo);
+  const buraco = document.getElementById('tutBuraco');
+  const balao  = document.getElementById('tutBalao');
+
+  // ⚠️ Alvo sumido não pode travar o tutorial. Se o elemento não existe (tela
+  // diferente, item escondido), pula pro próximo em vez de quebrar.
+  if (!alvo) { tutorialProximo(); return; }
+
+  alvo.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  setTimeout(function () {
+    const r = alvo.getBoundingClientRect();
+    const pad = 8;
+    buraco.style.top    = (r.top - pad) + 'px';
+    buraco.style.left   = (r.left - pad) + 'px';
+    buraco.style.width  = (r.width + pad * 2) + 'px';
+    buraco.style.height = (r.height + pad * 2) + 'px';
+
+    document.getElementById('tutTexto').innerHTML = passo.txt;
+    document.getElementById('tutPasso').textContent = (_tutIdx + 1) + ' de ' + TUTORIAL.length;
+    document.getElementById('tutOk').textContent =
+      (_tutIdx === TUTORIAL.length - 1) ? 'Bora rodar' : 'Entendi';
+
+    // o balão vai pro lado com mais espaço: nunca por cima do que está sendo
+    // apontado, senão o holofote não serve pra nada
+    const alturaBalao = balao.offsetHeight || 150;
+    const cabeAbaixo  = (window.innerHeight - r.bottom) > (alturaBalao + 24);
+    balao.style.top = cabeAbaixo
+      ? (r.bottom + 14) + 'px'
+      : Math.max(12, r.top - alturaBalao - 14) + 'px';
+  }, 320);
 }
 
 // ═══════════════════════════════════════════════════════════════
