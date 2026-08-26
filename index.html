@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=376">
+    <link rel="stylesheet" href="style.css?v=378">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=376"></script>
+    <script src="supabase-service.js?v=378"></script>
   </head>
   <body>
 
@@ -778,6 +778,27 @@
       </div>
 
       <!-- ══════════ MODAL COMPARTILHAR FECHAMENTO (v2.3) ══════════ -->
+      <!-- card mensal — mesmo estilo do diário. É a peça de distribuição:
+           vai pro grupo e é a única propaganda do app que não custa nada. -->
+      <div class="modal-overlay" id="modalShareMes">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo"><svg class="ico"><use href="#i-enviar"></use></svg> Compartilhar o mês</h2>
+          <p class="modal-desc" style="margin-bottom:14px">Um card pro grupo. O dinheiro é seu — mostra o valor só se quiser.</p>
+          <div class="share-canvas-wrap"><canvas id="shareCanvasMes" width="1080" height="1080"></canvas></div>
+          <label class="share-toggle">
+            <span class="share-toggle-txt">Mostrar quanto sobrou</span>
+            <span style="display:flex;align-items:center;">
+              <input type="checkbox" id="shareToggleMes" checked onchange="desenharCardMes(this.checked)">
+              <span class="share-sw"></span>
+            </span>
+          </label>
+          <div class="modal-botoes" style="margin-top:14px;">
+            <button class="modal-btn cancelar" onclick="document.getElementById('modalShareMes').style.display='none'">Voltar</button>
+            <button class="modal-btn confirmar" onclick="enviarCardMes()"><svg class="ico"><use href="#i-enviar"></use></svg> Enviar</button>
+          </div>
+        </div>
+      </div>
+
       <div class="modal-overlay" id="modalShare">
         <div class="modal-caixa">
           <h2 class="modal-titulo"><svg class="ico"><use href="#i-enviar"></use></svg> Compartilhar fechamento</h2>
@@ -1194,7 +1215,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=376"></script>
+    <script src="script.js?v=378"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra

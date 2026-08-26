@@ -5102,10 +5102,113 @@ document.getElementById('mesNext').addEventListener('click', function () {
   if (i > 0) { _mesAberto = meses[i - 1]; renderRelatorioMes(); }
 });
 
-// ── compartilhar: texto puro, sem marcador ──
+// ── compartilhar o mês: card em imagem, mesmo estilo do diário ──
+let _legendaMes = '';
+async function desenharCardMes(mostrarValor) {
+  const m = fecharMes(_mesAberto);
+  const canvas = document.getElementById('shareCanvasMes');
+  if (!m || !canvas) return;
+  const W = 1080, H = 1080, cx = 110;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = '#0B0F14'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#1C242E'; ctx.lineWidth = 2; ctx.strokeRect(44, 44, W - 88, H - 88);
+
+  // marca (o mesmo velocímetro do card do dia)
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#00E08A'; ctx.lineWidth = 11;
+  ctx.beginPath(); ctx.arc(cx + 24, 168, 26, Math.PI * 0.8, Math.PI * 2.2); ctx.stroke();
+  ctx.strokeStyle = '#F2F6FA'; ctx.lineWidth = 7;
+  ctx.beginPath(); ctx.moveTo(cx + 24, 168); ctx.lineTo(cx + 42, 150); ctx.stroke();
+  ctx.fillStyle = '#93A1B0'; ctx.font = '700 32px Sora, sans-serif'; ctx.textBaseline = 'middle';
+  ctx.fillText('C O P I L O T O', cx + 72, 168);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#5C6B7A'; ctx.font = '400 30px Inter, sans-serif';
+  ctx.fillText('fechamento do mês', W - 110, 168);
+  ctx.textAlign = 'left';
+
+  const mesNome = nomeDoMes(m.ym).replace(' de ' + m.ym.slice(0, 4), '');
+  ctx.textBaseline = 'top';
+
+  if (mostrarValor) {
+    ctx.fillStyle = '#93A1B0'; ctx.font = '400 42px Inter, sans-serif';
+    ctx.fillText('Meu ' + mesNome.toLowerCase(), cx, 300);
+    ctx.fillStyle = m.lucro >= 0 ? '#00E08A' : '#FF5A5F';
+    ctx.font = '800 138px Sora, sans-serif';
+    ctx.fillText(fmtBRL0(m.lucro), cx, 364);
+    ctx.fillStyle = '#93A1B0'; ctx.font = '400 42px Inter, sans-serif';
+    ctx.fillText(m.lucro >= 0 ? 'líquido no bolso' : 'no vermelho', cx, 536);
+    _legendaMes = 'Meu ' + mesNome.toLowerCase() + ': ' + fmtBRL0(m.lucro) +
+                  ' líquidos em ' + m.dias + (m.dias === 1 ? ' dia' : ' dias') + ' — feito no Copiloto';
+  } else {
+    // ⚠️ sem o valor o card não pode ficar vazio: entra o esforço, que é
+    // público e que ele tem orgulho de mostrar
+    ctx.fillStyle = '#93A1B0'; ctx.font = '400 42px Inter, sans-serif';
+    ctx.fillText('Meu ' + mesNome.toLowerCase() + ' na rua', cx, 300);
+    ctx.fillStyle = '#00E08A'; ctx.font = '800 138px Sora, sans-serif';
+    ctx.fillText(String(m.dias), cx, 364);
+    const wv = ctx.measureText(String(m.dias)).width;
+    ctx.fillStyle = '#93A1B0'; ctx.font = '400 60px Sora, sans-serif';
+    ctx.fillText(m.dias === 1 ? 'dia' : 'dias', cx + wv + 20, 452);
+    ctx.font = '400 42px Inter, sans-serif';
+    ctx.fillText('de trabalho registrado', cx, 536);
+    _legendaMes = 'Meu ' + mesNome.toLowerCase() + ': ' + m.dias +
+                  (m.dias === 1 ? ' dia' : ' dias') + ' na rua — feito no Copiloto';
+  }
+
+  ctx.strokeStyle = '#26313D'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(cx, 690); ctx.lineTo(W - 110, 690); ctx.stroke();
+
+  // ── os três números do mês. Só entra o que o app SABE. ──
+  const stats = [];
+  if (mostrarValor) stats.push([String(m.dias), m.dias === 1 ? 'dia rodado' : 'dias rodados']);
+  if (m.porHora !== null) stats.push([fmtBRL0(m.porHora), 'por hora']);
+  if (m.km !== null)      stats.push([fmtKm(m.km), 'km rodados']);
+  stats.slice(0, 2).forEach(function (st, i) { _statCard(ctx, cx + i * 300, 738, st[0], st[1]); });
+
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#5C6B7A'; ctx.font = '400 32px Inter, sans-serif';
+  ctx.fillText('quanto você ganha por hora, de verdade', cx, H - 150);
+  ctx.fillStyle = '#93A1B0'; ctx.font = '600 32px Inter, sans-serif';
+  ctx.fillText('Copiloto', cx, H - 100);
+
+  await desenharIsaacComVeiculo(ctx, W - 86, H - 62, 232);
+}
+
+async function compartilharMes() {
+  if (!fecharMes(_mesAberto)) return;
+  document.getElementById('shareToggleMes').checked = true;
+  document.getElementById('modalShareMes').style.display = 'flex';
+  if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) {} }
+  desenharCardMes(true);
+}
+
+function enviarCardMes() {
+  const canvas = document.getElementById('shareCanvasMes');
+  const legenda = _legendaMes || '';
+  canvas.toBlob(async function (blob) {
+    if (!blob) { toast('Não consegui gerar a imagem', 'erro'); return; }
+    const file = new File([blob], 'copiloto-mes.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try { await navigator.share({ files: [file], text: legenda });
+            document.getElementById('modalShareMes').style.display = 'none'; return; }
+      catch (e) { if (e && e.name === 'AbortError') return; }
+    }
+    // sem compartilhamento nativo (navegador de desktop): baixa a imagem
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'copiloto-mes.png'; a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+    toast('Imagem baixada');
+  }, 'image/png');
+}
+
+// ── (antigo) compartilhar em texto puro — mantido como reserva ──
 // ⚠️ Aqui o texto SAI do app (WhatsApp). Marcador [[v:]] e SVG não existem lá
 // fora — por isso passa pelo cadeParaVoz(), que devolve texto limpo.
-function compartilharMes() {
+function compartilharMesTexto() {
   const m = fecharMes(_mesAberto);
   if (!m) return;
   const linhas = [
@@ -5888,6 +5991,64 @@ function _horasCurto(h) {
   return m ? (H + 'h' + String(m).padStart(2, '0')) : (H + 'h');
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  ISAAC E O VEÍCULO DENTRO DO CARD DE COMPARTILHAR
+// ═══════════════════════════════════════════════════════════════
+// O card vai pro grupo de WhatsApp — é a única propaganda do app que não
+// custa nada. Número sozinho qualquer planilha manda; o que faz o motorista
+// perguntar "que app é esse?" é o personagem.
+//
+// ⚠️ O SVG do Isaac usa var(--coat), var(--nose)... Num data: URL ele sai do
+// DOM, as variáveis não resolvem e o lobo sai PRETO. Por isso as cores são
+// trocadas pelos valores reais antes de virar imagem — lidas do :root em
+// tempo de execução, então se a paleta mudar o card acompanha sozinho.
+function _svgCoresResolvidas(svg) {
+  const raiz = getComputedStyle(document.documentElement);
+  return svg.replace(/var\(--([a-z0-9-]+)\)/gi, function (m, nome) {
+    return (raiz.getPropertyValue('--' + nome) || '').trim() || '#888';
+  });
+}
+function _svgParaImagem(svg) {
+  // encodeURIComponent e não btoa: o SVG tem acento e emoji, e o btoa quebra neles
+  const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  return new Promise(function (res) {
+    const img = new Image();
+    img.onload  = function () { res(img); };
+    img.onerror = function () { res(null); };   // sem imagem o card sai só com os números
+    img.src = url;
+  });
+}
+function imagemDoIsaac(tamanho) {
+  return _svgParaImagem(_svgCoresResolvidas(
+    svgCaramelo(faseAtualDoCaramelo(), 'feliz', tamanho, false)));
+}
+// ⚠️ O desenho do veículo vem do MESMO sprite que o app inteiro usa. Redesenhar
+// aqui criaria um segundo conjunto de ícones — que é exatamente o erro que a
+// v3.62 encontrou (galão de óleo no Início, gota na Manutenção).
+function imagemDoVeiculo(tamanho, cor) {
+  const sym = document.getElementById(tipoVeiculoAtivo() === 'carro' ? 'i-carro' : 'i-moto');
+  if (!sym) return Promise.resolve(null);
+  return _svgParaImagem(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="' + tamanho +
+    '" height="' + tamanho + '" fill="none" stroke="' + cor +
+    '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">' + sym.innerHTML + '</svg>');
+}
+// O par completo: o veículo dele grande e apagado no fundo, o Isaac na frente.
+// Motorista de moto vê uma moto; de carro, um carro.
+async function desenharIsaacComVeiculo(ctx, xDir, yBase, alturaIsaac) {
+  const veic = await imagemDoVeiculo(alturaIsaac * 1.35, '#26313D');
+  if (veic) {
+    ctx.globalAlpha = 0.5;
+    ctx.drawImage(veic, xDir - veic.width * 0.9, yBase - veic.height * 0.88);
+    ctx.globalAlpha = 1;
+  }
+  const isaac = await imagemDoIsaac(alturaIsaac);
+  if (isaac) {
+    const w = isaac.width || alturaIsaac, h = isaac.height || alturaIsaac;
+    ctx.drawImage(isaac, xDir - w, yBase - h);
+  }
+}
+
 function _statCard(ctx, x, y, valor, rotulo) {
   ctx.textBaseline = 'top';
   ctx.fillStyle = '#F2F6FA'; ctx.font = '700 66px Sora, sans-serif';
@@ -5896,7 +6057,7 @@ function _statCard(ctx, x, y, valor, rotulo) {
   ctx.fillText(rotulo, x, y + 82);
 }
 
-function desenharCardFechamento(mostrarValor) {
+async function desenharCardFechamento(mostrarValor) {
   const d = dadosFechamentoHoje();
   const canvas = document.getElementById('shareCanvas');
   if (!d || !canvas) return;
@@ -5990,6 +6151,8 @@ function desenharCardFechamento(mostrarValor) {
   ctx.fillText('Copiloto', cx, H - 100);
 
   _shareLegenda = legenda;
+  // o Isaac por último: fica por cima de tudo, no canto de baixo à direita
+  await desenharIsaacComVeiculo(ctx, W - 86, H - 62, 232);
 }
 
 async function abrirShareFechamento() {
