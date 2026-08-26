@@ -1398,6 +1398,13 @@ const SUPORTE_WHATSAPP = '';
 // Instagram em standby ate criar o perfil. Poe so o @ (sem arroba) que o botao aparece.
 const SUPORTE_INSTAGRAM = '';
 
+// ⚠️ A lista do guia é const porque explica o PRODUTO. O card do piso é o
+// único que carrega um número do motorista — por isso é montado na hora de
+// abrir, e entra na frente: é a régua de decisão, não uma explicação.
+function rotinasDoGuia() {
+  const piso = cardDoPiso();
+  return piso ? [piso].concat(GUIA_ROTINAS) : GUIA_ROTINAS;
+}
 function _cardRotina(r) {
   return '<div class="guia-card" style="--acc:' + r.cor + '">' +
     '<div class="guia-card-topo">' +
@@ -1409,7 +1416,9 @@ function _cardRotina(r) {
     '<div class="guia-card-fonte">' +
       '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>' +
       esc(r.fonte) +
-    '</div></div>';
+    '</div>' +
+    (r.piso ? blocoTabelaPiso(r.piso) : '') +
+    '</div>';
 }
 
 // abre o guia. origem 'ajuda' mostra o botão de suporte no rodapé.
@@ -1429,12 +1438,13 @@ function abrirGuia(origem) {
   document.getElementById('modalGuia').scrollTop = 0;
 }
 function _guiaRender() {
-  const total = GUIA_ROTINAS.length;
-  const bolinhas = GUIA_ROTINAS.map(function (_, i) {
+  const _rot = rotinasDoGuia();
+  const total = _rot.length;
+  const bolinhas = _rot.map(function (_, i) {
     return '<span class="guia-dot' + (i === _guiaIdx ? ' on' : '') + '"></span>';
   }).join('');
   document.getElementById('guiaLista').innerHTML =
-    _cardRotina(GUIA_ROTINAS[_guiaIdx]) +
+    _cardRotina(_rot[_guiaIdx]) +
     '<div class="guia-nav">' +
       '<button class="guia-seta" onclick="_guiaVai(-1)" aria-label="Anterior"' + (_guiaIdx === 0 ? ' disabled' : '') + '>&#8249;</button>' +
       '<div class="guia-dots">' + bolinhas + '</div>' +
@@ -1443,7 +1453,7 @@ function _guiaRender() {
 }
 function _guiaVai(d) {
   const n = _guiaIdx + d;
-  if (n < 0 || n >= GUIA_ROTINAS.length) return;
+  if (n < 0 || n >= rotinasDoGuia().length) return;
   _guiaIdx = n;
   _guiaRender();
 }
@@ -1477,7 +1487,6 @@ function initDashboard() {
 
   atualizarResumoDia();       // ganho/hora + meta
   atualizarCustoRealKm();     // custo real por km
-  pintarPiso();               // o piso que ele decora
   atualizarReserva();         // reserva acumulada
   atualizarTodosAlertas();
   atualizarTelaManutencao();
@@ -1752,59 +1761,92 @@ function regraDeBolso(piso) {
   return '';
 }
 
-function pintarPiso() {
-  const card = document.getElementById('pisoCard');
-  if (!card) return;
+// ⚠️ O piso MOROU na tela Início e foi tirado de lá: virou o segundo maior
+// bloco da tela (241px de 957) disputando espaço com o velocímetro. Ele não é
+// dado de acompanhamento diário — é uma RÉGUA, e régua se consulta.
+// Agora vive no guia (a aba que explica as rotinas), e o Isaac chama o
+// motorista pra ver quando tem motivo de verdade. Ver `avisarPisoSeMudou`.
+function cardDoPiso() {
   const d = pisoPorKm();
-  const val  = document.getElementById('pisoValor');
-  const sub  = document.getElementById('pisoSub');
-  const chao = document.getElementById('pisoChao');
-
-  if (!d) {   // nem o custo o app conhece ainda
-    card.style.display = 'none';
-    return;
-  }
-  card.style.display = 'block';
+  if (!d) return null;
 
   if (d.piso === null) {
-    // ⚠️ Mostra o que SABE (o custo) e diz o que falta pro número completo.
-    // Chutar uma velocidade média de mercado seria inventar o número dele.
-    val.textContent = fmtBRL(d.custo);
-    val.style.color = 'var(--signal)';
-    sub.innerHTML = 'é o que <b>sai do seu bolso</b> por km. Abaixo disso é prejuízo puro.';
-    const f0 = document.getElementById('pisoFonte');
-    if (f0) {
-      f0.innerHTML = 'Medido do <b>seu tanque</b>, não de média de mercado.';
-      f0.style.display = 'block';
-    }
-    chao.innerHTML = d.falta === 'km'
-      ? ico('alerta') + ' Pra eu calcular o piso da sua meta, preciso de mais dias com <b>km e horas</b> marcados.'
-      : ico('alerta') + ' Marque as horas com o <b>"Bora rodar"</b> que eu calculo o piso da sua meta.';
-    chao.style.display = 'block';
-    // sem piso não há tabela: multiplicar por um número que o app não tem
-    // seria inventar exatamente o número que ele vai usar pra decidir
+    return {
+      ic: ico('alvo'), cor: 'var(--signal)', tit: 'Seu piso por km', hero: fmtBRL(d.custo),
+      isaac: 'Esse é o que SAI do seu bolso a cada km — abaixo disso é prejuízo puro, sem discussão. '
+           + 'Pra eu calcular o piso da sua meta (o valor abaixo do qual você não bate o dia) eu preciso '
+           + 'saber quantos km você faz por hora: marque o "Bora rodar" e o km por alguns dias.',
+      fonte: 'medido do seu tanque, não de média de mercado'
+    };
+  }
+
+  const regra = regraDeBolso(d.piso);
+  return {
+    ic: ico('alvo'), cor: 'var(--money)', tit: 'Seu piso por km', hero: fmtBRL(d.piso),
+    isaac: 'Você tem uns 7 segundos pra aceitar. R$ 12 por 5 km parece R$ 2,40 — mas com 4 km pra buscar '
+         + 'o passageiro foram 9 km, e o real é R$ 1,33. Some sempre o km pra buscar mais o km da corrida. '
+         + 'Abaixo de ' + fmtBRL(d.piso) + ' você não bate sua meta. '
+         + (regra ? regra.replace(/<[^>]+>/g, '') + ' ' : '')
+         + 'Toque aqui embaixo que eu te mostro a tabela pronta — não precisa dividir nada.',
+    fonte: 'feito com o seu consumo, o seu ritmo e a sua meta',
+    piso: d
+  };
+}
+// A tabela vive dentro do card do guia, como bloco de destaque.
+function blocoTabelaPiso(d) {
+  if (!d || d.piso === null) return '';
+  return '<div class="ajuda-piso-bloco" style="margin-top:12px;">' +
+    '<div class="ajuda-piso-tit">' + ico('alvo') + ' Não precisa dividir nada</div>' +
+    '<div class="ajuda-piso-txt">Some os dois km e olhe quanto a corrida <b>precisa pagar</b>:</div>' +
+    '<div class="piso-tabela">' + tabelaDoPiso(d.piso) + '</div>' +
+    '<div class="ajuda-piso-ex">9 km e estão pagando R$ 12? A linha dos 10 km pede <b>' +
+      fmtBRL0(Math.ceil(d.piso * 10)) + '</b>. Recusa.</div>' +
+    '<div class="ajuda-piso-regra">Cada km te custa <b>' + fmtBRL(d.custo) + '</b>. ' +
+      'Sua meta de <b>' + fmtBRL0(getPerfil().metaDiaria || 0) + '</b> em <b>' +
+      d.horasTipicas.toFixed(1).replace('.', ',') + 'h</b>, no seu ritmo de <b>' +
+      Math.round(d.kmh) + ' km/h</b>, pede mais <b>' + fmtBRL(d.piso - d.custo) + '</b> por km.</div>' +
+    '</div>';
+}
+
+// ⚠️ O Isaac só chama o motorista quando tem NOTÍCIA — não "de vez em quando".
+// Lembrete sem motivo é o que a categoria diz que enche o saco (o influenciador
+// postando todo dia). Aqui são dois momentos, e só:
+//   1. o piso NASCEU — o app finalmente sabe calcular. Isso é notícia.
+//   2. o piso MUDOU mais de 15% — a gasolina subiu, o ritmo mudou. Também é.
+// Fora disso, silêncio: o número fica no guia esperando ser consultado.
+function avisarPisoSeMudou() {
+  const d = pisoPorKm();
+  if (!d || d.piso === null) return;
+  const antes = lerLS('pisoUltimoAvisado', null);
+
+  if (antes === null) {
+    salvarLS('pisoUltimoAvisado', d.piso);
+    BALOES_PROG.pisoNasceu = {
+      titulo: 'Agora eu sei o seu piso: ' + fmtBRL(d.piso) + ' por km.',
+      texto: 'Já tenho dados seus o bastante pra calcular. <b style="color:var(--money)">Abaixo de ' +
+             fmtBRL(d.piso) + ' por km você não bate sua meta</b> — e esse número é SÓ SEU, feito do seu ' +
+             'consumo e do seu ritmo, não de média de mercado.<br><br>' +
+             'Está no <b style="color:var(--signal)">guia</b> (o ⓘ lá em cima), com a tabela pronta ' +
+             'pra você não precisar dividir nada na hora da corrida.'
+    };
+    enfileirarBalaoProg('pisoNasceu');
     return;
   }
 
-  val.textContent = fmtBRL(d.piso);
-  val.style.color = 'var(--money)';
-  const regra = regraDeBolso(d.piso);
-  sub.innerHTML = regra || 'Abaixo disso você <b>não bate sua meta</b>.';
-  // ⚠️ Sem esta linha o motorista não tem como saber que o número é DELE.
-  // Ela cita os três dados de entrada de propósito: dá pra conferir.
-  const fonte = document.getElementById('pisoFonte');
-  if (fonte) {
-    fonte.innerHTML = 'Feito com <b>o seu consumo</b>, <b>o seu ritmo</b> (' +
-      Math.round(d.kmh) + ' km/h) e <b>a sua meta</b>. Não é média de mercado.';
-    fonte.style.display = 'block';
-  }
-
-  // ⚠️ A tabela NÃO mora aqui. Ela é tutorial: ensina a régua nas primeiras
-  // semanas e depois fica ocupando 79px que ninguém olha. Foi pro balão de
-  // ajuda (toque no card), onde cabe COM o contexto que ela precisa pra
-  // fazer sentido — e onde só aparece pra quem foi procurar.
-  chao.innerHTML = 'chão absoluto: <b>' + fmtBRL(d.custo) + '/km</b> — abaixo daí é prejuízo puro';
-  chao.style.display = 'block';
+  const variou = Math.abs(d.piso - antes) / antes;
+  if (variou < 0.15) return;                       // ruído do dia a dia, não é notícia
+  salvarLS('pisoUltimoAvisado', d.piso);
+  const subiu = d.piso > antes;
+  const chave = 'pisoMudou' + Date.now();          // chave nova: este aviso pode repetir
+  BALOES_PROG[chave] = {
+    titulo: 'Seu piso ' + (subiu ? 'subiu' : 'caiu') + ': agora é ' + fmtBRL(d.piso) + ' por km.',
+    texto: 'Era ' + fmtBRL(antes) + '. ' +
+           (subiu
+             ? 'Custo maior ou ritmo mais lento — <b style="color:var(--danger)">a corrida que valia a pena ontem pode não valer hoje</b>.'
+             : 'Você está rodando mais barato ou mais rápido — <b style="color:var(--money)">dá pra aceitar corrida um pouco menor</b> e ainda bater a meta.') +
+           '<br><br>A tabela nova está no <b style="color:var(--signal)">guia</b>.'
+  };
+  enfileirarBalaoProg(chave);
 }
 
 function atualizarCustoRealKm() {
@@ -4074,6 +4116,7 @@ function mostrarStreak() {
 }
 modalStreakBtn.addEventListener('click', () => {
   modalStreak.style.display = 'none';
+  avisarPisoSeMudou();                         // o piso pode ter nascido/mudado com o dia de hoje
   setTimeout(processarFilaBalaoProg, 220);      // mostra o 1º da fila (encerrar → abastecimento)
 });
 

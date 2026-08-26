@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=386">
+    <link rel="stylesheet" href="style.css?v=387">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=386"></script>
+    <script src="supabase-service.js?v=387"></script>
   </head>
   <body>
 
@@ -230,29 +230,6 @@
             <div class="ajuda-texto" id="ajudaTexto">—</div>
             <div class="ajuda-conta" id="ajudaConta"></div>
           </div>
-        </div>
-
-        <!-- ═══ O PISO — o número que ele decora ═══
-             Fica logo abaixo do velocímetro porque é o segundo número mais
-             importante da tela: o velocímetro diz como foi HOJE, o piso diz
-             o que aceitar AGORA. Um olha pra trás, o outro pra frente. -->
-        <div class="piso-card" id="pisoCard" style="display:none;" onclick="abrirAjuda('piso', event)">
-          <div class="piso-topo">
-            <svg class="ico"><use href="#i-alvo"></use></svg> SEU PISO POR KM
-            <span class="int">ⓘ</span>
-          </div>
-          <div class="piso-valor num" id="pisoValor">—</div>
-          <div class="piso-sub" id="pisoSub">—</div>
-          <!-- ⚠️ A tabela existe porque o piso sozinho ainda exigia DIVISÃO:
-               "R$ 12 em 9 km dá quanto?" — de cabeça, em 7 segundos, no
-               trânsito. Aqui o app já multiplicou: ele só compara dois valores
-               em reais, que é o que qualquer pessoa faz sem pensar. -->
-          <!-- ⚠️ Esta linha é o pitch do produto inteiro, não enfeite.
-               StopClub e GigU ESTIMAM o custo por média de mercado. O Copiloto
-               MEDE do tanque dele. Se o motorista não souber disso, ele acha
-               que é mais um app chutando número — e o diferencial se perde. -->
-          <div class="piso-fonte" id="pisoFonte" style="display:none;">—</div>
-          <div class="piso-chao" id="pisoChao" style="display:none;">—</div>
         </div>
 
         <!-- ═══ ODÔMETRO + TANQUE DO MÊS ═══ -->
@@ -1254,7 +1231,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=386"></script>
+    <script src="script.js?v=387"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra
