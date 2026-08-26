@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=389">
+    <link rel="stylesheet" href="style.css?v=390">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=389"></script>
+    <script src="supabase-service.js?v=390"></script>
   </head>
   <body>
 
@@ -332,7 +332,7 @@
       <div class="tela-combustivel" id="telaCombustivel" style="display: none;">
         <div class="comb-header"><div class="comb-titulo"><svg class="ico"><use href="#i-bomba"></use></svg> Combustível</div><div class="comb-sub" id="combSubMes">Junho 2025</div></div>
         <!-- TANQUE GRANDE: gasto de combustível do mês (o "bolso", não o tanque do veículo) -->
-        <div class="tanque-card ajuda-clic" onclick="abrirAjudaCard('gastomes')">
+        <div class="tanque-card ajuda-clic" id="tutTanque" onclick="abrirAjudaCard('gastomes')">
           <div class="tanque-titulo"><svg class="ico"><use href="#i-saindo"></use></svg> Quanto já gastei de combustível no mês <span class="int">ⓘ</span></div>
           <div class="tanque-corpo">
             <svg class="tanque-svg" viewBox="0 0 132 156" width="118" aria-hidden="true">
@@ -372,7 +372,7 @@
           <div class="tanque-aviso" id="tqgAviso"><svg class="ico"><use href="#i-alerta"></use></svg> não é o tanque da sua moto — é o seu <b>bolso</b>: soma do que você pagou nos postos este mês</div>
         </div>
         <!-- Custo médio/km vira faixa horizontal -->
-        <div class="comb-mediakm ajuda-clic" onclick="abrirAjudaCard('mediakm')">
+        <div class="comb-mediakm ajuda-clic" id="tutCustoKm" onclick="abrirAjudaCard('mediakm')">
           <div class="cmk-esq"><span class="cmk-label">Combustível / km <span class="int">ⓘ</span></span><span class="cmk-sub" id="custoMedioSub">sem registros</span></div>
           <div class="cmk-val verde num" id="custoMedioVal">—</div>
         </div>
@@ -459,7 +459,7 @@
         <div class="fin-header"><div class="fin-titulo"><svg class="ico"><use href="#i-dinheiro"></use></svg> Finanças</div><div class="fin-sub" id="finSubMes">Junho 2025</div></div>
 
         <!-- HERO: LUCRO DO DIA + DETALHES DENTRO -->
-        <div class="fin-hero">
+        <div class="fin-hero" id="tutFinHero">
           <div class="fh-label">LUCRO LÍQUIDO HOJE</div>
           <div class="fh-valor num" id="finLucroValor">—</div>
           <div class="fh-sub" id="finLucroSub">Registre sua receita do dia</div>
@@ -680,17 +680,30 @@
            primeira vez e vê seis blocos sem saber por onde começar.
            ⚠️ Curto de propósito (6 passos) e com "pular" desde o primeiro:
            tutorial longo é tutorial que o cara fecha na cara. -->
+      <!-- ══════════ TUTORIAL GUIADO — um capítulo por aba ══════════
+           O motorista termina o Início; quando entra numa aba nova pela
+           primeira vez, o capítulo dela aparece sozinho. Ele aprende no
+           momento em que precisa, e não tudo de uma vez na primeira tela. -->
       <div class="tut-overlay" id="tutOverlay" style="display:none;">
         <div class="tut-buraco" id="tutBuraco"></div>
+        <div class="tut-anel" id="tutAnel"></div>
         <div class="tut-balao" id="tutBalao">
-          <div class="tut-topo">
-            <span class="tut-lobo" id="tutLobo"></span>
-            <span class="tut-nome">Isaac</span>
-            <span class="tut-passo" id="tutPasso">1 de 6</span>
+          <div class="tut-seta" id="tutSeta"></div>
+          <div class="tut-cap">
+            <span class="tut-cap-ic" id="tutCapIc"></span>
+            <span class="tut-cap-nome" id="tutCapNome">—</span>
+            <span class="tut-cap-n" id="tutPasso">1/5</span>
           </div>
-          <div class="tut-texto" id="tutTexto">—</div>
+          <div class="tut-corpo">
+            <span class="tut-lobo" id="tutLobo"></span>
+            <div class="tut-fala">
+              <div class="tut-tit" id="tutTit">—</div>
+              <div class="tut-texto" id="tutTexto">—</div>
+            </div>
+          </div>
+          <div class="tut-dots" id="tutDots"></div>
           <div class="tut-botoes">
-            <button class="tut-pular" onclick="fecharTutorial(true)">pular</button>
+            <button class="tut-pular" onclick="pularTutorial()">pular</button>
             <button class="tut-ok" id="tutOk" onclick="tutorialProximo()">Entendi</button>
           </div>
         </div>
@@ -1261,7 +1274,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=389"></script>
+    <script src="script.js?v=390"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra

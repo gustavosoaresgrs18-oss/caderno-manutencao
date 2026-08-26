@@ -5656,82 +5656,231 @@ function compartilharMesTexto() {
 // ═══════════════════════════════════════════════════════════════
 //  TUTORIAL DA PRIMEIRA VEZ — o Isaac mostra ONDE fica cada coisa
 // ═══════════════════════════════════════════════════════════════
-// O guia (os 9 cards) explica O QUE o app faz. Isso é outra coisa: mostra
-// ONDE fica. O motorista abre a tela pela primeira vez e vê seis blocos sem
-// saber por onde começar — e quem não sabe por onde começar, não começa.
+//  TUTORIAL GUIADO — UM CAPÍTULO POR ABA
+// ═══════════════════════════════════════════════════════════════
+// O guia (os cards do Isaac) explica O QUE o app faz. Isto é outra coisa:
+// mostra ONDE fica, com o dedo em cima.
 //
-// ⚠️ Seis passos, e só. Tutorial longo é tutorial que o cara fecha na cara,
-// e aí ele perde os seis. O "pular" fica visível desde o primeiro passo:
-// esconder a saída é o que faz a pessoa desistir do app, não do tutorial.
-const TUTORIAL = [
-  { alvo: 'tutGauge',
-    txt: 'Este é o número que importa: <b>o que sobrou no seu bolso hoje</b>. Não é o que a plataforma mostra — é o que sobra depois da taxa dela e da gasolina.' },
-  { alvo: 'tutStrip',
-    txt: 'Aqui embaixo: <b>quanto valeu sua hora</b>, <b>quanto te custa cada km</b> e <b>o que eu guardei</b> pra quando a conta grande chegar. Toque em qualquer um que eu explico.' },
-  { alvo: 'sliderContainer',
-    txt: 'Comece o dia por aqui. <b>Deslize ao sair e deslize ao voltar</b> — é assim que eu sei quantas horas você rodou. Sem isso eu não consigo dizer quanto vale sua hora.' },
-  { alvo: 'tutLuzes',
-    txt: 'Registrou a última troca de óleo, pneu e freio? <b>Eu conto os km e grito ANTES de quebrar</b>. Quebrar na rua é caro e a pé.' },
-  { alvo: 'odoCardAlvo',
-    txt: 'O km do painel do seu carro. <b>Toque aqui pra corrigir</b> se digitar errado — e vai acontecer, todo mundo erra um dia.' },
-  { alvo: 'navCade',
-    txt: 'E aqui sou eu. <b>Todo dia eu fecho sua conta</b> e te falo a verdade dela, sem passar a mão na cabeça. Bora rodar.' }
+// ⚠️ A PRIMEIRA VERSÃO DESPEJAVA TUDO NA TELA INÍCIO e acabava ali. As outras
+// cinco abas — que é onde estão metade das rotinas — nunca eram apresentadas.
+// Agora é por CAPÍTULO: termina o Início, e quando ele entra numa aba nova
+// pela primeira vez, o capítulo daquela aba aparece sozinho. Ele aprende no
+// momento em que precisa, e cada capítulo é curto o bastante pra não cansar.
+//
+// Regras que não se quebram:
+//   1. cada capítulo roda UMA vez (marcado por aba, não tudo junto);
+//   2. "pular" some com o capítulo atual e não volta;
+//   3. pulou 2 capítulos → ele já disse o que queria: desliga o resto;
+//   4. alvo que não existe na tela é pulado, nunca trava.
+//
+// ⚠️ Sobre o texto: gatilho mental aqui é DAR PESO ao que o app faz de verdade —
+// nunca prometer o que ele não faz. Cada frase abaixo tem lastro em código.
+const TUT_CAPS = [
+  {
+    id: 'inicio', ic: 'alvo', nome: 'Sua tela de todo dia',
+    passos: [
+      { alvo: 'tutGauge', tit: 'O número que ninguém te mostra',
+        txt: 'A plataforma te mostra o <b>bruto</b>. Aqui você vê o que <b>sobrou no seu bolso</b> — '
+           + 'depois da taxa dela, da gasolina e do desgaste do seu veículo. É o único número que paga conta.' },
+      { alvo: 'tutStrip', tit: 'Quanto valeu a sua hora',
+        txt: 'Sua hora, seu km e o que eu já separei pra manutenção. '
+           + '<b>Toque em qualquer um</b> e eu abro a conta inteira — de onde saiu cada centavo. Aqui não tem caixa-preta.' },
+      { alvo: 'sliderContainer', tit: 'Comece e encerre o dia aqui',
+        txt: 'Deslize ao sair, deslize ao voltar. <b>Dois segundos.</b> É assim que eu cronometro seu dia — '
+           + 'sem isso eu sei quanto você ganhou, mas não sei se <b>valeu a pena</b>. E essa é a pergunta.' },
+      { alvo: 'odoCardAlvo', tit: 'O km do painel',
+        txt: 'Digite o km do painel ao fechar o dia. É daqui que sai o <b>seu</b> consumo real — não o que o '
+           + 'fabricante promete. Errou um dígito? <b>Toque aqui e conserte</b>: eu refaço as contas todas.' },
+      { alvo: 'tutLuzes', tit: 'As três luzes',
+        txt: 'Registre a última troca <b>uma vez só</b>. Daí em diante <b>eu conto os km por você</b> e aviso '
+           + 'antes de quebrar. Quebrar na rua custa o conserto <i>mais</i> o dia parado.' }
+    ],
+    fecho: 'Pronto — essa tela você já domina. <b>Quando você abrir uma aba nova, eu apareço de novo</b> e te apresento ela também.'
+  },
+  {
+    id: 'manutencao', ic: 'chave', nome: 'Manutenção',
+    passos: [
+      { alvo: 'manutCard1', tit: 'Você registra uma vez. Eu conto pra sempre.',
+        txt: 'Diga o km da última troca e pronto. A barra enche sozinha conforme você roda — '
+           + '<b>você não precisa lembrar de nada</b>, nem anotar em papel de oficina.' },
+      { alvo: 'manutCard2', tit: 'A cor é aviso, nunca enfeite',
+        txt: 'Verde é folga. Amarelo é hora de <b>programar</b> — escolher o dia e o preço. '
+           + 'Vermelho é agora. Quem escolhe o dia paga menos que quem é escolhido pelo guincho.' }
+    ],
+    fecho: ''
+  },
+  {
+    id: 'combustivel', ic: 'bomba', nome: 'Combustível',
+    passos: [
+      { alvo: 'btnAbrirAbastecer', tit: '10 segundos na fila do posto',
+        txt: 'Valor, litros e o km rodado. É o lançamento mais importante do app: '
+           + '<b>é ele que transforma tudo aqui dentro em número real</b>, e não em estimativa.' },
+      { alvo: 'tutCustoKm', tit: 'Outros apps estimam. Eu meço.',
+        txt: 'Este é o seu custo por km <b>medido do seu tanque</b> — do seu carro, do seu trânsito, do seu pé. '
+           + 'Não é média de mercado nem chute de fabricante. É por isso que ele serve pra você decidir corrida.' },
+      { alvo: 'tutTanque', tit: 'O tanque é o seu bolso',
+        txt: 'Quanto do seu dinheiro já virou combustível neste mês. E eu comparo o preço do litro com os '
+           + '<b>4 abastecimentos anteriores</b> — se o posto de hoje saiu mais caro, eu te aviso ainda no posto.' }
+    ],
+    fecho: ''
+  },
+  {
+    id: 'financas', ic: 'dinheiro', nome: 'Finanças',
+    passos: [
+      { alvo: 'tutFinHero', tit: 'A conta aberta, linha por linha',
+        txt: 'Receita, taxa da plataforma, combustível e lucro por km. <b>Tudo à vista</b> — '
+           + 'você confere a minha conta, não precisa acreditar em mim.' },
+      { alvo: 'btnRegistrarReceita', tit: 'Você só diz quanto entrou',
+        txt: 'Lance o que a plataforma te pagou. <b>O resto da conta é comigo</b> — eu já sei seu combustível, '
+           + 'seu km e sua reserva do dia.' },
+      { alvo: 'btnAbrirDespesas', tit: 'Os R$ 15 que somem todo dia',
+        txt: 'Pedágio, almoço, lavagem, água no farol. Ninguém soma isso — e <b>R$ 15 por dia é R$ 450 no mês</b>. '
+           + 'Dois toques aqui e eles param de sumir.' },
+      { alvo: 'projCard', tit: 'Dá pra corrigir a rota antes do fim',
+        txt: 'No ritmo de hoje, é isso que o mês fecha. Serve pra <b>corrigir enquanto dá tempo</b> — '
+           + 'saber no dia 30 que o mês foi ruim não muda o mês.' }
+    ],
+    fecho: ''
+  },
+  {
+    id: 'documentos', ic: 'doc', nome: 'Documentos',
+    passos: [
+      { alvo: 'btnNovoDoc', tit: 'O dinheiro mais bobo que se perde',
+        txt: 'CNH, IPVA, seguro, vistoria. Cadastre <b>uma vez</b> e eu aviso antes de vencer. '
+           + 'Multa por documento vencido não é azar — é só falta de aviso.' },
+      { alvo: 'navDocumentos', tit: 'O aviso vem até você',
+        txt: 'Quando a data chegar perto, <b>acende um número aqui na aba</b>. '
+           + 'Você não precisa lembrar de vir olhar.' }
+    ],
+    fecho: ''
+  },
+  {
+    id: 'isaac', ic: 'balao', nome: 'Eu, o Isaac',
+    passos: [
+      { alvo: 'cadeBalao', tit: 'Todo dia eu te falo a verdade',
+        txt: 'Eu leio seus números e te digo como foi — <b>sem passar a mão na sua cabeça</b>. '
+           + 'E se faltar dado eu digo que faltou: <b>eu nunca invento número</b> pra parecer inteligente.' },
+      { alvo: 'cadeMesBtn', tit: 'A carta do fim do mês',
+        txt: 'Quanto entrou, quanto saiu, quanto sobrou, seu melhor dia. Escrito, não em gráfico. '
+           + 'E dá pra <b>mandar no WhatsApp</b> pra quem duvida do seu trabalho.' },
+      { alvo: 'btnAjuda', tit: 'Aqui mora o seu piso por km',
+        txt: 'Toque neste botão em qualquer tela: eu te mostro <b>o valor abaixo do qual a corrida te dá prejuízo</b>, '
+           + 'com a tabela pronta — 5, 10, 15, 20 km. <b>Você não precisa dividir nada</b>, só olhar e comparar.' }
+    ],
+    fecho: 'É só isso. <b>Registre o dia e eu faço o resto.</b> Bora rodar.'
+  }
 ];
-let _tutIdx = 0;
 
-function tutorialJaViu()  { return lerLS('tutorialVisto', false) === true; }
-function marcarTutorial() { salvarLS('tutorialVisto', true); }
+let _tutCap = null;   // capítulo em exibição
+let _tutIdx = 0;      // passo dentro do capítulo
 
-function abrirTutorial() {
-  if (!document.getElementById('tutOverlay')) return;
+function tutVistos()   { const v = lerLS('tutCapsVistos', {}); return (v && typeof v === 'object') ? v : {}; }
+function tutMarcar(id) { const v = tutVistos(); v[id] = true; salvarLS('tutCapsVistos', v); }
+function tutPulos()    { return lerLS('tutPulos', 0) || 0; }
+// ⚠️ Compatibilidade: quem já viu o tutorial antigo (v3.80) não pode levar o
+// capítulo do Início na cara de novo. A marca velha vale como "Início visto".
+function tutorialJaViu() { return tutVistos().inicio === true || lerLS('tutorialVisto', false) === true; }
+
+// Abre o capítulo de uma aba, se ele ainda não foi visto e nada estiver na frente.
+function talvezTutorial(id) {
+  if (tutVistos()[id]) return;
+  if (id !== 'inicio' && !tutorialJaViu()) return;   // o Início vem primeiro, sempre
+  if (tutPulos() >= 2) return;                       // ele já disse duas vezes que não quer
+  const cap = TUT_CAPS.find(function (c) { return c.id === id; });
+  if (!cap) return;
+  // nada de tutorial por cima de modal aberto: o holofote iluminaria o que
+  // está atrás do modal e o motorista veria dois avisos brigando
+  const algumAberto = [...document.querySelectorAll('.modal-overlay, .modal-streak')]
+    .some(function (m) { return m.style.display && m.style.display !== 'none'; });
+  if (algumAberto) return;
+  setTimeout(function () { abrirTutorialCap(cap); }, 420);
+}
+
+function abrirTutorialCap(cap) {
+  const ov = document.getElementById('tutOverlay');
+  if (!ov) return;
+  _tutCap = cap;
   _tutIdx = 0;
   const lobo = document.getElementById('tutLobo');
-  if (lobo) lobo.innerHTML = svgCaramelo('filhote', 'feliz', 34, false);
-  document.getElementById('tutOverlay').style.display = 'block';
+  if (lobo) lobo.innerHTML = svgCaramelo('filhote', 'feliz', 40, false);
+  document.getElementById('tutCapIc').innerHTML  = ico(cap.ic);
+  document.getElementById('tutCapNome').textContent = cap.nome;
+  ov.style.display = 'block';
   pintarPassoTutorial();
 }
-function fecharTutorial(pulou) {
+// mantido pro caminho antigo (presente de boas-vindas chama isto)
+function abrirTutorial() { talvezTutorial('inicio'); }
+
+function fecharTutorial() {
   const ov = document.getElementById('tutOverlay');
   if (ov) ov.style.display = 'none';
-  marcarTutorial();   // pulou ou terminou: não insiste — insistir irrita
+  if (_tutCap) tutMarcar(_tutCap.id);
+  _tutCap = null;
+}
+function pularTutorial() {
+  salvarLS('tutPulos', tutPulos() + 1);
+  fecharTutorial();
 }
 function tutorialProximo() {
+  if (!_tutCap) { fecharTutorial(); return; }
   _tutIdx++;
-  if (_tutIdx >= TUTORIAL.length) { fecharTutorial(false); return; }
+  if (_tutIdx >= _tutCap.passos.length) { fecharTutorial(); return; }
   pintarPassoTutorial();
 }
+
 function pintarPassoTutorial() {
-  const passo = TUTORIAL[_tutIdx];
-  const alvo  = document.getElementById(passo.alvo);
+  if (!_tutCap) return;
+  const passo = _tutCap.passos[_tutIdx];
+  const alvo   = document.getElementById(passo.alvo);
   const buraco = document.getElementById('tutBuraco');
+  const anel   = document.getElementById('tutAnel');
   const balao  = document.getElementById('tutBalao');
 
-  // ⚠️ Alvo sumido não pode travar o tutorial. Se o elemento não existe (tela
-  // diferente, item escondido), pula pro próximo em vez de quebrar.
+  // ⚠️ Alvo sumido não pode travar o capítulo. Se o elemento não existe nesta
+  // tela (item escondido, lista vazia), pula pro próximo em vez de quebrar.
   if (!alvo) { tutorialProximo(); return; }
 
   alvo.scrollIntoView({ block: 'center', behavior: 'smooth' });
   setTimeout(function () {
     const r = alvo.getBoundingClientRect();
     const pad = 8;
-    buraco.style.top    = (r.top - pad) + 'px';
-    buraco.style.left   = (r.left - pad) + 'px';
-    buraco.style.width  = (r.width + pad * 2) + 'px';
-    buraco.style.height = (r.height + pad * 2) + 'px';
+    const cx = { top: r.top - pad, left: r.left - pad, w: r.width + pad * 2, h: r.height + pad * 2 };
+    buraco.style.top = cx.top + 'px';  buraco.style.left = cx.left + 'px';
+    buraco.style.width = cx.w + 'px';  buraco.style.height = cx.h + 'px';
 
-    document.getElementById('tutTexto').innerHTML = passo.txt;
-    document.getElementById('tutPasso').textContent = (_tutIdx + 1) + ' de ' + TUTORIAL.length;
-    document.getElementById('tutOk').textContent =
-      (_tutIdx === TUTORIAL.length - 1) ? 'Bora rodar' : 'Entendi';
+    // ── A TROCA DE ROTINA PRECISA SER VISTA ──────────────────
+    // Sem isto o holofote deslizava em silêncio e o motorista continuava lendo
+    // achando que ainda era o mesmo assunto. O anel pulsa em cima do alvo novo
+    // e o balão entra de baixo: dois sinais de que virou a página.
+    anel.style.top = cx.top + 'px';    anel.style.left = cx.left + 'px';
+    anel.style.width = cx.w + 'px';    anel.style.height = cx.h + 'px';
+    anel.classList.remove('pulsa'); void anel.offsetWidth; anel.classList.add('pulsa');
+    balao.classList.remove('troca');  void balao.offsetWidth; balao.classList.add('troca');
+
+    const ultimo = (_tutIdx === _tutCap.passos.length - 1);
+    document.getElementById('tutTit').innerHTML   = passo.tit;
+    document.getElementById('tutTexto').innerHTML =
+      passo.txt + ((ultimo && _tutCap.fecho) ? '<br><br>' + _tutCap.fecho : '');
+    document.getElementById('tutPasso').textContent = (_tutIdx + 1) + '/' + _tutCap.passos.length;
+    document.getElementById('tutOk').textContent = ultimo ? 'Beleza, entendi' : 'Próximo';
+    document.getElementById('tutDots').innerHTML = _tutCap.passos.map(function (x, i) {
+      return '<i class="' + (i < _tutIdx ? 'feito' : (i === _tutIdx ? 'agora' : '')) + '"></i>';
+    }).join('');
 
     // o balão vai pro lado com mais espaço: nunca por cima do que está sendo
     // apontado, senão o holofote não serve pra nada
-    const alturaBalao = balao.offsetHeight || 150;
-    const cabeAbaixo  = (window.innerHeight - r.bottom) > (alturaBalao + 24);
+    const alturaBalao = balao.offsetHeight || 170;
+    const cabeAbaixo  = (window.innerHeight - r.bottom) > (alturaBalao + 26);
     balao.style.top = cabeAbaixo
-      ? (r.bottom + 14) + 'px'
-      : Math.max(12, r.top - alturaBalao - 14) + 'px';
-  }, 320);
+      ? (r.bottom + 15) + 'px'
+      : Math.max(12, r.top - alturaBalao - 15) + 'px';
+    const seta = document.getElementById('tutSeta');
+    seta.className = 'tut-seta ' + (cabeAbaixo ? 'acima' : 'abaixo');
+    // a seta acompanha o alvo na horizontal, mas sem escapar do balão
+    const bx = balao.getBoundingClientRect();
+    const meio = Math.min(Math.max(r.left + r.width / 2, bx.left + 22), bx.right - 22);
+    seta.style.left = (meio - bx.left) + 'px';
+  }, 340);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -5836,10 +5985,12 @@ document.getElementById('extFinPDF').addEventListener('click', exportarFinPDF);
 document.getElementById('extFinCSV').addEventListener('click', exportarFinCSV);
 
 navInicio.addEventListener('click',      () => { initDashboard(); mostrarTela(telaInicio); navInicio.classList.add('ativo'); });
-navManutencao.addEventListener('click',  () => { mostrarTela(telaManutencao);  navManutencao.classList.add('ativo'); });
-navCombustivel.addEventListener('click', () => { atualizarTelaCombustivel();   mostrarTela(telaCombustivel); navCombustivel.classList.add('ativo'); });
-navFinancas.addEventListener('click',    () => { atualizarTelaFinancas();      mostrarTela(telaFinancas);    navFinancas.classList.add('ativo'); });
-navDocumentos.addEventListener('click',  () => { atualizarTelaDocumentos();    mostrarTela(telaDocumentos);  navDocumentos.classList.add('ativo'); });
+// ⚠️ talvezTutorial() vai em TODA aba: é ele que apresenta as rotinas daquela
+// tela na primeira visita. Só roda uma vez por aba e nunca por cima de modal.
+navManutencao.addEventListener('click',  () => { mostrarTela(telaManutencao);  navManutencao.classList.add('ativo'); talvezTutorial('manutencao'); });
+navCombustivel.addEventListener('click', () => { atualizarTelaCombustivel();   mostrarTela(telaCombustivel); navCombustivel.classList.add('ativo'); talvezTutorial('combustivel'); });
+navFinancas.addEventListener('click',    () => { atualizarTelaFinancas();      mostrarTela(telaFinancas);    navFinancas.classList.add('ativo'); talvezTutorial('financas'); });
+navDocumentos.addEventListener('click',  () => { atualizarTelaDocumentos();    mostrarTela(telaDocumentos);  navDocumentos.classList.add('ativo'); talvezTutorial('documentos'); });
 // desenha o lobo na aba, na fase que ele está hoje (filhote → lenda)
 // o Isaac na tela de cadastro — filhote, que é a fase de quem está chegando
 function renderCarameloCadastro() {
@@ -5866,6 +6017,7 @@ navCade.addEventListener('click', () => {
   pintarSeloMes();   // o botão do mês e o selo "novo" acendem aqui
   mostrarTela(telaCade);
   navCade.classList.add('ativo');
+  talvezTutorial('isaac');
 });
 
 // ═══════════════════════════════════════════════════════════════

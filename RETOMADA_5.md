@@ -1,7 +1,7 @@
-# 🚦 COPILOTO — Ponto de retomada (v3.81)
+# 🚦 COPILOTO — Ponto de retomada (v3.82)
 
 Cole este arquivo na primeira mensagem da conversa nova, junto dos arquivos ATUAIS (baixados DO GITHUB).
-**Versão atual: v3.81** · `?v=389` · Hospedagem: GitHub Pages · **Supabase: Fatia 1 COMPLETA ✅**
+**Versão atual: v3.82** · `?v=390` · Hospedagem: GitHub Pages · **Supabase: Fatia 1 COMPLETA ✅**
 
 ---
 
@@ -91,7 +91,7 @@ Uma linha de cada vez (as 3 coladas dão `unknown switch 'm'`).
 
 ⚠️ **REGRA:** ao mexer em script.js / style.css / supabase-service.js, **subir o `?v=NNN`** no index.html.
 
-**Tamanho (v3.81):** script.js 6.770 · index.html 1.282 · style.css 1.373 · supabase-service.js 836 · sw.js 100
+**Tamanho (v3.82):** script.js 6.922 · index.html 1.295 · style.css 1.430 · supabase-service.js 836 · sw.js 100
 
 ---
 
@@ -255,11 +255,38 @@ segundo maior bloco da tela, disputando espaço com o velocímetro. Régua se co
 acompanha. O Isaac chama pra ver em 2 momentos só: quando o piso **nasce** e quando ele
 **mexe mais de 15%** (`avisarPisoSeMudou`).
 
-### 11. Tutorial de primeiro acesso (v3.80)
+### 11. Tutorial guiado — refeito em capítulos por aba (v3.80 → v3.82)
 
-6 passos com holofote (`box-shadow: 0 0 0 9999px`) e o Isaac explicando cada rotina:
-velocímetro → hora → Bora rodar → luzes de manutenção → odômetro → aba do Isaac.
-Dispara depois do presente de boas-vindas. **Pulou ou terminou, não insiste mais.**
+**v3.80** nasceu com 6 passos, todos na tela Início, e acabava ali — **as outras cinco abas,
+onde está metade das rotinas, nunca eram apresentadas.**
+
+**v3.82** virou **um capítulo por aba** (19 passos no total):
+
+| Capítulo | Passos | O que apresenta |
+|---|---|---|
+| Sua tela de todo dia | 5 | velocímetro · hora/km/reserva · Bora rodar · odômetro · luzes |
+| Manutenção | 2 | registrar uma vez · o que a cor significa |
+| Combustível | 3 | lançar o tanque · custo medido vs. estimado · comparação de preço |
+| Finanças | 4 | conta aberta · receita · despesas · projeção |
+| Documentos | 2 | avisar antes de vencer · o badge na aba |
+| Eu, o Isaac | 3 | leitura do dia · carta do mês · **o piso por km** |
+
+Regras: cada capítulo roda **uma vez** (marcado por aba em `tutCapsVistos`); o Início vem
+sempre primeiro; **pulou 2 capítulos → desliga o resto** (ele já disse o que queria); alvo
+que não existe na tela é pulado, nunca trava.
+
+**Design (v3.82):**
+- ⚠️ O balão usava `left:14px; right:14px` e **esticava a tela inteira** — num monitor virava
+  uma faixa de 1900px com uma frase no meio. Agora respeita a caixa do app (358px)
+- **Cada passo tem título.** Sem ele o motorista lia um parágrafo solto sem saber sobre o quê
+- **A troca de rotina ficou visível:** anel que pulsa sobre o alvo novo + balão que entra de
+  baixo. Antes o holofote deslizava em silêncio e parecia o mesmo assunto
+- Faixa de capítulo no topo (ícone + nome da aba + `2/5`), barra de progresso e seta apontando
+  pro elemento em foco
+
+**Texto:** gatilho mental é dar **peso** ao que o app faz de verdade, nunca prometer o que ele
+não faz. Cada frase tem lastro em código — *"outros apps estimam, eu meço"*, *"R$ 15 por dia
+é R$ 450 no mês"*, *"você registra uma vez, eu conto pra sempre"*.
 
 ### 12. Botão voltar do Android (v3.71)
 
@@ -396,8 +423,8 @@ têm anos de vantagem. **Não entra antes do lançamento.**
 ### 🔴 Novas (v3.81)
 - [ ] **`kmOk` não sobe pra nuvem** — falta a coluna em `abastecimentos`. Trocando de
       aparelho, o registro conferido volta a ser marcado como errado
-- [ ] **Testar o tutorial num aparelho de verdade** — o holofote foi validado só em 390px
-      de navegador
+- [ ] **Testar o tutorial num aparelho de verdade** — os 6 capítulos foram validados só em
+      390px de navegador. Olhar principalmente o balão quando o alvo está no rodapé
 - [ ] **Testar "Criar uma conta nova"** no fluxo real (sair → criar → o app volta ao
       onboarding limpo)
 

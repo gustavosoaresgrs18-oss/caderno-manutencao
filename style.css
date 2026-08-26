@@ -1350,24 +1350,81 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
    O escurecimento é feito com um box-shadow gigante em volta do "buraco":
    é o jeito mais leve de abrir um holofote sem máscara SVG nem canvas, e
    funciona em qualquer WebView — inclusive a do app nativo. */
+/* ═══ TUTORIAL GUIADO ═══════════════════════════════════════
+   ⚠️ LARGURA: o balão usava left:14px/right:14px e esticava na tela inteira.
+   Num monitor virava uma faixa de 1900px com uma frase no meio. Agora ele
+   respeita a mesma caixa do app (max-width 358px, centralizado) — igual à
+   barra de navegação. Em celular não muda nada; fora dele para de vazar. */
 .tut-overlay{ position:fixed; inset:0; z-index:200; }
 .tut-buraco{ position:absolute; border-radius:16px; pointer-events:none;
-  box-shadow:0 0 0 9999px rgba(5,8,12,.88), 0 0 0 2px var(--money);
-  transition:top .3s ease, left .3s ease, width .3s ease, height .3s ease; }
-.tut-balao{ position:absolute; left:14px; right:14px; background:var(--elev);
-  border:1px solid var(--purple); border-radius:16px; padding:14px 15px;
-  box-shadow:0 12px 40px rgba(0,0,0,.6); transition:top .3s ease; }
-.tut-topo{ display:flex; align-items:center; gap:7px; margin-bottom:7px; }
+  box-shadow:0 0 0 9999px rgba(4,7,11,.92), 0 0 0 2px var(--money),
+             0 0 26px 4px rgba(0,224,138,.30);
+  transition:top .34s cubic-bezier(.34,1.3,.5,1), left .34s cubic-bezier(.34,1.3,.5,1),
+             width .34s cubic-bezier(.34,1.3,.5,1), height .34s cubic-bezier(.34,1.3,.5,1); }
+
+/* O anel é a TROCA DE ROTINA ficando visível: sem ele, o holofote deslizava
+   sozinho e o motorista não percebia que o assunto tinha mudado. */
+.tut-anel{ position:absolute; border-radius:18px; pointer-events:none; opacity:0;
+  border:2px solid var(--money); }
+.tut-anel.pulsa{ animation:tutAnel .62s ease-out; }
+@keyframes tutAnel{
+  0%  { opacity:.95; transform:scale(1); }
+  70% { opacity:.25; transform:scale(1.16); }
+  100%{ opacity:0;   transform:scale(1.22); } }
+
+.tut-balao{ position:absolute; left:50%; transform:translateX(-50%);
+  width:calc(100% - 28px); max-width:358px;
+  background:linear-gradient(180deg,#141c26,#0e141c);
+  border:1px solid rgba(155,107,255,.55); border-radius:18px;
+  padding:0 0 13px;
+  box-shadow:0 18px 50px rgba(0,0,0,.7), 0 0 0 1px rgba(0,0,0,.4);
+  transition:top .34s cubic-bezier(.34,1.15,.5,1); }
+.tut-balao.troca{ animation:tutTroca .34s ease-out; }
+@keyframes tutTroca{
+  from{ opacity:0; transform:translateX(-50%) translateY(9px) scale(.985); }
+  to  { opacity:1; transform:translateX(-50%) translateY(0)   scale(1); } }
+
+/* seta apontando pro elemento em foco */
+.tut-seta{ position:absolute; left:50%; margin-left:-8px; width:15px; height:15px;
+  background:#141c26; border-left:1px solid rgba(155,107,255,.55);
+  border-top:1px solid rgba(155,107,255,.55); transform:rotate(45deg); }
+.tut-seta.acima{ top:-8px; }
+.tut-seta.abaixo{ bottom:-8px; transform:rotate(225deg); background:#0e141c; }
+
+/* faixa do capítulo: diz em QUAL aba ele está sendo apresentado */
+.tut-cap{ display:flex; align-items:center; gap:8px; padding:9px 14px;
+  border-radius:17px 17px 0 0;
+  background:linear-gradient(90deg,rgba(155,107,255,.20),rgba(155,107,255,.05));
+  border-bottom:1px solid rgba(155,107,255,.28); }
+.tut-cap-ic{ display:flex; color:var(--purple); font-size:var(--f4); }
+.tut-cap-ic .ico{ width:1.05em; height:1.05em; }
+.tut-cap-nome{ font-size:var(--f1); font-weight:800; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--purple); }
+.tut-cap-n{ margin-left:auto; font-size:var(--f1); font-weight:700; color:var(--faint);
+  background:rgba(255,255,255,.05); border-radius:20px; padding:2px 9px; }
+
+.tut-corpo{ display:flex; gap:11px; padding:13px 14px 0; }
+.tut-lobo{ flex-shrink:0; }
 .tut-lobo svg{ display:block; }
-.tut-nome{ font-weight:800; color:var(--purple); font-size:var(--f2);
-  letter-spacing:.06em; text-transform:uppercase; }
-.tut-passo{ margin-left:auto; font-size:var(--f1); color:var(--faint); }
-.tut-texto{ font-size:var(--f3); color:var(--text); line-height:1.6; }
-.tut-texto b{ color:var(--money); }
-.tut-botoes{ display:flex; align-items:center; gap:10px; margin-top:13px; }
+.tut-fala{ min-width:0; }
+/* ⚠️ O TÍTULO É O QUE FALTAVA: sem ele o motorista lia um parágrafo solto e
+   não sabia sobre O QUE o Isaac estava falando. Agora cada passo tem nome. */
+.tut-tit{ font-family:"Sora"; font-size:var(--f4); font-weight:800; color:var(--money);
+  line-height:1.25; margin-bottom:5px; }
+.tut-texto{ font-size:var(--f3); color:var(--text); line-height:1.55; }
+.tut-texto b{ color:#fff; font-weight:800; }
+
+.tut-dots{ display:flex; gap:5px; padding:12px 14px 0; }
+.tut-dots i{ height:3px; flex:1; border-radius:3px; background:rgba(255,255,255,.12);
+  transition:background .25s ease; }
+.tut-dots i.feito{ background:rgba(0,224,138,.45); }
+.tut-dots i.agora{ background:var(--money); box-shadow:0 0 10px rgba(0,224,138,.6); }
+
+.tut-botoes{ display:flex; align-items:center; gap:10px; margin-top:11px; padding:0 14px; }
 .tut-pular{ background:none; border:none; color:var(--faint); cursor:pointer;
-  font-family:'Inter'; font-size:var(--f2); text-decoration:underline; padding:6px 2px; }
+  font-family:"Inter"; font-size:var(--f2); text-decoration:underline; padding:6px 2px; }
 .tut-ok{ margin-left:auto; background:linear-gradient(135deg,var(--money),var(--money2));
-  color:#04120c; border:none; border-radius:12px; padding:10px 22px; cursor:pointer;
-  font-family:'Inter'; font-size:var(--f3); font-weight:800; }
+  color:#04120c; border:none; border-radius:12px; padding:11px 24px; cursor:pointer;
+  font-family:"Inter"; font-size:var(--f3); font-weight:800;
+  box-shadow:0 6px 18px rgba(0,224,138,.28); }
 .tut-ok:active{ transform:scale(.97); }
