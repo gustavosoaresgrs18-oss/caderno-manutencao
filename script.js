@@ -5679,100 +5679,112 @@ const TUT_CAPS = [
   {
     id: 'inicio', ic: 'alvo', nome: 'Sua tela de todo dia',
     passos: [
-      { alvo: 'tutGauge', tit: 'O número que ninguém te mostra',
-        txt: 'A plataforma te mostra o <b>bruto</b>. Aqui você vê o que <b>sobrou no seu bolso</b> — '
-           + 'depois da taxa dela, da gasolina e do desgaste do seu veículo. É o único número que paga conta.' },
-      { alvo: 'tutStrip', tit: 'Quanto valeu a sua hora',
-        txt: 'Sua hora, seu km e o que eu já separei pra manutenção. '
-           + '<b>Toque em qualquer um</b> e eu abro a conta inteira — de onde saiu cada centavo. Aqui não tem caixa-preta.' },
-      { alvo: 'sliderContainer', tit: 'Comece e encerre o dia aqui',
-        txt: 'Deslize ao sair, deslize ao voltar. <b>Dois segundos.</b> É assim que eu cronometro seu dia — '
-           + 'sem isso eu sei quanto você ganhou, mas não sei se <b>valeu a pena</b>. E essa é a pergunta.' },
-      { alvo: 'odoCardAlvo', tit: 'O km do painel',
-        txt: 'Digite o km do painel ao fechar o dia. É daqui que sai o <b>seu</b> consumo real — não o que o '
-           + 'fabricante promete. Errou um dígito? <b>Toque aqui e conserte</b>: eu refaço as contas todas.' },
-      { alvo: 'tutLuzes', tit: 'As três luzes',
-        txt: 'Registre a última troca <b>uma vez só</b>. Daí em diante <b>eu conto os km por você</b> e aviso '
-           + 'antes de quebrar. Quebrar na rua custa o conserto <i>mais</i> o dia parado.' }
+      { alvo: 'tutGauge', tit: 'Você ganhou hoje. Mas sobrou?',
+        txt: 'Tem motorista que roda 12 horas, vê R$ 400 na tela e acha que fez R$ 400. Não fez. '
+           + 'Este número aqui é <b>o que ficou no seu bolso</b> depois da taxa, da gasolina e do desgaste. '
+           + 'É o único que paga conta.' },
+      { alvo: 'tutStrip', tit: 'Sua hora vale quanto?',
+        txt: 'Ninguém nunca te disse, né? Aqui está. <b>Quanto sua hora pagou hoje</b>, quanto cada km te '
+           + 'custou e quanto eu já guardei pra manutenção. Toque em qualquer um: eu abro a conta inteira.' },
+      { alvo: 'sliderContainer', tit: 'Dois segundos mudam tudo',
+        txt: 'Deslize ao sair. Deslize ao voltar. É só isso. Sem essas duas deslizadas eu não consigo '
+           + 'cronometrar seu dia — e você nunca vai saber se <b>aquele dia de 14 horas rendeu mais que um de 8</b>.' },
+      { alvo: 'odoCardAlvo', tit: 'O km do painel é ouro',
+        txt: 'Digite o km ao fechar o dia. Com ele eu descubro <b>quanto o SEU veículo gasta de verdade</b> — '
+           + 'não o que a montadora promete e nunca cumpre. Errou um dígito? Toque aqui. Eu refaço tudo.' },
+      { alvo: 'tutLuzes', tit: 'Quebrar na rua custa três vezes',
+        txt: 'Conserto, guincho e o dia parado. Registre a última troca <b>uma vez só</b> e eu conto os km '
+           + 'por você. <b>Eu grito antes de quebrar</b>, não depois.' },
+      { alvo: 'btnAjuda', tit: 'R$ 12 por 5 km parece bom. E não é.',
+        txt: 'Some os 4 km até o passageiro: viraram 9 km, e a corrida pagou R$ 1,33 por km. '
+           + '<b>É assim que motorista troca dinheiro achando que tá lucrando.</b> Toque aqui e eu te dou o '
+           + 'seu piso, com a tabela pronta. Você não divide nada — só bate o olho e decide.' }
     ],
-    fecho: 'Pronto — essa tela você já domina. <b>Quando você abrir uma aba nova, eu apareço de novo</b> e te apresento ela também.'
+    fecho: 'Essa tela você já domina. <b>Abra qualquer aba aí embaixo que eu te apresento ela também.</b>'
   },
   {
     id: 'manutencao', ic: 'chave', nome: 'Manutenção',
     passos: [
-      { alvo: 'manutCard1', tit: 'Você registra uma vez. Eu conto pra sempre.',
-        txt: 'Diga o km da última troca e pronto. A barra enche sozinha conforme você roda — '
-           + '<b>você não precisa lembrar de nada</b>, nem anotar em papel de oficina.' },
-      { alvo: 'manutCard2', tit: 'A cor é aviso, nunca enfeite',
-        txt: 'Verde é folga. Amarelo é hora de <b>programar</b> — escolher o dia e o preço. '
-           + 'Vermelho é agora. Quem escolhe o dia paga menos que quem é escolhido pelo guincho.' }
+      { alvo: 'manutCard1', tit: 'Sua memória não é obrigada',
+        txt: 'Você diz o km da última troca <b>uma vez</b>. A barra enche sozinha enquanto você roda. '
+           + 'Chega de papelzinho de oficina no porta-luvas.' },
+      { alvo: 'manutCard2', tit: 'Amarelo é o seu dinheiro',
+        txt: 'No amarelo <b>você</b> escolhe o dia, a oficina e o preço. No vermelho quem escolhe é o guincho. '
+           + 'É a mesma peça — muda só quem manda na hora.' }
     ],
     fecho: ''
   },
   {
     id: 'combustivel', ic: 'bomba', nome: 'Combustível',
     passos: [
-      { alvo: 'btnAbrirAbastecer', tit: '10 segundos na fila do posto',
-        txt: 'Valor, litros e o km rodado. É o lançamento mais importante do app: '
-           + '<b>é ele que transforma tudo aqui dentro em número real</b>, e não em estimativa.' },
-      { alvo: 'tutCustoKm', tit: 'Outros apps estimam. Eu meço.',
-        txt: 'Este é o seu custo por km <b>medido do seu tanque</b> — do seu carro, do seu trânsito, do seu pé. '
-           + 'Não é média de mercado nem chute de fabricante. É por isso que ele serve pra você decidir corrida.' },
-      { alvo: 'tutTanque', tit: 'O tanque é o seu bolso',
-        txt: 'Quanto do seu dinheiro já virou combustível neste mês. E eu comparo o preço do litro com os '
-           + '<b>4 abastecimentos anteriores</b> — se o posto de hoje saiu mais caro, eu te aviso ainda no posto.' }
+      { alvo: 'btnAbrirAbastecer', tit: '10 segundos valem o app inteiro',
+        txt: 'Valor, litros e o km rodado, ali na fila do posto. É esse lançamento que faz <b>tudo aqui '
+           + 'dentro virar número real</b>. Sem ele, sobra chute — e chute você já tem de graça.' },
+      { alvo: 'tutCustoKm', tit: 'Os outros estimam. Eu meço.',
+        txt: 'Todo app de motorista <b>calcula seu custo por média de mercado</b>. Eu meço do seu tanque: '
+           + 'seu veículo, seu trânsito, seu pé. Por isso esse número serve pra você recusar corrida.' },
+      { alvo: 'tutTanque', tit: 'Quanto do seu mês virou gasolina?',
+        txt: 'Esse tanque é o seu bolso, não o do carro. E eu comparo o litro de hoje com os <b>4 '
+           + 'abastecimentos anteriores</b>: se o posto te sacaneou, você descobre <b>ainda no posto</b>.' }
     ],
     fecho: ''
   },
   {
     id: 'financas', ic: 'dinheiro', nome: 'Finanças',
     passos: [
-      { alvo: 'tutFinHero', tit: 'A conta aberta, linha por linha',
-        txt: 'Receita, taxa da plataforma, combustível e lucro por km. <b>Tudo à vista</b> — '
-           + 'você confere a minha conta, não precisa acreditar em mim.' },
-      { alvo: 'btnRegistrarReceita', tit: 'Você só diz quanto entrou',
-        txt: 'Lance o que a plataforma te pagou. <b>O resto da conta é comigo</b> — eu já sei seu combustível, '
-           + 'seu km e sua reserva do dia.' },
-      { alvo: 'btnAbrirDespesas', tit: 'Os R$ 15 que somem todo dia',
-        txt: 'Pedágio, almoço, lavagem, água no farol. Ninguém soma isso — e <b>R$ 15 por dia é R$ 450 no mês</b>. '
-           + 'Dois toques aqui e eles param de sumir.' },
-      { alvo: 'projCard', tit: 'Dá pra corrigir a rota antes do fim',
-        txt: 'No ritmo de hoje, é isso que o mês fecha. Serve pra <b>corrigir enquanto dá tempo</b> — '
-           + 'saber no dia 30 que o mês foi ruim não muda o mês.' }
+      { alvo: 'tutFinHero', tit: 'A conta aberta. Pode conferir.',
+        txt: 'Receita, taxa da plataforma, combustível, lucro por km. <b>Linha por linha.</b> '
+           + 'Você não precisa acreditar em mim. Você confere.' },
+      { alvo: 'btnRegistrarReceita', tit: 'Você digita um número. Um.',
+        txt: 'Quanto a plataforma te pagou. Só isso. <b>O resto da conta é comigo</b> — eu já sei seu '
+           + 'combustível, seu km e a sua reserva do dia.' },
+      { alvo: 'btnAbrirDespesas', tit: 'R$ 15 por dia viram R$ 450 no mês',
+        txt: 'Pedágio, almoço, lavagem, a água do farol. Ninguém anota — <b>e é por isso que ninguém sabe '
+           + 'quanto ganha</b>. Aqui são dois toques e acabou a sangria invisível.' },
+      { alvo: 'projCard', tit: 'Saber no dia 30 não muda o dia 30',
+        txt: 'No ritmo de hoje, é isso que seu mês fecha. Tá baixo? <b>Você ainda tem dias pra virar o jogo.</b> '
+           + 'Essa é a diferença entre olhar pra frente e se lamentar depois.' }
     ],
     fecho: ''
   },
   {
     id: 'documentos', ic: 'doc', nome: 'Documentos',
     passos: [
-      { alvo: 'btnNovoDoc', tit: 'O dinheiro mais bobo que se perde',
-        txt: 'CNH, IPVA, seguro, vistoria. Cadastre <b>uma vez</b> e eu aviso antes de vencer. '
-           + 'Multa por documento vencido não é azar — é só falta de aviso.' },
-      { alvo: 'navDocumentos', tit: 'O aviso vem até você',
+      { alvo: 'btnNovoDoc', tit: 'Ninguém deixa vencer de propósito',
+        txt: 'CNH, IPVA, seguro, vistoria. Cadastre <b>uma vez</b> e eu aviso muito antes. '
+           + 'Documento vencido não é azar: é falta de alguém pra lembrar.' },
+      { alvo: 'navDocumentos', tit: 'O aviso vai atrás de você',
         txt: 'Quando a data chegar perto, <b>acende um número aqui na aba</b>. '
-           + 'Você não precisa lembrar de vir olhar.' }
+           + 'Você não precisa lembrar de nada. Lembrar é comigo.' }
     ],
     fecho: ''
   },
   {
     id: 'isaac', ic: 'balao', nome: 'Eu, o Isaac',
     passos: [
-      { alvo: 'cadeBalao', tit: 'Todo dia eu te falo a verdade',
-        txt: 'Eu leio seus números e te digo como foi — <b>sem passar a mão na sua cabeça</b>. '
-           + 'E se faltar dado eu digo que faltou: <b>eu nunca invento número</b> pra parecer inteligente.' },
-      { alvo: 'cadeMesBtn', tit: 'A carta do fim do mês',
-        txt: 'Quanto entrou, quanto saiu, quanto sobrou, seu melhor dia. Escrito, não em gráfico. '
-           + 'E dá pra <b>mandar no WhatsApp</b> pra quem duvida do seu trabalho.' },
-      { alvo: 'btnAjuda', tit: 'Aqui mora o seu piso por km',
-        txt: 'Toque neste botão em qualquer tela: eu te mostro <b>o valor abaixo do qual a corrida te dá prejuízo</b>, '
-           + 'com a tabela pronta — 5, 10, 15, 20 km. <b>Você não precisa dividir nada</b>, só olhar e comparar.' }
+      { alvo: 'cadeBalao', tit: 'Eu não passo a mão na sua cabeça',
+        txt: 'Todo dia eu leio seus números e te digo como foi <b>de verdade</b>. Dia ruim eu falo que foi ruim. '
+           + 'E se faltar dado eu digo que faltou: <b>eu nunca invento número</b> pra te agradar.' },
+      { alvo: 'cadeMesBtn', tit: 'No fim do mês, uma carta pra você',
+        txt: 'Quanto entrou, quanto saiu, quanto sobrou e qual foi seu melhor dia. Escrito, não em gráfico '
+           + 'que ninguém entende. E dá pra <b>mandar no WhatsApp</b> pra quem duvida do seu trabalho.' }
     ],
-    fecho: 'É só isso. <b>Registre o dia e eu faço o resto.</b> Bora rodar.'
+    fecho: 'Agora você tem o que quase nenhum motorista tem: <b>o seu próprio número</b>. '
+         + 'A única pergunta que sobra é por que você não começou isso antes. Bora rodar.'
   }
 ];
 
-let _tutCap = null;   // capítulo em exibição
-let _tutIdx = 0;      // passo dentro do capítulo
+let _tutCap = null;      // capítulo em exibição
+let _tutPassos = [];     // só os passos cujo alvo está VISÍVEL agora
+let _tutIdx = 0;         // posição dentro de _tutPassos
+
+// ⚠️ Um passo cujo alvo está escondido (botão que só aparece com dado, item de
+// lista vazia) precisa sair da conta ANTES de começar — senão o contador diz
+// "1/3" e o capítulo acaba no 1, e o fecho do Isaac se perde junto.
+function alvoVisivel(id) {
+  const e = document.getElementById(id);
+  return !!(e && e.getClientRects().length);
+}
 
 function tutVistos()   { const v = lerLS('tutCapsVistos', {}); return (v && typeof v === 'object') ? v : {}; }
 function tutMarcar(id) { const v = tutVistos(); v[id] = true; salvarLS('tutCapsVistos', v); }
@@ -5799,6 +5811,8 @@ function talvezTutorial(id) {
 function abrirTutorialCap(cap) {
   const ov = document.getElementById('tutOverlay');
   if (!ov) return;
+  _tutPassos = cap.passos.filter(function (p) { return alvoVisivel(p.alvo); });
+  if (!_tutPassos.length) return;   // nada pra mostrar agora: tenta na próxima visita
   _tutCap = cap;
   _tutIdx = 0;
   const lobo = document.getElementById('tutLobo');
@@ -5824,21 +5838,23 @@ function pularTutorial() {
 function tutorialProximo() {
   if (!_tutCap) { fecharTutorial(); return; }
   _tutIdx++;
-  if (_tutIdx >= _tutCap.passos.length) { fecharTutorial(); return; }
+  if (_tutIdx >= _tutPassos.length) { fecharTutorial(); return; }
   pintarPassoTutorial();
 }
 
 function pintarPassoTutorial() {
   if (!_tutCap) return;
-  const passo = _tutCap.passos[_tutIdx];
+  const passo = _tutPassos[_tutIdx];
   const alvo   = document.getElementById(passo.alvo);
   const buraco = document.getElementById('tutBuraco');
   const anel   = document.getElementById('tutAnel');
   const balao  = document.getElementById('tutBalao');
 
-  // ⚠️ Alvo sumido não pode travar o capítulo. Se o elemento não existe nesta
-  // tela (item escondido, lista vazia), pula pro próximo em vez de quebrar.
-  if (!alvo) { tutorialProximo(); return; }
+  // ⚠️ Alvo sumido não pode travar o capítulo. E "sumido" inclui o que EXISTE
+  // mas está escondido: o botão de ajuda mora no cabeçalho da tela Início, e
+  // fora dela o getElementById devolve o elemento com tamanho ZERO — o holofote
+  // ia parar no canto da tela apontando pro nada. Tamanho zero = pula.
+  if (!alvo || !alvo.getClientRects().length) { tutorialProximo(); return; }
 
   alvo.scrollIntoView({ block: 'center', behavior: 'smooth' });
   setTimeout(function () {
@@ -5857,13 +5873,13 @@ function pintarPassoTutorial() {
     anel.classList.remove('pulsa'); void anel.offsetWidth; anel.classList.add('pulsa');
     balao.classList.remove('troca');  void balao.offsetWidth; balao.classList.add('troca');
 
-    const ultimo = (_tutIdx === _tutCap.passos.length - 1);
+    const ultimo = (_tutIdx === _tutPassos.length - 1);
     document.getElementById('tutTit').innerHTML   = passo.tit;
     document.getElementById('tutTexto').innerHTML =
       passo.txt + ((ultimo && _tutCap.fecho) ? '<br><br>' + _tutCap.fecho : '');
-    document.getElementById('tutPasso').textContent = (_tutIdx + 1) + '/' + _tutCap.passos.length;
+    document.getElementById('tutPasso').textContent = (_tutIdx + 1) + '/' + _tutPassos.length;
     document.getElementById('tutOk').textContent = ultimo ? 'Beleza, entendi' : 'Próximo';
-    document.getElementById('tutDots').innerHTML = _tutCap.passos.map(function (x, i) {
+    document.getElementById('tutDots').innerHTML = _tutPassos.map(function (x, i) {
       return '<i class="' + (i < _tutIdx ? 'feito' : (i === _tutIdx ? 'agora' : '')) + '"></i>';
     }).join('');
 

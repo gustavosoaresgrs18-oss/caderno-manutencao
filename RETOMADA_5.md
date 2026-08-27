@@ -1,7 +1,7 @@
-# 🚦 COPILOTO — Ponto de retomada (v3.82)
+# 🚦 COPILOTO — Ponto de retomada (v3.83)
 
 Cole este arquivo na primeira mensagem da conversa nova, junto dos arquivos ATUAIS (baixados DO GITHUB).
-**Versão atual: v3.82** · `?v=390` · Hospedagem: GitHub Pages · **Supabase: Fatia 1 COMPLETA ✅**
+**Versão atual: v3.83** · `?v=391` · Hospedagem: GitHub Pages · **Supabase: Fatia 1 COMPLETA ✅**
 
 ---
 
@@ -91,7 +91,7 @@ Uma linha de cada vez (as 3 coladas dão `unknown switch 'm'`).
 
 ⚠️ **REGRA:** ao mexer em script.js / style.css / supabase-service.js, **subir o `?v=NNN`** no index.html.
 
-**Tamanho (v3.82):** script.js 6.922 · index.html 1.295 · style.css 1.430 · supabase-service.js 836 · sw.js 100
+**Tamanho (v3.83):** script.js 6.938 · index.html 1.295 · style.css 1.430 · supabase-service.js 836 · sw.js 100
 
 ---
 
@@ -264,12 +264,12 @@ onde está metade das rotinas, nunca eram apresentadas.**
 
 | Capítulo | Passos | O que apresenta |
 |---|---|---|
-| Sua tela de todo dia | 5 | velocímetro · hora/km/reserva · Bora rodar · odômetro · luzes |
+| Sua tela de todo dia | 6 | velocímetro · hora/km/reserva · Bora rodar · odômetro · luzes · **o piso** |
 | Manutenção | 2 | registrar uma vez · o que a cor significa |
 | Combustível | 3 | lançar o tanque · custo medido vs. estimado · comparação de preço |
 | Finanças | 4 | conta aberta · receita · despesas · projeção |
 | Documentos | 2 | avisar antes de vencer · o badge na aba |
-| Eu, o Isaac | 3 | leitura do dia · carta do mês · **o piso por km** |
+| Eu, o Isaac | 2 | leitura do dia · carta do mês |
 
 Regras: cada capítulo roda **uma vez** (marcado por aba em `tutCapsVistos`); o Início vem
 sempre primeiro; **pulou 2 capítulos → desliga o resto** (ele já disse o que queria); alvo
@@ -284,9 +284,22 @@ que não existe na tela é pulado, nunca trava.
 - Faixa de capítulo no topo (ícone + nome da aba + `2/5`), barra de progresso e seta apontando
   pro elemento em foco
 
-**Texto:** gatilho mental é dar **peso** ao que o app faz de verdade, nunca prometer o que ele
-não faz. Cada frase tem lastro em código — *"outros apps estimam, eu meço"*, *"R$ 15 por dia
-é R$ 450 no mês"*, *"você registra uma vez, eu conto pra sempre"*.
+**Texto (v3.83):** reescrito com apelo forte — provocação no título, o custo de NÃO usar a
+rotina no corpo. *"Você ganhou hoje. Mas sobrou?"*, *"Sua hora vale quanto? Ninguém nunca te
+disse, né?"*, *"R$ 15 por dia viram R$ 450 no mês — ninguém anota, e é por isso que ninguém
+sabe quanto ganha"*, *"Quebrar na rua custa três vezes"*, *"Os outros estimam. Eu meço."*
+O último passo fecha com *"a única pergunta que sobra é por que você não começou isso antes"*.
+
+⚠️ **A régua do apelo:** peso vem de verdade, nunca de promessa. Toda frase tem lastro em
+código ou em aritmética. Números inventados foram cortados na revisão (*"a diferença sai
+uns R$ 300"*, *"99% dos motoristas"*) — regra sagrada nº 2 vale pro marketing também.
+
+**Dois furos corrigidos na v3.83:**
+- O passo do piso apontava pro `btnAjuda`, **que mora no cabeçalho da tela Início** — na aba
+  do Isaac ele existe mas tem tamanho zero, e o holofote ia pro canto apontando pro nada.
+  Passou pro fim do capítulo 1, onde o botão está na tela
+- **Alvo escondido agora é filtrado ANTES de o capítulo abrir** (`alvoVisivel`). Sem isso o
+  contador dizia "1/3", o capítulo acabava no 1 e **o fecho do Isaac se perdia**
 
 ### 12. Botão voltar do Android (v3.71)
 
