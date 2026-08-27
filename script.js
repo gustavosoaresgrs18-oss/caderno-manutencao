@@ -1118,6 +1118,7 @@ function iniciarApp(perfil) {
   atualizarRotulosMes();  // rótulo de mês dinâmico (corrige 'Junho 2025' chumbado)
   migrarIdsAbastecimento();  // garante id em lançamentos antigos (pra apagar/editar)
   repararAbastecimentosRestaurados();   // conserta o que voltou da nuvem sem vid/ppl
+  ordenarHistoricos();                  // "o mais recente" tem que ser mesmo o mais recente
 
   // NOVO: se tinha um turno rodando quando fechou o app, restaura o estado
   const ta = lerLS('turnoAtivo', null);
@@ -1756,7 +1757,18 @@ function faltamDiasPiso(comHtml) {
   return pedido + ' — você já tem ' + d(n) + ', ' + (falta === 1 ? 'falta ' : 'faltam ') + d(falta) + '.';
 }
 function pisoPorKm() {
-  const custo = combustivelKmMes() + reservaKmAtual();   // o que sai do bolso por km
+  // ⚠️ AQUI ESTAVA O PIOR DELES. `custo` era combustível + reserva, e a reserva
+  // NUNCA é zero (tem valor padrão). Resultado: um motorista recém-cadastrado,
+  // sem um único abastecimento, abria o guia e lia "Seu piso por km: R$ 0,12 —
+  // abaixo disso é prejuízo puro, sem discussão". A frase mais assertiva do
+  // produto inteiro, em cima de um número que o app não tinha como saber.
+  // O combustível medido é a base: sem ele não há piso, há chute.
+  const combKm = combustivelKmMes();
+  if (!(combKm > 0)) {
+    return { custo: null, piso: null, kmh: null, horasTipicas: null,
+             ganhoHora: null, falta: 'combustivel' };
+  }
+  const custo = combKm + reservaKmAtual();   // o que sai do bolso por km
   if (!(custo > 0)) return null;
 
   const kmh = kmPorHoraReal();
@@ -1836,6 +1848,17 @@ function cardDoPiso() {
   const d = pisoPorKm();
   if (!d) return null;
 
+  // sem combustível medido não existe piso — e dizer isso é melhor que chutar
+  if (d.falta === 'combustivel') {
+    return {
+      ic: ico('alvo'), cor: 'var(--dim)', tit: 'Seu piso por km', hero: '—',
+      isaac: 'Ainda não dá. O piso sai do que o combustível te custa por km, e pra isso eu '
+           + 'preciso de um abastecimento com o valor e o km rodado. Registre o próximo tanque '
+           + 'na aba Combustível que esse número nasce aqui. Eu não chuto esse número: se eu '
+           + 'errar pra baixo, você aceita corrida que te dá prejuízo achando que eu aprovei.',
+      fonte: 'medido do seu tanque, não de média de mercado'
+    };
+  }
   if (d.piso === null) {
     return {
       ic: ico('alvo'), cor: 'var(--signal)', tit: 'Seu piso por km', hero: fmtBRL(d.custo),
@@ -1944,7 +1967,13 @@ function atualizarCustoRealKm() {
   // ⚠️ Número que o app SABE estar errado não vai pra tela. Antes ele aparecia
   // em destaque com um aviso do lado — e o motorista pode decidir uma corrida
   // olhando esse número. Regra do projeto: faltou dado confiável, avisa e cala.
-  const mostra = suspeito ? null : (combKm > 0 ? real : reservaKm);
+  // ⚠️ Era `combKm > 0 ? real : reservaKm` — sem NENHUM abastecimento, a tela
+  // exibia a reserva de manutenção sozinha (R$ 0,12) sob o rótulo "/km real".
+  // O motorista recém-cadastrado, que roda a uns R$ 0,60/km, lia R$ 0,12 e
+  // aceitaria corrida por qualquer coisa. Sem combustível medido o app não
+  // sabe o custo por km — e não saber se escreve "—", não se preenche com a
+  // metade que ele tem à mão. Regra sagrada nº 2.
+  const mostra = (suspeito || !(combKm > 0)) ? null : real;
   custoPorKmValor.textContent = mostra === null ? '—' : fmtBRL(mostra);
   custoKmStrip.textContent    = mostra === null ? '—' : fmtBRL(mostra);
 
@@ -3098,9 +3127,15 @@ function aplicarCorrecaoKm(valor) {
   const diaAlvo = rh ? rh.data : hojeISO();
   const ra = lerLS('registroAnterior', null);
   const mapa = lerLS('kmPorDia', {});
+  // ⚠️ `dias` PRECISA sobreviver à correção. O fechamento grava
+  // { km, vid, dias:N } quando o registro cobre vários dias, e TODO consumidor
+  // faz `(r.dias||1)===1` pra deixar esse registro fora das médias por dia.
+  // Regravar sem o campo ressuscitava 680 km de 4 dias como se fossem UM —
+  // e esse dia entrava na média que gera o piso.
+  const diasAntes = (mapa[diaAlvo] && mapa[diaAlvo].dias) || 1;
   if (rh && ra && (rh.vid || null) === (ra.vid || null)) {
     const kmD = valor - ra.km;
-    if (kmD > 0) mapa[diaAlvo] = { km: kmD, vid: vidUsar };
+    if (kmD > 0) mapa[diaAlvo] = { km: kmD, vid: vidUsar, dias: diasAntes };
     else         delete mapa[diaAlvo];   // sem km conhecido é melhor que km errado
   } else {
     delete mapa[diaAlvo];                // sem base de comparação: o app não inventa
@@ -3269,6 +3304,18 @@ function editarAbastecimento(id) {
   document.querySelector('#btnSalvarTela').innerHTML = ico('check') + ' Salvar alteração';
   document.getElementById('modalAbastecer').style.display = 'flex';
 }
+// ⚠️ A conferência tem que ir pra nuvem. Sem isto ela morria no aparelho:
+// o motorista trocava de celular e o registro voltava marcado de vermelho,
+// fora da conta de R$/km, com o "Corrigir agora" ressuscitado pra sempre.
+function sincronizarKmOk(r) {
+  if (!r || typeof salvarRegistroHibrido !== 'function') return;
+  salvarRegistroHibrido('abastecimentos', {
+    id: r.id, data_iso: r.dataISO, tipo: r.tipo, valor: r.valor,
+    litros: r.litros, km: r.km, cpm: r.cpm, posto: r.posto,
+    veiculo_id: r.vid || null, km_ok: !!r.kmOk
+  }, 'id').catch(function () {});
+}
+
 // O motorista assume o número. A conta volta a usá-lo e o alerta some.
 function confirmarKmAbastecimento(id) {
   const h = lerLS('historicoAbastecimentos', []);
@@ -3286,6 +3333,7 @@ function confirmarKmAbastecimento(id) {
       if (!alvo) return;
       alvo.kmOk = true;
       salvarLS('historicoAbastecimentos', h2);
+      sincronizarKmOk(alvo);
       refreshAposAbast();
       toast('Pronto — esse abastecimento voltou pra conta');
     });
@@ -3297,6 +3345,7 @@ function desfazerKmAbastecimento(id) {
   if (!r) return;
   delete r.kmOk;
   salvarLS('historicoAbastecimentos', h);
+  sincronizarKmOk(r);
   refreshAposAbast();
   toast('Voltou a ficar de fora da conta');
 }
@@ -3342,6 +3391,9 @@ document.querySelector('#btnSalvarTela').addEventListener('click', function() {
     const h = lerLS('historicoAbastecimentos', []);
     const r = h.find(x => x.id === editandoAbastId);
     if (r) {
+      // km editado à mão desfaz a conferência: o número mudou, a conferência
+      // era sobre o número antigo
+      if (r.km !== km) delete r.kmOk;
       r.tipo = tipoSelecionadoTela; r.valor = valor; r.litros = litros; r.km = km; r.posto = posto;
       r.ppl = (valor && litros) ? (valor / litros).toFixed(2) : null;
       r.cpm = (valor && km)     ? (valor / km).toFixed(2)     : null;
@@ -3350,7 +3402,7 @@ document.querySelector('#btnSalvarTela').addEventListener('click', function() {
         salvarRegistroHibrido('abastecimentos', {
           id: r.id, data_iso: r.dataISO, tipo: r.tipo, valor: r.valor,
           litros: r.litros, km: r.km, cpm: r.cpm, posto: r.posto,
-          veiculo_id: r.vid || null
+          veiculo_id: r.vid || null, km_ok: !!r.kmOk
         }, 'id').catch(function () {});
       }
       refreshAposAbast();
@@ -3418,6 +3470,32 @@ function gerarIdAbast() { return 'ab' + Date.now().toString(36) + Math.random().
 // caro/barato e sem aviso de preço) e com `data` em ISO em vez do formato de
 // exibição. Roda a cada abertura, mas só toca no que está faltando — rodar
 // várias vezes não muda nada.
+// ⚠️ CINTO DE SEGURANÇA DA ORDEM.
+// O app inteiro trata o índice 0 como "o mais recente": o extrato mostra os 5
+// primeiros como "os mais recentes", o simulador diz "seu último posto", o
+// selinho compara com "os 4 anteriores" (índices maiores) e o Isaac lê hist[0]
+// como o último litro. Isso só é verdade porque o registro novo entra por
+// unshift — e deixa de ser verdade assim que o histórico vem da nuvem, de um
+// backup antigo ou de um arquivo restaurado à mão.
+// O .order() do Supabase já resolve o caminho principal; isto aqui cobre o
+// resto e roda em toda abertura. sort() é estável, então empate no mesmo dia
+// preserva a ordem que já estava lá.
+function ordenarHistoricos() {
+  [['historicoAbastecimentos', 'dataISO'], ['historicoFinancas', 'dataISO']]
+    .forEach(function (par) {
+      const arr = lerLS(par[0], []);
+      if (!Array.isArray(arr) || arr.length < 2) return;
+      const antes = arr.map(function (r) { return r[par[1]] || ''; }).join('|');
+      const ord = arr.slice().sort(function (a, b) {
+        return String(b[par[1]] || '').localeCompare(String(a[par[1]] || ''));
+      });
+      // só grava se mudou: escrita à toa em toda abertura é desgaste sem motivo
+      if (ord.map(function (r) { return r[par[1]] || ''; }).join('|') !== antes) {
+        salvarLS(par[0], ord);
+      }
+    });
+}
+
 function repararAbastecimentosRestaurados() {
   const h = lerLS('historicoAbastecimentos', []);
   if (!h.length) return;
@@ -3459,7 +3537,8 @@ function salvarAbastecimento(tipo, valor, litros, km, cpm, posto) {
       id: registro.id, data_iso: registro.dataISO, tipo: registro.tipo,
       valor: registro.valor, litros: registro.litros, km: registro.km,
       cpm: registro.cpm, posto: registro.posto,
-      veiculo_id: registro.vid || null   // sem isto a nuvem nao sabe de qual veiculo e
+      veiculo_id: registro.vid || null,  // sem isto a nuvem nao sabe de qual veiculo e
+      km_ok: !!registro.kmOk
     }, 'id').catch(function () {});
   }
   refreshAposAbast();
@@ -5083,7 +5162,20 @@ function atualizarTelaFinancas() {
     document.getElementById('finLucroSub').textContent = 'Registre sua receita do dia';
     mostrarDesempenho(desempenhoView); return;
   }
-  const ultimo = historico[0];
+  // ⚠️ O rótulo desta caixa é "LUCRO LÍQUIDO HOJE" e o código pegava
+  // historico[0] SEM conferir a data. Quem fechou ontem e abria as Finanças
+  // hoje de manhã via o lucro de ontem carimbado como de hoje — enquanto a
+  // tela Início, ali do lado, dizia corretamente "Registre sua receita do dia".
+  // Duas telas do mesmo app se contradizendo, e a que mentia era a que ele
+  // abre pra decidir se para ou continua rodando.
+  const ultimo = historico.find(r => r.dataISO === hojeISO());
+  if (!ultimo) {
+    ['finLucroValor','finReceita','finTaxa','finCombustivel','finLucroKm']
+      .forEach(id => document.getElementById(id).textContent = '—');
+    document.getElementById('finLucroValor').style.color = 'var(--text)';
+    document.getElementById('finLucroSub').textContent = 'Registre sua receita do dia';
+    mostrarDesempenho(desempenhoView); return;
+  }
   document.getElementById('finLucroValor').textContent  = fmtBRL(ultimo.lucro);
   document.getElementById('finLucroValor').style.color  = ultimo.lucro >= 0 ? 'var(--money)' : 'var(--danger)';
   document.getElementById('finLucroSub').textContent    = 'Receita ' + fmtBRL0(ultimo.receita) + ' · Custos ' + fmtBRL0(ultimo.taxa + ultimo.comb + (ultimo.desp || 0));
@@ -5239,18 +5331,37 @@ function fecharMes(ym) {
   const horasTotal = fin.reduce((t, r) => t + (horas[r.dataISO] || 0), 0);
   // ⚠️ só dias com hora marcada entram no R$/hora — senão a conta divide o
   // lucro do mês inteiro por meia dúzia de horas e inventa um número lindo
-  const diasComHora = fin.filter(r => (horas[r.dataISO] || 0) >= 0.5).length;
-  const lucroComHora = fin.filter(r => (horas[r.dataISO] || 0) >= 0.5)
-                          .reduce((t, r) => t + (r.lucro || 0), 0);
-  const porHora = (diasComHora >= 2 && horasTotal > 0) ? (lucroComHora / horasTotal) : null;
+  // ⚠️ O denominador era `horasTotal` (TODOS os dias) e o numerador só os dias
+  // com >= 0,5h. Um dia em que ele ligou o "Bora rodar" e desistiu em 20 min
+  // entrava nas horas e não no lucro — a hora dele saía menor do que foi.
+  // Numerador e denominador agora vêm do mesmo conjunto de dias.
+  const diasDoRitmo  = fin.filter(r => (horas[r.dataISO] || 0) >= 0.5);
+  const diasComHora  = diasDoRitmo.length;
+  const lucroComHora = diasDoRitmo.reduce((t, r) => t + (r.lucro || 0), 0);
+  const horasDoRitmo = diasDoRitmo.reduce((t, r) => t + (horas[r.dataISO] || 0), 0);
+  const porHora = (diasComHora >= 2 && horasDoRitmo > 0) ? (lucroComHora / horasDoRitmo) : null;
 
   // ── km: só dias de 1 dia (registro que cobre vários não se reparte) ──
+  // ⚠️ DOIS PROBLEMAS AQUI, os dois graves:
+  //   1. `km` só somava os dias com km confiável, mas o numerador usava o gasto
+  //      do MÊS INTEIRO. Quem fecha o turno 22 dias e lança receita em 12 lia
+  //      "cada km te custou R$ 1,05" quando o real era R$ 0,55 — quase o dobro.
+  //   2. A taxa da plataforma entrava no "custo por km". Taxa é desconto da
+  //      corrida, não custo de rodar um km — e o resto do app define custo/km
+  //      como combustível + desgaste. O mesmo motorista lia R$ 0,55 na Início
+  //      e R$ 1,05 na carta, sem nada explicando a diferença.
+  // Agora numerador e denominador vêm dos MESMOS dias, e a definição é a mesma
+  // do resto do app.
+  const diasComKm = [];
   let km = 0, temKm = false;
   fin.forEach(r => {
     const k = kmMap[r.dataISO];
-    if (k && k.km > 0 && (k.dias || 1) === 1) { km += k.km; temKm = true; }
+    if (k && k.km > 0 && (k.dias || 1) === 1) { km += k.km; temKm = true; diasComKm.push(r.dataISO); }
   });
-  const custoKm = (temKm && km > 0) ? ((comb + desp + taxa) / km) : null;
+  const combDosDias = abast
+    .filter(r => diasComKm.indexOf(r.dataISO) >= 0)
+    .reduce((t, r) => t + (r.valor || 0), 0);
+  const custoKm = (temKm && km > 0 && combDosDias > 0) ? (combDosDias / km) : null;
 
   // ── o melhor dia (um FATO pontual, não um padrão) ──
   // ⚠️ "qual DIA DA SEMANA rende mais" é padrão — isso é lupa, é premium.
@@ -5371,7 +5482,10 @@ function cartaDoMes(m) {
     let linha = `Foram ${V(fmtKm(m.km) + ' km')}`;
     const ref = referenciaDeDistancia(m.km);
     if (ref) linha += ` — ${ref}`;
-    if (m.custoKm !== null) linha += `. Cada km te custou ${A(fmtBRL(m.custoKm))}`;
+    // ⚠️ "cada km te custou" batia de frente com o número da tela Início, que
+    // inclui a reserva de manutenção. Dois números parecidos com nomes iguais
+    // fazem o motorista achar que um dos dois está errado. Aqui é combustível.
+    if (m.custoKm !== null) linha += `. Só de combustível, cada km te custou ${A(fmtBRL(m.custoKm))}`;
     p.push(linha + `.\n`);
   }
 
@@ -5800,6 +5914,11 @@ function talvezTutorial(id) {
   if (tutPulos() >= 2) return;                       // ele já disse duas vezes que não quer
   const cap = TUT_CAPS.find(function (c) { return c.id === id; });
   if (!cap) return;
+  // ⚠️ Nem por cima de OUTRO capítulo: o motorista pode tocar numa aba no meio
+  // da explicação. Sem esta linha o capítulo novo assumia por cima e o antigo
+  // ficava sem ser marcado como visto — voltaria do zero na próxima visita.
+  const ov = document.getElementById('tutOverlay');
+  if (ov && ov.style.display && ov.style.display !== 'none') return;
   // nada de tutorial por cima de modal aberto: o holofote iluminaria o que
   // está atrás do modal e o motorista veria dois avisos brigando
   const algumAberto = [...document.querySelectorAll('.modal-overlay, .modal-streak')]
@@ -6370,7 +6489,12 @@ function precoContraSuaMedia() {
   const hist = lerLS('historicoAbastecimentos', []).filter(a => a.ppl);
   if (!hist.length) return null;
   const ult = hist[0];
-  const mesmos = hist.slice(1).filter(a => a.tipo === ult.tipo);
+  // ⚠️ Era `hist.slice(1).filter(...)` — o histórico INTEIRO. É exatamente o
+  // bug que a v3.41 tirou do selinho e que voltou a existir aqui: gasolina de
+  // seis meses atrás puxa a média pra baixo e todo abastecimento de hoje vira
+  // "acima da sua média". Pior, as duas coisas apareciam na MESMA tela dizendo
+  // o contrário uma da outra. Mesma régua dos outros dois lugares: os 4 anteriores.
+  const mesmos = hist.slice(1).filter(a => a.tipo === ult.tipo).slice(0, 4);
   if (mesmos.length < 3) return { ppl: numBR(ult.ppl), tipo: ult.tipo, media: null };
   const media = mesmos.reduce((t, a) => t + numBR(a.ppl), 0) / mesmos.length;
   return { ppl: numBR(ult.ppl), tipo: ult.tipo, media, n: mesmos.length, posto: ult.posto };

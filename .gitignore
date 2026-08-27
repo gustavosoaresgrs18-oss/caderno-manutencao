@@ -17,6 +17,25 @@ android/
 *.keystore
 key.properties
 
+# ── DOCUMENTOS INTERNOS ──────────────────────────────────────
+# ⚠️ O repositório é PÚBLICO (tem que ser: o GitHub Pages só publica de graça
+# a partir de repositório público). Tudo que estiver aqui dentro qualquer
+# pessoa lê — inclusive concorrente.
+#
+# O RETOMADA ficou publicado por engano. Ele contém a análise da concorrência,
+# o roadmap, o modelo de cobrança, a estratégia contra GigU/StopClub, o e-mail
+# de suporte e — o pior — a LISTA DE BUGS CONHECIDOS E AINDA ABERTOS do app.
+# Isso é mais valioso pra um concorrente do que o código.
+#
+# Documento interno mora fora do repositório. Guarde numa pasta irmã
+# (ex.: C:\dev\copiloto-docs) ou no projeto do Claude, nunca aqui.
+RETOMADA*.md
+CAPACITOR.md
+
+# SQL do banco: não é segredo de verdade (a RLS é que protege), mas entrega o
+# desenho das tabelas de graça. Sem motivo pra estar público.
+*.sql
+
 # lixo de sistema
 .DS_Store
 Thumbs.db

@@ -78,6 +78,19 @@ const FILA_OFFLINE_KEY = 'filaOffline';
 //     e o mais novo apagava o mais velho da fila silenciosamente.
 // Agora onConflict é passado por quem chama, e a chave de dedup usa
 // o id quando existe, senão a data (finanças) ou o tipo (documentos).
+// ⚠️ COLUNA QUE O BANCO NÃO TEM — a lição do campo `sincronizado`.
+// O app mandava um campo que nenhuma das 7 tabelas tinha. O Postgres rejeita a
+// linha inteira, e o lançamento morria calado depois de 5 tentativas. Nada na
+// tela avisava: o motorista achava que estava tudo salvo.
+// Isso vai voltar a acontecer toda vez que o app ganhar um campo novo antes do
+// SQL ser rodado. Em vez de confiar na memória, o erro agora se conserta: o
+// Supabase diz o nome da coluna que não existe, o app tira ESSA coluna e manda
+// de novo. O registro chega (sem o campo novo) em vez de sumir.
+function _colunaFaltando(msg) {
+  const m = String(msg || '').match(/'([^']+)' column|column "([^"]+)"|column ([a-z_]+) of/i);
+  return m ? (m[1] || m[2] || m[3]) : null;
+}
+
 async function salvarRegistroHibrido(nomeTabela, dados, onConflict) {
   const conflitoAlvo = onConflict || 'id';
   // O perfil é UMA linha só por motorista: usa chave fixa para que, offline,
@@ -94,10 +107,22 @@ async function salvarRegistroHibrido(nomeTabela, dados, onConflict) {
   if (navigator.onLine && usuarioId()) {
     try {
       const payload = { ...dados, usuario_id: usuarioId() };
-      const { error } = await getSB()
+      let { error } = await getSB()
         .from(nomeTabela)
         .upsert(payload, { onConflict: conflitoAlvo });
 
+      // Coluna inexistente: tira ela e tenta uma vez mais. Melhor o registro
+      // chegar sem um campo novo do que não chegar.
+      if (error) {
+        const col = _colunaFaltando(error.message);
+        if (col && Object.prototype.hasOwnProperty.call(payload, col)) {
+          console.warn('[Copiloto] Coluna ' + col + ' nao existe em ' + nomeTabela +
+                       ' — reenviando sem ela. Rode o SQL pendente.');
+          delete payload[col];
+          ({ error } = await getSB().from(nomeTabela)
+                        .upsert(payload, { onConflict: conflitoAlvo }));
+        }
+      }
       if (error) throw error;
 
       // Sucesso — remove da fila se estava pendente
@@ -133,7 +158,12 @@ function _enfileirarOffline(nomeTabela, dados, chaveDedup, onConflict) {
     tabela: nomeTabela,
     chave: chave,
     onConflict: onConflict || 'id',
-    dados: { ...dados, sincronizado: false },
+    // ⚠️ Havia um `sincronizado: false` aqui e um `sincronizado: true` no envio.
+    // NENHUMA das 7 tabelas tem essa coluna, e ninguém no app lê esse campo.
+    // O Postgres rejeita coluna desconhecida: TODO lançamento feito offline
+    // morria calado depois de 5 tentativas. Justamente o caminho que a regra
+    // sagrada nº 10 existe pra proteger.
+    dados: { ...dados },
     tentativas: 0,
     ts: Date.now()
   });
@@ -227,7 +257,7 @@ async function sincronizarFilaOffline() {
         if (error) throw error;
         console.log(`[Copiloto] ✓ Excluído: ${item.tabela} / ${item.chave}`);
       } else {
-        const payload = { ...item.dados, usuario_id: usuarioId(), sincronizado: true };
+        const payload = { ...item.dados, usuario_id: usuarioId() };
         const { error } = await getSB()
           .from(item.tabela)
           .upsert(payload, { onConflict: item.onConflict || 'id' });
@@ -525,6 +555,7 @@ async function migrarMotoristaAntigo(userId, forcar) {
           usuario_id: userId,
           data_iso:   dia,
           descricao:  d.label || d.cat || '',
+          cat:        d.cat || 'outro',   // o restore lê `cat`; sem isto a migração perdia a categoria
           valor:      d.valor || 0
         }, { onConflict: 'id' });
         if (error) erros.push('despesa ' + dia + ': ' + error.message);
@@ -632,7 +663,13 @@ async function restaurarDoSupabase(userId) {
     }
 
     // 3. FINANÇAS
-    const { data: fins } = await sb.from('financas').select('*').eq('usuario_id', userId);
+    // ⚠️ SEM .order() o Postgres devolve na ordem física da tabela. E o app
+    // inteiro trata `historico[0]` como "o mais recente": o extrato mostra "os
+    // 5 mais recentes", o simulador diz "seu último posto", o selinho compara
+    // com "os anteriores". Quem restaurava num aparelho novo via o litro de
+    // três meses atrás rotulado como o último. Ordem decrescente, sempre.
+    const { data: fins } = await sb.from('financas').select('*')
+      .eq('usuario_id', userId).order('data_iso', { ascending: false });
     if (fins && fins.length) {
       achouAlgo = true;
       // ⚠️ CORREÇÃO: `comb: 0` zerava o combustível de TODOS os dias, e só o dia
@@ -673,7 +710,10 @@ async function restaurarDoSupabase(userId) {
       let mexeuKm = false;
       fins.forEach(f => {
         if (f.data_iso && f.km_dia != null && f.km_dia > 0 && !mapaKm[f.data_iso]) {
-          mapaKm[f.data_iso] = { km: f.km_dia, vid: vidFin || null };
+          // `dias` não existe na nuvem (financas.km_dia é só o número). Assumir
+          // 1 é o certo: quem cobre vários dias é a exceção, e marcar tudo como
+          // multi-dia tiraria o mês inteiro das médias.
+          mapaKm[f.data_iso] = { km: f.km_dia, vid: vidFin || null, dias: 1 };
           mexeuKm = true;
         }
       });
@@ -681,7 +721,8 @@ async function restaurarDoSupabase(userId) {
     }
 
     // 4. ABASTECIMENTOS
-    const { data: abs } = await sb.from('abastecimentos').select('*').eq('usuario_id', userId);
+    const { data: abs } = await sb.from('abastecimentos').select('*')
+      .eq('usuario_id', userId).order('data_iso', { ascending: false });
     if (abs && abs.length) {
       achouAlgo = true;
       // ⚠️ CORREÇÃO: o que voltava da nuvem vinha SEM `vid` (nenhum veículo),
@@ -708,7 +749,10 @@ async function restaurarDoSupabase(userId) {
           km: a.km != null ? a.km : null,
           cpm: a.cpm != null ? a.cpm : null,
           ppl: (valor && litros) ? (valor / litros).toFixed(2) : null,
-          posto: a.posto || null
+          posto: a.posto || null,
+          // a conferência do km ("está certo, pode contar") volta junto — sem
+          // isto o alerta vermelho ressuscitava a cada troca de aparelho
+          kmOk: a.km_ok === true ? true : undefined
         };
       }));
     }
@@ -741,7 +785,8 @@ async function restaurarDoSupabase(userId) {
     }
 
     // 7. DESPESAS — remonta { '2026-08-14': [ {...} ] }
-    const { data: desps } = await sb.from('despesas').select('*').eq('usuario_id', userId);
+    const { data: desps } = await sb.from('despesas').select('*')
+      .eq('usuario_id', userId).order('data_iso', { ascending: false });
     if (desps && desps.length) {
       achouAlgo = true;
       const porDia = {};
