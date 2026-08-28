@@ -5720,6 +5720,178 @@ function abrirRelatorioMes(ym) {
 }
 function fecharRelatorioMes() { document.getElementById('modalMes').style.display = 'none'; }
 
+
+// ═══════════════════════════════════════════════════════════════
+//  A LUPA — as respostas que o espelho não dá
+// ═══════════════════════════════════════════════════════════════
+// O espelho (grátis) mostra O QUE aconteceu. A lupa responde POR QUÊ e O QUE
+// FAZER. É a divisão que sustenta o premium — se a lupa vazar pro grátis, o
+// pago nasce sem nada pra vender.
+//
+// ⚠️ AS TRÊS REGRAS DA LUPA (nenhuma é negociável):
+//   1. Toda conclusão sai de um número que ELE registrou. Nunca média de
+//      mercado, nunca conselho genérico. "Tente rodar em horário de pico" é
+//      exatamente o que a categoria diz que enche o saco de influenciador.
+//   2. Toda conclusão termina em DINHEIRO. "Sexta rende 23% mais" não move
+//      ninguém; "sexta te paga R$ 71 a mais que terça" move.
+//   3. Sem amostra, não fala. Dizer "sua sexta é melhor" com uma sexta só é
+//      inventar padrão — e padrão inventado é pior que silêncio, porque ele
+//      vai mudar a rotina de trabalho com base nisso.
+const LUPA_MIN_AMOSTRA = 2;    // por dia da semana
+const DIAS_SEM = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+// ⚠️ Gênero: domingo e sábado são masculinos; de segunda a sexta são femininos
+// (segunda-FEIRA). Sem isto sai "Sua sábado vale mais que sua segunda" — e
+// português torto na frente do motorista custa credibilidade no número.
+const DIAS_MASC = [true, false, false, false, false, false, true];
+function possDia(i, maiusc) {
+  const p = DIAS_MASC[i] ? 'seu' : 'sua';
+  return maiusc ? p.charAt(0).toUpperCase() + p.slice(1) : p;
+}
+function plurDia(i) { return DIAS_SEM[i] + (DIAS_MASC[i] ? 's' : 's'); }
+
+// ⚠️ É AQUI QUE O PAGAMENTO VAI PLUGAR. Uma função só — quando o premium
+// existir, isto passa a consultar a assinatura. Hoje devolve true pra dar pra
+// ver e julgar a análise antes de cobrar por ela.
+function lupaLiberada() { return true; }
+
+// 1. QUAL DIA DA SEMANA TE PAGA MELHOR
+// Usa LUCRO, não receita: o dia de maior faturamento pode ser o de menor sobra.
+function lupaDiaDaSemana(fin) {
+  const porDia = [[], [], [], [], [], [], []];
+  fin.forEach(function (r) {
+    if (!r.dataISO) return;
+    const d = new Date(r.dataISO + 'T12:00:00');
+    if (isNaN(d)) return;
+    porDia[d.getDay()].push(r.lucro || 0);
+  });
+  const medias = porDia.map(function (arr, i) {
+    if (arr.length < LUPA_MIN_AMOSTRA) return null;
+    return { dia: i, n: arr.length,
+             media: arr.reduce(function (t, x) { return t + x; }, 0) / arr.length };
+  }).filter(Boolean);
+  if (medias.length < 3) return null;    // com 2 dias da semana não existe "padrão"
+  medias.sort(function (a, b) { return b.media - a.media; });
+  const alto = medias[0], baixo = medias[medias.length - 1];
+  const dif = alto.media - baixo.media;
+  if (dif < 25) return null;             // diferença pequena demais pra virar decisão
+  return { alto: alto, baixo: baixo, dif: dif };
+}
+
+// 2. QUAL POSTO TE CUSTOU MAIS CARO
+// Compara o preço médio do litro por posto e traduz a diferença no volume que
+// ele realmente abasteceu — não numa hipótese.
+function lupaPostos(abast) {
+  const porPosto = {};
+  abast.forEach(function (a) {
+    const nome = (a.posto || '').trim();
+    if (!nome || !a.litros || !a.valor) return;
+    const k = nome.toLowerCase();
+    if (!porPosto[k]) porPosto[k] = { nome: nome, litros: 0, valor: 0, n: 0 };
+    porPosto[k].litros += a.litros; porPosto[k].valor += a.valor; porPosto[k].n++;
+  });
+  const lista = Object.keys(porPosto).map(function (k) {
+    const p = porPosto[k];
+    return { nome: p.nome, n: p.n, litros: p.litros, valor: p.valor, ppl: p.valor / p.litros };
+  }).filter(function (p) { return p.n >= LUPA_MIN_AMOSTRA && p.litros > 0; });
+  if (lista.length < 2) return null;
+  lista.sort(function (a, b) { return a.ppl - b.ppl; });
+  const barato = lista[0], caro = lista[lista.length - 1];
+  const difL = caro.ppl - barato.ppl;
+  if (difL < 0.08) return null;          // centavo de diferença não é decisão
+  // quanto custou de verdade: os litros que ele pôs no posto caro, na diferença
+  const custou = difL * caro.litros;
+  if (custou < 10) return null;
+  return { barato: barato, caro: caro, difL: difL, custou: custou };
+}
+
+// 3. O DIA QUE PARECEU BOM E NÃO FOI
+// A tese do produto em uma frase: faturar não é ganhar. Só aparece quando o
+// dia de maior RECEITA não é o de maior LUCRO — aí o número dele mesmo prova.
+function lupaFaturarNaoEGanhar(fin) {
+  if (fin.length < 5) return null;
+  let maiorRec = null, maiorLuc = null;
+  fin.forEach(function (r) {
+    if (!maiorRec || (r.receita || 0) > (maiorRec.receita || 0)) maiorRec = r;
+    if (!maiorLuc || (r.lucro   || 0) > (maiorLuc.lucro   || 0)) maiorLuc = r;
+  });
+  if (!maiorRec || !maiorLuc) return null;
+  if (maiorRec.dataISO === maiorLuc.dataISO) return null;   // coincidiram: não há lição
+  if ((maiorLuc.lucro || 0) <= (maiorRec.lucro || 0)) return null;
+  const dif = (maiorLuc.lucro || 0) - (maiorRec.lucro || 0);
+  if (dif < 15) return null;
+  return { rec: maiorRec, luc: maiorLuc, dif: dif,
+           difRec: (maiorRec.receita || 0) - (maiorLuc.receita || 0) };
+}
+
+function _dm(iso) {
+  const d = new Date(iso + 'T12:00:00');
+  return isNaN(d) ? iso : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+}
+
+// Monta os blocos. Devolve [] quando não há nada digno — e aí a lupa não abre.
+function acharNaLupa(ym) {
+  const fin = lerLS('historicoFinancas', []).filter(function (r) {
+    return (r.dataISO || '').slice(0, 7) === ym;
+  });
+  const abast = lerLS('historicoAbastecimentos', []).filter(function (r) {
+    return (r.dataISO || '').slice(0, 7) === ym;
+  });
+  if (!fin.length) return [];
+  const achados = [];
+
+  const ds = lupaDiaDaSemana(fin);
+  if (ds) {
+    achados.push({
+      ic: 'calendario',
+      tit: possDia(ds.alto.dia, true) + ' ' + DIAS_SEM[ds.alto.dia] + ' vale mais que ' +
+           possDia(ds.baixo.dia, false) + ' ' + DIAS_SEM[ds.baixo.dia],
+      txt: 'Na média deste mês, ' + DIAS_SEM[ds.alto.dia] + ' te deixou <b>' + fmtBRL0(ds.alto.media) +
+           '</b> no bolso e ' + DIAS_SEM[ds.baixo.dia] + ' deixou <b>' + fmtBRL0(ds.baixo.media) +
+           '</b>. São <b>' + fmtBRL0(ds.dif) + ' de diferença</b> pelo mesmo dia de trabalho.',
+      base: ds.alto.n + ' ' + plurDia(ds.alto.dia) + ' e ' + ds.baixo.n + ' ' +
+            plurDia(ds.baixo.dia) + ' registrad' + (DIAS_MASC[ds.baixo.dia] ? 'os' : 'as')
+    });
+  }
+
+  const po = lupaPostos(abast);
+  if (po) {
+    achados.push({
+      ic: 'bomba',
+      tit: 'O ' + po.caro.nome + ' te custou ' + fmtBRL0(po.custou) + ' a mais',
+      txt: 'No ' + po.barato.nome + ' você pagou <b>' + fmtBRL(po.barato.ppl) + '/L</b>. No ' +
+           po.caro.nome + ', <b>' + fmtBRL(po.caro.ppl) + '/L</b>. Você pôs ' +
+           '<b>' + Math.round(po.caro.litros) + ' litros</b> no mais caro — a diferença ' +
+           'te custou <b>' + fmtBRL0(po.custou) + '</b> só neste mês.',
+      base: po.caro.n + ' abastecimentos no ' + po.caro.nome + ', ' + po.barato.n + ' no ' + po.barato.nome
+    });
+  }
+
+  const fg = lupaFaturarNaoEGanhar(fin);
+  if (fg) {
+    achados.push({
+      ic: 'alerta',
+      tit: 'Seu dia de maior faturamento não foi seu melhor dia',
+      txt: 'No dia <b>' + _dm(fg.rec.dataISO) + '</b> você faturou <b>' + fmtBRL0(fg.rec.receita) +
+           '</b>, o maior do mês — e sobrou <b>' + fmtBRL0(fg.rec.lucro) + '</b>. ' +
+           'No dia <b>' + _dm(fg.luc.dataISO) + '</b> você faturou ' + fmtBRL0(fg.luc.receita) +
+           ' e sobrou <b>' + fmtBRL0(fg.luc.lucro) + '</b>. ' +
+           '<b>' + fmtBRL0(fg.dif) + ' a mais</b> faturando ' + fmtBRL0(Math.abs(fg.difRec)) + ' a menos.',
+      base: 'comparação entre os dois dias que você registrou'
+    });
+  }
+  return achados;
+}
+
+function blocoDaLupa(achados) {
+  return achados.map(function (a) {
+    return '<div class="lupa-item">' +
+      '<div class="lupa-item-tit">' + ico(a.ic) + ' ' + a.tit + '</div>' +
+      '<div class="lupa-item-txt">' + a.txt + '</div>' +
+      '<div class="lupa-item-base">' + ico('check') + ' ' + esc(a.base) + '</div>' +
+    '</div>';
+  }).join('');
+}
+
 function renderRelatorioMes() {
   const m = fecharMes(_mesAberto);
   document.getElementById('mesTitulo').textContent = nomeDoMes(_mesAberto);
@@ -5735,15 +5907,20 @@ function renderRelatorioMes() {
   } else {
     carta.innerHTML = cadeParaHTML(cartaDoMes(m));
     share.style.display = '';
-    // ── o gancho do premium ──
+    // ── A LUPA ──
     // ⚠️ Só aparece quando existe MESMO algo a analisar. Prometer análise num
     // mês de 3 dias é vender o que não tem — e o motorista descobre na hora.
-    const vale = !m.magro && (m.abastecimentos >= 3 || m.dias >= 8);
-    lupa.style.display = vale ? 'block' : 'none';
-    if (vale) {
-      document.getElementById('mesLupaTxt').textContent =
-        'Qual dia da semana te paga melhor, qual posto te custou mais caro no mês, ' +
-        'e quanto isso deu de diferença em dinheiro. Isso é a lupa — ainda estou montando.';
+    const achados = (!m.magro) ? acharNaLupa(_mesAberto) : [];
+    lupa.style.display = achados.length ? 'block' : 'none';
+    if (achados.length) {
+      const tit = document.querySelector('#mesLupa .mes-lupa-tit');
+      if (tit) tit.innerHTML = ico('lampada') + ' ' +
+        (achados.length === 1 ? 'Tem uma coisa nesses números que eu vi e você não'
+                              : 'Tem ' + achados.length + ' coisas nesses números que eu vi e você não');
+      document.getElementById('mesLupaTxt').innerHTML = lupaLiberada()
+        ? blocoDaLupa(achados)
+        : '<div class="lupa-trancada">' + ico('cadeado') + ' ' + achados.length +
+          ' análises esperando por você neste mês.</div>';
     }
   }
 
