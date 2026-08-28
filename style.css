@@ -1472,3 +1472,34 @@ body.com-tarja-demo .dashboard{ padding-top:calc(44px + env(safe-area-inset-top)
 .lupa-vazia ul{ margin:0; padding-left:17px; }
 .lupa-vazia li{ font-size:var(--f3); color:var(--dim); line-height:1.55; margin-bottom:9px; }
 .lupa-vazia li b{ color:var(--text); }
+
+/* ═══ PORTÃO DO PREMIUM (o mês trancado) ══════════════════════
+   O gatilho é o vão de curiosidade: o VALOR aparece (é número real dele),
+   a RESPOSTA fica atrás do cadeado. Por isso o "Qual?" é o elemento com mais
+   peso visual da lista — é ele que faz o dedo ir no botão. */
+.prem-caixa{ text-align:center; padding:4px 2px 2px; }
+.prem-selo{ display:inline-flex; align-items:center; gap:6px;
+  background:rgba(155,107,255,.16); border:1px solid rgba(155,107,255,.5);
+  color:var(--purple); border-radius:20px; padding:4px 13px;
+  font-size:var(--f1); font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+.prem-tit{ font-family:"Sora"; font-size:var(--f5); font-weight:800; color:var(--text);
+  line-height:1.25; margin-top:12px; }
+.prem-sub{ font-size:var(--f3); color:var(--dim); line-height:1.55; margin-top:10px; }
+.prem-lista{ text-align:left; margin:14px 0 0; padding:0; list-style:none; }
+.prem-lista li{ font-size:var(--f3); color:var(--text); line-height:1.55;
+  background:rgba(155,107,255,.07); border:1px solid rgba(155,107,255,.28);
+  border-radius:12px; padding:11px 12px; margin-bottom:9px; }
+.prem-lista li b{ color:var(--money); font-weight:800; }
+.lupa-qual{ display:inline-block; color:var(--purple) !important; font-weight:800;
+  border-bottom:2px solid rgba(155,107,255,.6); margin-left:2px; }
+.prem-inclui{ font-size:var(--f1); color:var(--faint); line-height:1.9; margin-top:14px; }
+.prem-inclui .ico{ color:var(--money); vertical-align:-.14em; }
+.prem-btn{ width:100%; margin-top:14px; border:none; border-radius:14px; padding:15px;
+  background:linear-gradient(135deg,var(--purple),#6E3DD8); color:#fff;
+  font-family:"Inter"; font-size:var(--f4); font-weight:800; cursor:pointer;
+  box-shadow:0 8px 24px rgba(155,107,255,.35); }
+.prem-btn:active{ transform:scale(.98); }
+/* ⚠️ Esta linha não é enfeite: é a promessa que impede o motorista de achar
+   que o app inteiro virou pago. Regra sagrada nº 6 — o espelho nunca tranca. */
+.prem-pe{ font-size:var(--f1); color:var(--dim); margin-top:11px; }
+.prem-pe b{ color:var(--money); }

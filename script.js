@@ -1161,6 +1161,15 @@ window.addEventListener('DOMContentLoaded', function () {
   // ?semear=1 — planta os lançamentos na conta REAL (só depois do app subir,
   // porque precisa do veículo ativo e da sessão do Supabase carregados)
   if (/[?&]semear=1(&|$)/.test(location.search)) setTimeout(semearNaConta, 1400);
+  // ?premium=1 / ?premium=0 — chave de teste do portão, só pra conta do dono.
+  // Gated de propósito: sem isto, bastava um motorista colar a URL pra liberar.
+  const mp = location.search.match(/[?&]premium=([01])(&|$)/);
+  if (mp) setTimeout(function () {
+    if (!souODono()) { toast('Isso não está disponível nesta conta', 'erro'); return; }
+    salvarLS('premiumAtivo', mp[1] === '1');
+    toast(mp[1] === '1' ? 'Premium ligado (teste)' : 'Premium desligado (teste)');
+    setTimeout(function () { location.replace(location.pathname); }, 900);
+  }, 1500);
   const perfil = lerLS('perfilUsuario', null);
   if (perfil && perfil.nome) iniciarApp(perfil);
   else {
@@ -5752,10 +5761,21 @@ function possDia(i, maiusc) {
 }
 function plurDia(i) { return DIAS_SEM[i] + (DIAS_MASC[i] ? 's' : 's'); }
 
-// ⚠️ É AQUI QUE O PAGAMENTO VAI PLUGAR. Uma função só — quando o premium
-// existir, isto passa a consultar a assinatura. Hoje devolve true pra dar pra
-// ver e julgar a análise antes de cobrar por ela.
-function lupaLiberada() { return true; }
+// ═══ O PORTÃO DO PREMIUM ═══════════════════════════════════════
+// DECISÃO DO DONO DO PRODUTO (ago/2026), e ela é a linha mais limpa que já
+// tivemos: **o DIA é grátis, o MÊS é pago.**
+//   • Grátis: fechamento do dia, velocímetro, R$/hora, custo/km, reserva,
+//     manutenção, documentos — tudo que responde "como foi HOJE".
+//   • Pago: o fechamento do MÊS inteiro (a carta do Isaac) e a lupa.
+// É fácil de explicar pro motorista em uma frase, e é fácil de defender: o
+// hábito diário continua livre (regra sagrada nº 6 — o espelho nunca tranca),
+// e o que se cobra é a leitura do conjunto.
+//
+// ⚠️ Uma função só controla tudo. Quando o Pix existir, ela consulta a
+// assinatura — nada mais no app precisa mudar.
+function premiumAtivo() { return lerLS('premiumAtivo', false) === true; }
+// compatibilidade com o nome antigo
+function lupaLiberada() { return premiumAtivo(); }
 
 // 1. QUAL DIA DA SEMANA TE PAGA MELHOR
 // Usa LUCRO, não receita: o dia de maior faturamento pode ser o de menor sobra.
@@ -5892,7 +5912,9 @@ function acharNaLupa(ym) {
            ' neste mês: no ritmo ' + (DIAS_MASC[ds.alto.dia] ? 'do' : 'da') + ' ' +
            DIAS_SEM[ds.alto.dia] + ', elas teriam rendido <b>' + fmtBRL0(ds.seFosse) + ' a mais</b>.',
       base: ds.alto.n + ' ' + plurDia(ds.alto.dia) + ' e ' + ds.baixo.n + ' ' +
-            plurDia(ds.baixo.dia) + ' com hora marcada'
+            plurDia(ds.baixo.dia) + ' com hora marcada',
+      teaser: 'Tem um dia da semana em que <b>sua hora vale ' + fmtBRL(ds.dif) + ' a mais</b> ' +
+              'que em outro. Só nesse mês, isso deu ' + fmtBRL0(ds.seFosse) + '.'
     });
   } else if (ds) {
     achados.push({
@@ -5907,7 +5929,8 @@ function acharNaLupa(ym) {
            'Marque o "Bora rodar" que no mês que vem eu comparo hora contra hora.',
       base: ds.alto.n + ' ' + plurDia(ds.alto.dia) + ' e ' + ds.baixo.n + ' ' +
             plurDia(ds.baixo.dia) + ' registrad' + (DIAS_MASC[ds.baixo.dia] ? 'os' : 'as') +
-            ', sem hora marcada'
+            ', sem hora marcada',
+      teaser: 'Um dia da semana te deixou <b>' + fmtBRL0(ds.dif) + ' a mais</b> que outro, na média.'
     });
   }
 
@@ -5920,7 +5943,9 @@ function acharNaLupa(ym) {
            po.caro.nome + ', <b>' + fmtBRL(po.caro.ppl) + '/L</b>. Você pôs ' +
            '<b>' + Math.round(po.caro.litros) + ' litros</b> no mais caro — a diferença ' +
            'te custou <b>' + fmtBRL0(po.custou) + '</b> só neste mês.',
-      base: po.caro.n + ' abastecimentos no ' + po.caro.nome + ', ' + po.barato.n + ' no ' + po.barato.nome
+      base: po.caro.n + ' abastecimentos no ' + po.caro.nome + ', ' + po.barato.n + ' no ' + po.barato.nome,
+      teaser: 'Um dos postos onde você abasteceu te custou <b>' + fmtBRL0(po.custou) + ' a mais</b> ' +
+              'que outro neste mês.'
     });
   }
 
@@ -5934,7 +5959,9 @@ function acharNaLupa(ym) {
            'No dia <b>' + _dm(fg.luc.dataISO) + '</b> você faturou ' + fmtBRL0(fg.luc.receita) +
            ' e sobrou <b>' + fmtBRL0(fg.luc.lucro) + '</b>. ' +
            '<b>' + fmtBRL0(fg.dif) + ' a mais</b> faturando ' + fmtBRL0(Math.abs(fg.difRec)) + ' a menos.',
-      base: 'comparação entre os dois dias que você registrou'
+      base: 'comparação entre os dois dias que você registrou',
+      teaser: 'Seu dia de maior faturamento <b>não foi</b> seu melhor dia. Teve dia que te ' +
+              'deixou <b>' + fmtBRL0(fg.dif) + ' a mais</b> faturando menos.'
     });
   }
   return achados;
@@ -6027,6 +6054,49 @@ function blocoDaLupaVazia(faltas) {
     '</div>';
 }
 
+// ⚠️ O GATILHO. Uma tela trancada que só diz "assine" é ignorada — e mentir
+// sobre o que tem dentro queima a confiança na primeira vez que ele paga.
+// A saída honesta é o vão de curiosidade: mostrar o TAMANHO da resposta com o
+// número REAL dele, e guardar QUAL é a resposta.
+// "Um dos seus postos te custou R$ 35 a mais. Qual?" — o R$ 35 é verdade
+// calculada do histórico dele; o que está atrás do cadeado é o nome do posto.
+// Nada aqui é inventado pra vender.
+function blocoTrancadoMes(m, achados) {
+  const linhas = achados.filter(function (a) { return a.teaser; })
+                        .map(function (a) { return '<li>' + a.teaser + ' <b class="lupa-qual">Qual?</b></li>'; });
+  let h = '<div class="prem-caixa">' +
+    '<div class="prem-selo">' + ico('cadeado') + ' Copiloto Premium</div>' +
+    '<div class="prem-tit">Seu ' + nomeDoMes(m.ym) + ' está fechado.<br>Falta você ver.</div>';
+
+  if (linhas.length) {
+    h += '<div class="prem-sub">Cruzei os ' + m.dias + ' dias que você registrou e achei ' +
+         (linhas.length === 1 ? 'uma coisa' : linhas.length + ' coisas') +
+         ' que o fechamento do dia não mostra:</div>' +
+         '<ul class="prem-lista">' + linhas.join('') + '</ul>';
+  } else {
+    h += '<div class="prem-sub">Dentro tem o fechamento completo: quanto entrou, quanto saiu, ' +
+         'quanto sobrou, quanto valeu sua hora e quanto te custou cada km no mês.</div>';
+  }
+  h += '<div class="prem-inclui">' + ico('check') + ' A carta do mês inteira · ' +
+       ico('check') + ' A lupa · ' + ico('check') + ' Todos os meses que você já rodou</div>' +
+       '<button class="prem-btn" onclick="abrirPremium()">Quero destravar</button>' +
+       '<div class="prem-pe">O fechamento de <b>todo dia</b> continua de graça, pra sempre.</div>' +
+    '</div>';
+  return h;
+}
+
+// ⚠️ Sem Pix não existe assinatura — e vender o que não dá pra entregar é a
+// forma mais rápida de perder um motorista. Enquanto o pagamento não existe,
+// esta tela diz a verdade e pega o contato.
+function abrirPremium() {
+  pedirConfirmacao(
+    ico('cadeado') + ' Copiloto Premium',
+    'Ainda não dá pra assinar — estou terminando o pagamento por Pix. '
+    + 'Se quiser ser avisado quando abrir, me chama no suporte que eu te aviso primeiro. '
+    + 'Vai custar menos que um litro de gasolina por mês.',
+    function () { fecharRelatorioMes(); if (typeof abrirSuporte === 'function') abrirSuporte(); });
+}
+
 function blocoDaLupa(achados) {
   return achados.map(function (a) {
     return '<div class="lupa-item">' +
@@ -6049,6 +6119,12 @@ function renderRelatorioMes() {
     carta.innerHTML = '<div class="mes-vazio">Não tenho nenhum dia registrado neste mês.</div>';
     lupa.style.display = 'none';
     share.style.display = 'none';
+  } else if (!premiumAtivo()) {
+    // ⚠️ O MÊS INTEIRO é premium — carta E lupa. Não é só a análise: é a
+    // leitura do conjunto. O dia continua livre na tela do Isaac.
+    carta.innerHTML = blocoTrancadoMes(m, m.magro ? [] : acharNaLupa(_mesAberto));
+    share.style.display = 'none';      // não se compartilha o que não se viu
+    lupa.style.display = 'none';
   } else {
     carta.innerHTML = cadeParaHTML(cartaDoMes(m));
     share.style.display = '';
@@ -6099,6 +6175,11 @@ function pintarSeloMes() {
   const fechado = ultimoMesFechado();
   const visto   = lerLS('mesRelatorioVisto', null);
   selo.style.display = (fechado && visto !== fechado) ? '' : 'none';
+  // o cadeado no próprio botão: ele vê que existe algo ali antes de tocar
+  const lab = document.getElementById('cadeMesLabel');
+  if (lab) lab.innerHTML = premiumAtivo()
+    ? 'Ver o fechamento do mês'
+    : 'Ver o fechamento do mês ' + ico('cadeado');
 }
 
 document.getElementById('mesPrev').addEventListener('click', function () {
