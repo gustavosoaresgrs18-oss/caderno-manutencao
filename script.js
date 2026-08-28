@@ -6384,11 +6384,37 @@ function pintarTarjaDemo() {
 // SOBEM PRA NUVEM. Existe porque a base de teste do dono é toda descartável e
 // ele precisa ver a lupa funcionando com o próprio login, não num sandbox.
 //
-// ⚠️ NÃO É PRA MOTORISTA. Se um dia isso vazar pra usuário de verdade, ele
+// ⚠️ NÃO É PRA MOTORISTA. Se isso rodar na conta de um usuário de verdade, ele
 // mistura dado inventado com o dinheiro dele — e o app inteiro perde o sentido.
-// Por isso: só por URL, com confirmação escrita, e nunca sem apagar antes.
-// ⚠️ TIRAR ESTE BLOCO ANTES DE ABRIR PROS 12 MOTORISTAS.
+//
+// ⚠️ TRÊS FECHADURAS, porque "ninguém sabe a URL" não é segurança:
+//   1. só por `?semear=1` (ninguém tropeça nisso);
+//   2. **só nas contas desta lista** — qualquer outro e-mail é recusado;
+//   3. confirmação escrita antes de gravar.
+// A nº 2 é a que importa: o código vai no APK e no site de todo mundo, e link
+// se compartilha. Sem ela, bastava um motorista curioso colar a URL.
+//
+// Pra semear em outra conta de teste sua, é só somar o e-mail aqui.
+const DONOS_DO_APP = [
+  'gustavo.soaresgrs18@gmail.com',
+  'app.copilotosup@gmail.com'
+];
+function souODono() {
+  const emails = [];
+  if (typeof usuarioLogado === 'function') {
+    const u = usuarioLogado();
+    if (u && u.email) emails.push(String(u.email).toLowerCase());
+  }
+  const p = getPerfil();
+  if (p && p.email) emails.push(String(p.email).toLowerCase());
+  return emails.some(function (e) { return DONOS_DO_APP.indexOf(e) >= 0; });
+}
 function semearNaConta() {
+  if (!souODono()) {
+    // Mensagem sem drama: quem chegou aqui por link não precisa saber o que é.
+    toast('Isso não está disponível nesta conta', 'erro');
+    return;
+  }
   pedirConfirmacao(
     ico('alerta') + ' Semear dados de teste',
     'Isto vai criar cerca de 60 dias de lançamentos INVENTADOS na sua conta e mandar tudo '
