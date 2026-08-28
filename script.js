@@ -1158,6 +1158,9 @@ window.addEventListener('DOMContentLoaded', function () {
   // botão em lugar nenhum — motorista não cai aqui sem querer.
   if (/[?&]demo=1(&|$)/.test(location.search) && !emDemo()) { entrarNaDemo(); return; }
   pintarTarjaDemo();
+  // ?semear=1 — planta os lançamentos na conta REAL (só depois do app subir,
+  // porque precisa do veículo ativo e da sessão do Supabase carregados)
+  if (/[?&]semear=1(&|$)/.test(location.search)) setTimeout(semearNaConta, 1400);
   const perfil = lerLS('perfilUsuario', null);
   if (perfil && perfil.nome) iniciarApp(perfil);
   else {
@@ -5882,6 +5885,93 @@ function acharNaLupa(ym) {
   return achados;
 }
 
+// ⚠️ LUPA VAZIA NÃO PODE SER SILÊNCIO.
+// Com 6 dias registrados a lupa não achou nada — o que está CERTO, é a regra
+// nº 3 funcionando. Mas ela simplesmente não apareceu, e sumir sem explicação
+// é a mesma falha que o app já corrigiu duas vezes (o simulador que mandava
+// "registre suas receitas" pra quem já registrou, e o piso que dizia "alguns
+// dias" sem dizer quantos). Ausência sem motivo o motorista lê como app
+// quebrado — ou pior, como promessa que não cumpriu.
+// Agora ela diz O QUE FALTA, com a contagem do que ele já tem.
+function porQueLupaVazia(ym) {
+  const fin = lerLS('historicoFinancas', []).filter(function (r) {
+    return (r.dataISO || '').slice(0, 7) === ym;
+  });
+  const abast = lerLS('historicoAbastecimentos', []).filter(function (r) {
+    return (r.dataISO || '').slice(0, 7) === ym;
+  });
+  const faltas = [];
+
+  // 1. dias da semana
+  const contDia = [0, 0, 0, 0, 0, 0, 0];
+  fin.forEach(function (r) {
+    const d = new Date((r.dataISO || '') + 'T12:00:00');
+    if (!isNaN(d)) contDia[d.getDay()]++;
+  });
+  const repetidos = contDia.filter(function (n) { return n >= LUPA_MIN_AMOSTRA; }).length;
+  if (repetidos < 3) {
+    faltas.push('<b>Qual dia da semana te paga melhor</b> — eu comparo a média de cada dia, ' +
+      'e pra isso preciso de <b>pelo menos 2 registros no mesmo dia da semana, em 3 dias ' +
+      'diferentes</b>. Hoje você tem ' + (repetidos === 0 ? 'nenhum dia repetido' :
+      repetidos + (repetidos === 1 ? ' dia repetido' : ' dias repetidos')) + '. ' +
+      'Um mês inteiro rodando resolve sozinho.');
+  } else {
+    // ⚠️ Tenho amostra e olhei: aqui a resposta é "não tem diferença", que é
+    // RESPOSTA e não falta. Calar nesse caso faria o motorista achar que o app
+    // não analisou — quando analisou e deu empate.
+    faltas.push('<b>Qual dia da semana te paga melhor</b> — eu olhei, e neste mês seus dias ' +
+      'renderam parecido. <b>Não vou inventar um dia campeão</b> onde a diferença não paga ' +
+      'nem um almoço.');
+  }
+
+  // 2. postos
+  const porPosto = {};
+  abast.forEach(function (a) {
+    const k = (a.posto || '').trim().toLowerCase();
+    if (!k || !a.litros || !a.valor) return;
+    porPosto[k] = (porPosto[k] || 0) + 1;
+  });
+  const comDois = Object.keys(porPosto).filter(function (k) { return porPosto[k] >= LUPA_MIN_AMOSTRA; }).length;
+  const semNome = abast.filter(function (a) { return !(a.posto || '').trim(); }).length;
+  const semLitros = abast.filter(function (a) { return !a.litros; }).length;
+  if (comDois < 2) {
+    let t = '<b>Qual posto te custou mais caro</b> — preciso de <b>2 abastecimentos no mesmo ' +
+            'posto, em 2 postos diferentes</b>, pra a média de um posto não ser um dia solto. ' +
+            'Hoje você tem ' + (comDois === 0 ? 'nenhum posto repetido' : comDois + ' posto repetido') + '.';
+    if (semNome > 0)   t += ' E ' + semNome + ' ' + (semNome === 1 ? 'abastecimento ficou' : 'abastecimentos ficaram') +
+                            ' <b>sem o nome do posto</b> — esses eu não consigo comparar.';
+    if (semLitros > 0) t += ' Outros ' + semLitros + ' ficaram <b>sem os litros</b>, e sem litro não há preço por litro.';
+    faltas.push(t);
+  } else {
+    let t = '<b>Qual posto te custou mais caro</b> — comparei os seus, e a diferença de preço ' +
+            'foi pequena demais pra virar dinheiro. <b>Você não está pagando caro por escolher ' +
+            'mal o posto</b> neste mês.';
+    if (semNome > 0)   t += ' (' + semNome + ' ' + (semNome === 1 ? 'abastecimento ficou' : 'abastecimentos ficaram') +
+                            ' sem o nome do posto e ' + (semNome === 1 ? 'ficou' : 'ficaram') + ' de fora.)';
+    faltas.push(t);
+  }
+
+  // 3. faturar ≠ ganhar
+  if (fin.length < 5) {
+    faltas.push('<b>Se o seu dia de maior faturamento foi mesmo o melhor</b> — pra essa eu ' +
+      'preciso de <b>5 dias registrados</b> no mês. Você tem ' + fin.length + '.');
+  } else {
+    faltas.push('<b>Se o seu dia de maior faturamento foi mesmo o melhor</b> — neste mês foi: ' +
+      'o dia que mais entrou foi também o que mais sobrou. <b>Você não trocou dinheiro.</b>');
+  }
+  return faltas;
+}
+
+function blocoDaLupaVazia(faltas) {
+  return '<div class="lupa-vazia">' +
+    '<p>Olhei seus números e não achei nada que valha mudar sua rotina. Eu <b>não invento ' +
+    'padrão</b> pra parecer inteligente: com pouco registro, "sua sexta é melhor" seria chute ' +
+    '— e você mudaria seu jeito de trabalhar por causa de um chute meu.</p>' +
+    '<p class="lupa-vazia-tit">Uma por uma:</p>' +
+    '<ul>' + faltas.map(function (f) { return '<li>' + f + '</li>'; }).join('') + '</ul>' +
+    '</div>';
+}
+
 function blocoDaLupa(achados) {
   return achados.map(function (a) {
     return '<div class="lupa-item">' +
@@ -5911,9 +6001,10 @@ function renderRelatorioMes() {
     // ⚠️ Só aparece quando existe MESMO algo a analisar. Prometer análise num
     // mês de 3 dias é vender o que não tem — e o motorista descobre na hora.
     const achados = (!m.magro) ? acharNaLupa(_mesAberto) : [];
-    lupa.style.display = achados.length ? 'block' : 'none';
+    const tit = document.querySelector('#mesLupa .mes-lupa-tit');
     if (achados.length) {
-      const tit = document.querySelector('#mesLupa .mes-lupa-tit');
+      lupa.style.display = 'block';
+      lupa.classList.remove('vazia');
       if (tit) tit.innerHTML = ico('lampada') + ' ' +
         (achados.length === 1 ? 'Tem uma coisa nesses números que eu vi e você não'
                               : 'Tem ' + achados.length + ' coisas nesses números que eu vi e você não');
@@ -5921,6 +6012,16 @@ function renderRelatorioMes() {
         ? blocoDaLupa(achados)
         : '<div class="lupa-trancada">' + ico('cadeado') + ' ' + achados.length +
           ' análises esperando por você neste mês.</div>';
+    } else {
+      // ⚠️ Mês magro (menos de 5 dias) já é explicado na abertura da carta —
+      // repetir aqui seria o app dizendo duas vezes a mesma coisa.
+      const faltas = m.magro ? [] : porQueLupaVazia(_mesAberto);
+      lupa.style.display = faltas.length ? 'block' : 'none';
+      lupa.classList.add('vazia');
+      if (faltas.length) {
+        if (tit) tit.innerHTML = ico('lampada') + ' Ainda não dá pra eu analisar este mês';
+        document.getElementById('mesLupaTxt').innerHTML = blocoDaLupaVazia(faltas);
+      }
     }
   }
 
@@ -6275,6 +6376,64 @@ function pintarTarjaDemo() {
                 '<button onclick="sairDaDemo()">sair</button>';
   document.body.appendChild(t);
   document.body.classList.add('com-tarja-demo');
+}
+
+
+// ─── SEMEAR NA CONTA DE VERDADE (`?semear=1`) ──────────────────
+// Diferente da demo: aqui os lançamentos entram na conta REAL do motorista e
+// SOBEM PRA NUVEM. Existe porque a base de teste do dono é toda descartável e
+// ele precisa ver a lupa funcionando com o próprio login, não num sandbox.
+//
+// ⚠️ NÃO É PRA MOTORISTA. Se um dia isso vazar pra usuário de verdade, ele
+// mistura dado inventado com o dinheiro dele — e o app inteiro perde o sentido.
+// Por isso: só por URL, com confirmação escrita, e nunca sem apagar antes.
+// ⚠️ TIRAR ESTE BLOCO ANTES DE ABRIR PROS 12 MOTORISTAS.
+function semearNaConta() {
+  pedirConfirmacao(
+    ico('alerta') + ' Semear dados de teste',
+    'Isto vai criar cerca de 60 dias de lançamentos INVENTADOS na sua conta e mandar tudo '
+    + 'pra nuvem, misturado com o que já existe aí. Serve pra testar a lupa e o relatório. '
+    + 'Só faça isso numa conta descartável — não tem desfazer.',
+    function () {
+      const vid = vidAtivo();
+      if (!vid) { toast('Cadastre um veículo antes', 'erro'); return; }
+      const D = montarDadosDemo();
+
+      // não pisa em cima de dia que já existe: o que é dele continua dele
+      const finAtual = lerLS('historicoFinancas', []);
+      const jaTem = {};
+      finAtual.forEach(function (r) { jaTem[r.dataISO] = true; });
+
+      const novosFin = D.fin.filter(function (r) { return !jaTem[r.dataISO]; })
+                            .map(function (r) { r.vid = vid; return r; });
+      const novosAb  = D.abast.map(function (a) { a.vid = vid; a.id = 'seed' + a.id; return a; });
+
+      salvarLS('historicoFinancas', novosFin.concat(finAtual));
+      salvarLS('historicoAbastecimentos', novosAb.concat(lerLS('historicoAbastecimentos', [])));
+      const km = lerLS('kmPorDia', {}), hs = lerLS('horasPorDia', {}), dp = lerLS('despesasPorDia', {});
+      Object.keys(D.kmPorDia).forEach(function (k) { if (!km[k]) km[k] = { km: D.kmPorDia[k].km, vid: vid, dias: 1 }; });
+      Object.keys(D.horasPorDia).forEach(function (k) { if (!hs[k]) hs[k] = D.horasPorDia[k]; });
+      Object.keys(D.despesasPorDia).forEach(function (k) { if (!dp[k]) dp[k] = D.despesasPorDia[k]; });
+      salvarLS('kmPorDia', km); salvarLS('horasPorDia', hs); salvarLS('despesasPorDia', dp);
+
+      // sobe pra nuvem — é isso que diferencia do modo demonstração
+      if (typeof salvarRegistroHibrido === 'function') {
+        novosFin.forEach(function (r) {
+          salvarRegistroHibrido('financas', {
+            data_iso: r.dataISO, receita: r.receita, liquido: r.lucro,
+            taxa_real: r.taxa, km_dia: (km[r.dataISO] || {}).km || null, despesas: r.desp
+          }, 'usuario_id,data_iso').catch(function () {});
+        });
+        novosAb.forEach(function (a) {
+          salvarRegistroHibrido('abastecimentos', {
+            id: a.id, data_iso: a.dataISO, tipo: a.tipo, valor: a.valor, litros: a.litros,
+            km: a.km, cpm: a.cpm, posto: a.posto, veiculo_id: vid, km_ok: false
+          }, 'id').catch(function () {});
+        });
+      }
+      toast(novosFin.length + ' dias semeados — subindo pra nuvem');
+      setTimeout(function () { location.replace(location.pathname); }, 1200);
+    });
 }
 
 // ═══════════════════════════════════════════════════════════════

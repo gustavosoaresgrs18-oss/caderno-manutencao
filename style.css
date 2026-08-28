@@ -1462,3 +1462,13 @@ body.com-tarja-demo .dashboard{ padding-top:calc(44px + env(safe-area-inset-top)
   padding-top:7px; border-top:1px solid rgba(155,107,255,.18); }
 .lupa-item-base .ico{ color:var(--money); vertical-align:-.14em; }
 .lupa-trancada{ font-size:var(--f3); color:var(--dim); font-weight:700; padding:6px 0; }
+
+/* lupa sem achado: o motivo, não o silêncio */
+.mes-lupa.vazia{ border-style:dashed; }
+.lupa-vazia p{ font-size:var(--f3); color:var(--text); line-height:1.55; margin:0 0 9px; }
+.lupa-vazia p b{ color:var(--purple); }
+.lupa-vazia .lupa-vazia-tit{ font-weight:800; color:var(--purple); font-size:var(--f2);
+  text-transform:uppercase; letter-spacing:.06em; margin:12px 0 6px; }
+.lupa-vazia ul{ margin:0; padding-left:17px; }
+.lupa-vazia li{ font-size:var(--f3); color:var(--dim); line-height:1.55; margin-bottom:9px; }
+.lupa-vazia li b{ color:var(--text); }
