@@ -5759,25 +5759,59 @@ function lupaLiberada() { return true; }
 
 // 1. QUAL DIA DA SEMANA TE PAGA MELHOR
 // Usa LUCRO, não receita: o dia de maior faturamento pode ser o de menor sobra.
+//
+// ⚠️ E USA R$/HORA, NÃO R$/DIA. Este foi um erro de raciocínio da v3.88 pego no
+// primeiro teste com dado de verdade: a lupa dizia "seu sábado vale R$ 273 a
+// mais que seu domingo" comparando o LUCRO DO DIA. Só que no domingo ele rodou
+// 3 horas e no sábado 10. Não é o sábado que paga melhor — é que ele trabalha
+// mais no sábado. A conclusão mandaria o motorista mudar a rotina com base numa
+// comparação que não compara nada.
+// Hora contra hora é a única medida justa: mede o dia, não o esforço.
+// Sem hora marcada, cai pro R$/dia — mas AVISA que a hora não entrou na conta.
 function lupaDiaDaSemana(fin) {
+  const horas = lerLS('horasPorDia', {});
   const porDia = [[], [], [], [], [], [], []];
   fin.forEach(function (r) {
     if (!r.dataISO) return;
     const d = new Date(r.dataISO + 'T12:00:00');
     if (isNaN(d)) return;
-    porDia[d.getDay()].push(r.lucro || 0);
+    porDia[d.getDay()].push({ lucro: r.lucro || 0, h: horas[r.dataISO] || 0, iso: r.dataISO });
   });
+
+  // ── caminho bom: por hora ──
+  const porHora = porDia.map(function (arr, i) {
+    const comH = arr.filter(function (x) { return x.h >= 1; });
+    if (comH.length < LUPA_MIN_AMOSTRA) return null;
+    const somaL = comH.reduce(function (t, x) { return t + x.lucro; }, 0);
+    const somaH = comH.reduce(function (t, x) { return t + x.h; }, 0);
+    if (!(somaH > 0)) return null;
+    return { dia: i, n: comH.length, ph: somaL / somaH, horas: somaH };
+  }).filter(Boolean);
+
+  if (porHora.length >= 3) {
+    porHora.sort(function (a, b) { return b.ph - a.ph; });
+    const alto = porHora[0], baixo = porHora[porHora.length - 1];
+    const difH = alto.ph - baixo.ph;
+    if (difH < 2) return null;                       // R$ 2/hora não muda rotina
+    // ⚠️ Isto é uma HIPÓTESE e vai escrita como hipótese: "se rendessem como".
+    // O app pode projetar — não pode apresentar projeção como fato consumado.
+    const seFosse = difH * baixo.horas;
+    if (seFosse < 40) return null;
+    return { porHora: true, alto: alto, baixo: baixo, dif: difH, seFosse: seFosse };
+  }
+
+  // ── caminho de reserva: por dia, com a ressalva na cara ──
   const medias = porDia.map(function (arr, i) {
     if (arr.length < LUPA_MIN_AMOSTRA) return null;
     return { dia: i, n: arr.length,
-             media: arr.reduce(function (t, x) { return t + x; }, 0) / arr.length };
+             media: arr.reduce(function (t, x) { return t + x.lucro; }, 0) / arr.length };
   }).filter(Boolean);
   if (medias.length < 3) return null;    // com 2 dias da semana não existe "padrão"
   medias.sort(function (a, b) { return b.media - a.media; });
   const alto = medias[0], baixo = medias[medias.length - 1];
   const dif = alto.media - baixo.media;
   if (dif < 25) return null;             // diferença pequena demais pra virar decisão
-  return { alto: alto, baixo: baixo, dif: dif };
+  return { porHora: false, alto: alto, baixo: baixo, dif: dif };
 }
 
 // 2. QUAL POSTO TE CUSTOU MAIS CARO
@@ -5843,16 +5877,37 @@ function acharNaLupa(ym) {
   const achados = [];
 
   const ds = lupaDiaDaSemana(fin);
-  if (ds) {
+  if (ds && ds.porHora) {
     achados.push({
       ic: 'calendario',
-      tit: possDia(ds.alto.dia, true) + ' ' + DIAS_SEM[ds.alto.dia] + ' vale mais que ' +
+      tit: 'Sua hora ' + (DIAS_MASC[ds.alto.dia] ? 'no' : 'na') + ' ' + DIAS_SEM[ds.alto.dia] +
+           ' vale ' + fmtBRL(ds.dif) + ' a mais',
+      txt: 'Hora contra hora — que é a única comparação justa — ' +
+           (DIAS_MASC[ds.alto.dia] ? 'no' : 'na') + ' ' + DIAS_SEM[ds.alto.dia] +
+           ' você fez <b>' + fmtBRL(ds.alto.ph) + ' por hora</b> e ' +
+           (DIAS_MASC[ds.baixo.dia] ? 'no' : 'na') + ' ' + DIAS_SEM[ds.baixo.dia] +
+           ', <b>' + fmtBRL(ds.baixo.ph) + '</b>. Você rodou <b>' +
+           ds.baixo.horas.toFixed(0) + ' horas</b> ' +
+           (DIAS_MASC[ds.baixo.dia] ? 'aos ' : 'às ') + plurDia(ds.baixo.dia) +
+           ' neste mês: no ritmo ' + (DIAS_MASC[ds.alto.dia] ? 'do' : 'da') + ' ' +
+           DIAS_SEM[ds.alto.dia] + ', elas teriam rendido <b>' + fmtBRL0(ds.seFosse) + ' a mais</b>.',
+      base: ds.alto.n + ' ' + plurDia(ds.alto.dia) + ' e ' + ds.baixo.n + ' ' +
+            plurDia(ds.baixo.dia) + ' com hora marcada'
+    });
+  } else if (ds) {
+    achados.push({
+      ic: 'calendario',
+      tit: possDia(ds.alto.dia, true) + ' ' + DIAS_SEM[ds.alto.dia] + ' deixou mais que ' +
            possDia(ds.baixo.dia, false) + ' ' + DIAS_SEM[ds.baixo.dia],
       txt: 'Na média deste mês, ' + DIAS_SEM[ds.alto.dia] + ' te deixou <b>' + fmtBRL0(ds.alto.media) +
-           '</b> no bolso e ' + DIAS_SEM[ds.baixo.dia] + ' deixou <b>' + fmtBRL0(ds.baixo.media) +
-           '</b>. São <b>' + fmtBRL0(ds.dif) + ' de diferença</b> pelo mesmo dia de trabalho.',
+           '</b> no bolso e ' + DIAS_SEM[ds.baixo.dia] + ', <b>' + fmtBRL0(ds.baixo.media) +
+           '</b> — <b>' + fmtBRL0(ds.dif) + ' de diferença</b>. ' +
+           '⚠️ Mas eu não sei quantas horas você fez em cada um: pode ser que ' +
+           DIAS_SEM[ds.alto.dia] + ' não pague melhor, e sim que você rode mais nele. ' +
+           'Marque o "Bora rodar" que no mês que vem eu comparo hora contra hora.',
       base: ds.alto.n + ' ' + plurDia(ds.alto.dia) + ' e ' + ds.baixo.n + ' ' +
-            plurDia(ds.baixo.dia) + ' registrad' + (DIAS_MASC[ds.baixo.dia] ? 'os' : 'as')
+            plurDia(ds.baixo.dia) + ' registrad' + (DIAS_MASC[ds.baixo.dia] ? 'os' : 'as') +
+            ', sem hora marcada'
     });
   }
 
