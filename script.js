@@ -1153,6 +1153,10 @@ function iniciarApp(perfil) {
 }
 
 window.addEventListener('DOMContentLoaded', function () {
+  // 1ª trava do modo demonstração: só entra por ?demo=1 na URL. Não existe
+  // botão em lugar nenhum — motorista não cai aqui sem querer.
+  if (/[?&]demo=1(&|$)/.test(location.search) && !emDemo()) { entrarNaDemo(); return; }
+  pintarTarjaDemo();
   const perfil = lerLS('perfilUsuario', null);
   if (perfil && perfil.nome) iniciarApp(perfil);
   else {
@@ -5828,6 +5832,195 @@ function compartilharMesTexto() {
 
 // ═══════════════════════════════════════════════════════════════
 //  TUTORIAL DA PRIMEIRA VEZ — o Isaac mostra ONDE fica cada coisa
+
+// ═══════════════════════════════════════════════════════════════
+//  MODO DEMONSTRAÇÃO — 3 meses de dados fictícios
+// ═══════════════════════════════════════════════════════════════
+// Serve pra ver o app CHEIO sem esperar 3 meses de uso real: a carta do mês,
+// o piso, o extrato, os comparativos e o custo por km só existem com histórico.
+//
+// ⚠️ AS QUATRO TRAVAS (nenhuma delas é opcional):
+//   1. NÃO tem botão na interface. Só entra por `?demo=1` na URL — motorista
+//      nenhum vai cair aqui sem querer.
+//   2. Faz BACKUP do localStorage inteiro antes de tocar em qualquer coisa, e
+//      devolve tudo ao sair. Os dados reais do dono voltam intactos.
+//   3. NADA sobe pra nuvem enquanto a demo está ligada. Sem isto os R$ 11 mil
+//      fictícios entrariam no Supabase de verdade e sujariam o histórico.
+//   4. Uma tarja fixa no topo diz que os dados são inventados. Print de tela
+//      de demo circulando como se fosse resultado real é mentira — e é o tipo
+//      de coisa que a categoria já cansou de ver de influenciador.
+const DEMO_FLAG   = 'modoDemo';
+const DEMO_BACKUP = '_backupAntesDaDemo';
+
+function emDemo() { try { return localStorage.getItem(DEMO_FLAG) === '1'; } catch (e) { return false; } }
+
+// Números plantados de propósito pra a LUPA ter o que achar:
+//   • sexta e sábado rendem bem mais que segunda e terça  → "seu dia campeão"
+//   • Ipiranga cobra ~R$ 0,55/L a mais que o Tupi         → "o posto que te custou caro"
+//   • o mês mais recente é melhor que o anterior          → comparação com corpo
+const DEMO_POSTOS = [
+  { nome: 'Posto Tupi',      ppl: 5.89, peso: 4 },
+  { nome: 'Ipiranga Centro', ppl: 6.44, peso: 3 },
+  { nome: 'Shell Contorno',  ppl: 6.19, peso: 2 },
+  { nome: 'Posto do Zé',     ppl: 5.99, peso: 1 }
+];
+// dom, seg, ter, qua, qui, sex, sáb
+const DEMO_PESO_DIA = [0.72, 0.80, 0.84, 0.95, 1.06, 1.28, 1.22];
+
+function _demoRand(semente) {          // aleatório reprodutível: a demo é sempre igual
+  let x = Math.sin(semente) * 10000;
+  return x - Math.floor(x);
+}
+
+function montarDadosDemo() {
+  const hoje = new Date();
+  const fin = [], abast = [], kmPorDia = {}, horasPorDia = {}, despesasPorDia = {};
+  const VID = 'demo-v1';
+  // ⚠️ `kmDesdeAbast` acumula o km dos dias. Sem ele o abastecimento levava um
+  // km inventado (litros × consumo), e aí o custo/km da tela Início (que divide
+  // pelo km entre abastecimentos) não batia com o da carta (que divide pelo km
+  // dos dias). Duas telas do mesmo app com números diferentes — justamente o
+  // que a demo existe pra deixar você conferir.
+  let odo = 92400, litrosNoTanque = 0, seq = 0, kmDesdeAbast = 0, diasRodados = 0;
+
+  // 90 dias pra trás, folgando 1 dia por semana (motorista descansa)
+  for (let d = 89; d >= 0; d--) {
+    const dt = new Date(hoje); dt.setDate(dt.getDate() - d);
+    const iso = isoLocal(dt), dow = dt.getDay();
+    if (dow === 0 && _demoRand(d) < 0.7) continue;     // quase todo domingo é folga
+    seq++;
+
+    const peso  = DEMO_PESO_DIA[dow];
+    const horas = Math.round((7.5 + _demoRand(d * 3) * 4.5) * 10) / 10;
+    const km    = Math.round((horas * (21 + _demoRand(d * 7) * 6)));
+    // R$/km bruto de praça média brasileira. Puxar isso pra cima faria a demo
+    // mostrar um mês que o motorista real não tem — e demo que mente é o que
+    // a categoria já detesta no influenciador.
+    const bruto = Math.round(km * (1.32 + _demoRand(d * 11) * 0.38) * peso);
+    const taxa  = Math.round(bruto * 0.26);
+    const receita = bruto;
+
+    // abastece quando o tanque pede (a cada ~380 km)
+    let combDoDia = 0;
+    kmDesdeAbast += km;
+    litrosNoTanque -= km / 11.4;
+    if (litrosNoTanque <= 0) {
+      const po = DEMO_POSTOS[Math.floor(_demoRand(d * 13) * 4)];
+      const litros = Math.round((26 + _demoRand(d * 17) * 12) * 10) / 10;
+      const ppl    = Math.round((po.ppl + (_demoRand(d * 19) - 0.5) * 0.14) * 100) / 100;
+      const valor  = Math.round(litros * ppl * 100) / 100;
+      const kmDesde = kmDesdeAbast > 0 ? kmDesdeAbast : Math.round(litros * 11.4);
+      abast.unshift({
+        id: 'demo' + seq, dataISO: iso, data: isoParaExibicao(iso),
+        tipo: 'Gasolina', valor: valor, litros: litros, km: kmDesde,
+        cpm: (valor / kmDesde).toFixed(2), ppl: ppl.toFixed(2),
+        posto: po.nome, vid: VID
+      });
+      combDoDia = valor;
+      litrosNoTanque = litros;
+      kmDesdeAbast = 0;
+    }
+
+    // despesas: nem todo dia, e valores de rua
+    const desps = [];
+    if (_demoRand(d * 23) < 0.55) desps.push({ id: 'dp' + seq + 'a', cat: 'alimentacao', label: 'Alimentação', valor: 18 + Math.round(_demoRand(d * 29) * 14) });
+    if (_demoRand(d * 31) < 0.30) desps.push({ id: 'dp' + seq + 'b', cat: 'pedagio',     label: 'Pedágio',     valor: 7  + Math.round(_demoRand(d * 37) * 8) });
+    if (_demoRand(d * 41) < 0.12) desps.push({ id: 'dp' + seq + 'c', cat: 'lavagem',     label: 'Lavagem',     valor: 35 });
+    if (desps.length) despesasPorDia[iso] = desps;
+    const desp = desps.reduce(function (t, x) { return t + x.valor; }, 0);
+
+    odo += km; diasRodados++;
+    kmPorDia[iso]    = { km: km, vid: VID, dias: 1 };
+    horasPorDia[iso] = horas;
+    fin.unshift({
+      data: dt.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' }),
+      dataISO: iso, receita: receita, taxa: taxa, comb: combDoDia, desp: desp,
+      lucro: receita - taxa - combDoDia - desp, tipo: 'bruto',
+      odo: odo, kmDia: km, vid: VID
+    });
+  }
+
+  return { fin: fin, abast: abast, kmPorDia: kmPorDia, horasPorDia: horasPorDia,
+           despesasPorDia: despesasPorDia, odo: odo, VID: VID, diasRodados: diasRodados };
+}
+
+function entrarNaDemo() {
+  if (emDemo()) return;
+  // 2ª trava: backup ANTES de escrever qualquer coisa
+  const copia = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k !== DEMO_BACKUP) copia[k] = localStorage.getItem(k);
+  }
+  const backup = JSON.stringify(copia);
+  localStorage.clear();
+  localStorage.setItem(DEMO_BACKUP, backup);
+  localStorage.setItem(DEMO_FLAG, '1');
+
+  const D = montarDadosDemo();
+  const ultimo = D.fin[0], penultimo = D.fin[1];
+  salvarLS('perfilUsuario', { nome: 'Carlos Demo', veiculo: 'carro', tipoVeiculo: 'carro',
+                              metaDiaria: 260, reservaDia: 18, taxa: 26 });
+  // ⚠️ o odômetro é propriedade DO VEÍCULO (`v.odo`) — não uma chave à parte.
+  // Sem isto o kmAtual nasce 0, o painel de manutenção acha que nunca foi
+  // registrado e a demo abre com tudo zerado.
+  salvarLS('veiculos', [{ id: D.VID, nome: 'Onix 1.0', tipo: 'carro', placa: 'DEM0S01',
+                          odo: D.odo, reservaManutKm: 0.15 }]);
+  localStorage.setItem('veiculoAtivo', D.VID);
+  salvarLS('historicoFinancas', D.fin);
+  salvarLS('historicoAbastecimentos', D.abast);
+  salvarLS('kmPorDia', D.kmPorDia);
+  salvarLS('horasPorDia', D.horasPorDia);
+  salvarLS('despesasPorDia', D.despesasPorDia);
+  salvarLS('registroHoje',      { km: D.odo, data: ultimo.dataISO, vid: D.VID });
+  salvarLS('registroAnterior',  { km: D.odo - (ultimo.kmDia || 0), data: penultimo.dataISO, vid: D.VID });
+  salvarLS('manutPorVeiculo', (function () {
+    const m = {};
+    m[D.VID] = {
+      oleo:  { kmUltima: D.odo - 2450, intervalo: 3000,  dataUltima: null },
+      pneus: { kmUltima: D.odo - 7100, intervalo: 10000, dataUltima: null },
+      freio: { kmUltima: D.odo - 9300, intervalo: 30000, dataUltima: null }
+    };
+    return m;
+  })());
+  // a reserva de manutenção é acumulada dia a dia; sem semear, o cofrinho
+  // aparece zerado num app que "já roda há 3 meses"
+  salvarLS('reservaAcumulada', D.diasRodados * 18);
+  salvarLS('streak', 12);
+  salvarLS('recorde', 19);
+  // o tutorial e o presente não entram na frente de quem veio ver a demo
+  salvarLS('tutCapsVistos', { inicio: true, manutencao: true, combustivel: true,
+                              financas: true, documentos: true, isaac: true });
+  salvarLS('presenteVisto', true);
+  // ⚠️ `contaCriada` fica FALSO de propósito: sem isso o app pediria login
+  // pra lançar, e a demo travaria numa tela de senha.
+  location.replace(location.pathname);
+}
+
+function sairDaDemo() {
+  const backup = localStorage.getItem(DEMO_BACKUP);
+  localStorage.clear();
+  if (backup) {
+    try {
+      const copia = JSON.parse(backup);
+      Object.keys(copia).forEach(function (k) { localStorage.setItem(k, copia[k]); });
+    } catch (e) {}
+  }
+  location.replace(location.pathname);
+}
+
+// 4ª trava: a tarja. Fica por cima de tudo e não sai da tela.
+function pintarTarjaDemo() {
+  if (!emDemo() || document.getElementById('tarjaDemo')) return;
+  const t = document.createElement('div');
+  t.id = 'tarjaDemo';
+  t.className = 'tarja-demo';
+  t.innerHTML = '<span>' + ico('alerta') + ' MODO DEMONSTRAÇÃO · dados inventados</span>' +
+                '<button onclick="sairDaDemo()">sair</button>';
+  document.body.appendChild(t);
+  document.body.classList.add('com-tarja-demo');
+}
+
 // ═══════════════════════════════════════════════════════════════
 //  TUTORIAL GUIADO — UM CAPÍTULO POR ABA
 // ═══════════════════════════════════════════════════════════════

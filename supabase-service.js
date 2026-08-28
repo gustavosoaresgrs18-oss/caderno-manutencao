@@ -92,6 +92,12 @@ function _colunaFaltando(msg) {
 }
 
 async function salvarRegistroHibrido(nomeTabela, dados, onConflict) {
+  // ⚠️ 3ª TRAVA DA DEMO. Sem isto os R$ 11 mil fictícios subiriam pro Supabase
+  // de verdade e sujariam o histórico do dono — e ninguém perceberia até abrir
+  // o painel. Na demo, nem sobe nem enfileira: some.
+  if (typeof emDemo === 'function' && emDemo()) {
+    return { ok: false, origem: 'demo', motivo: 'modo demonstracao' };
+  }
   const conflitoAlvo = onConflict || 'id';
   // O perfil é UMA linha só por motorista: usa chave fixa para que, offline,
   // a versão mais nova substitua a anterior na fila em vez de empilhar uma
@@ -178,6 +184,10 @@ function _enfileirarOffline(nomeTabela, dados, chaveDedup, onConflict) {
 //  marcada como 'excluir' em vez de 'salvar'.
 // ═══════════════════════════════════════════════════════════════
 async function excluirRegistroHibrido(nomeTabela, colunaFiltro, valorFiltro) {
+  // na demo, apagar também não chega na nuvem (apagaria dado real do dono)
+  if (typeof emDemo === 'function' && emDemo()) {
+    return { ok: false, origem: 'demo', motivo: 'modo demonstracao' };
+  }
   const chave = 'del:' + colunaFiltro + ':' + valorFiltro;
 
   if (navigator.onLine && usuarioId()) {
