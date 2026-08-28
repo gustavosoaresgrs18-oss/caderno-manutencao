@@ -1119,6 +1119,7 @@ function iniciarApp(perfil) {
   migrarIdsAbastecimento();  // garante id em lançamentos antigos (pra apagar/editar)
   repararAbastecimentosRestaurados();   // conserta o que voltou da nuvem sem vid/ppl
   ordenarHistoricos();                  // "o mais recente" tem que ser mesmo o mais recente
+  reconciliarFinancas();                // o livro tem que fechar: receita − custos = lucro
 
   // NOVO: se tinha um turno rodando quando fechou o app, restaura o estado
   const ta = lerLS('turnoAtivo', null);
@@ -3484,6 +3485,84 @@ function gerarIdAbast() { return 'ab' + Date.now().toString(36) + Math.random().
 // O .order() do Supabase já resolve o caminho principal; isto aqui cobre o
 // resto e roda em toda abertura. sort() é estável, então empate no mesmo dia
 // preserva a ordem que já estava lá.
+// ⚠️ O LIVRO TEM QUE FECHAR: receita − taxa − combustível − despesas = lucro.
+// Ele estava aberto. A carta do mês dizia "Saíram R$ 412" e logo abaixo
+// "R$ 400 de combustível, R$ 83 de despesas" — 483, não 412. Sobravam R$ 71.
+//
+// CAUSA: `ressincronizarReceitaHoje()` só conserta o DIA DE HOJE. E a
+// `recalcularCombDosDias()` (que roda ao restaurar da nuvem) regrava o
+// combustível do dia mas NÃO recalcula o lucro — joga a diferença na taxa. Se
+// a diferença for negativa (custo maior que receita − lucro), a taxa é travada
+// em zero e o livro fica desequilibrado, calado.
+//
+// ⚠️ E o erro caía sempre pro MESMO LADO: lucro alto demais. O motorista
+// achava que sobrou R$ 778 quando sobraram R$ 707. Superestimar lucro é o
+// pior lado pra errar neste app — é o "troca dinheiro e acha que tá no lucro"
+// acontecendo DENTRO da ferramenta que existe pra impedir isso.
+//
+// Quem manda é o LANÇAMENTO, não o resumo: abastecimento e despesa são
+// registros individuais que o motorista fez; o lucro é conta derivada deles.
+// Então o lucro se ajusta ao custo, nunca o contrário.
+function reconciliarFinancas() {
+  const fin = lerLS('historicoFinancas', []);
+  if (!fin.length) return;
+
+  // ⚠️ TRAVA CONTRA A PRÓPRIA CORREÇÃO. Isto roda na abertura do app — e num
+  // aparelho novo a restauração ainda pode estar no meio do caminho: finanças
+  // já voltaram, abastecimentos não. Reconciliar nesse instante zeraria o
+  // combustível de todo dia e INFLARIA o lucro — exatamente o erro que esta
+  // função existe pra consertar. Se as finanças conhecem combustível e a lista
+  // de abastecimentos está vazia, a fonte não é confiável: não mexe.
+  const abastecimentos = lerLS('historicoAbastecimentos', []);
+  const finTemComb = fin.some(function (r) { return (r.comb || 0) > 0; });
+  if (!abastecimentos.length && finTemComb) return;
+
+  const combPorDia = {};
+  abastecimentos.forEach(function (a) {
+    if (!a.dataISO) return;
+    combPorDia[a.dataISO] = (combPorDia[a.dataISO] || 0) + (a.valor || 0);
+  });
+  const despPorDia = {};
+  const mapaDesp = lerLS('despesasPorDia', {}) || {};
+  Object.keys(mapaDesp).forEach(function (dia) {
+    despPorDia[dia] = (mapaDesp[dia] || []).reduce(function (t, d) { return t + (d.valor || 0); }, 0);
+  });
+
+  // o custo do dia entra numa linha só — duas linhas no mesmo dia contariam duas vezes
+  const jaUsou = {};
+  let mudou = false;
+  fin.forEach(function (r) {
+    const iso = r.dataISO;
+    if (!iso) return;
+    const combNovo = jaUsou[iso] ? 0 : (combPorDia[iso] || 0);
+    const despNovo = jaUsou[iso] ? 0 : (despPorDia[iso] != null ? despPorDia[iso] : (r.desp || 0));
+    jaUsou[iso] = true;
+    const taxa  = r.taxa || 0;
+    const lucroNovo = (r.receita || 0) - taxa - combNovo - despNovo;
+    if (Math.abs((r.comb || 0) - combNovo) > 0.005 ||
+        Math.abs((r.desp || 0) - despNovo) > 0.005 ||
+        Math.abs((r.lucro || 0) - lucroNovo) > 0.005) {
+      r.comb = combNovo; r.desp = despNovo; r.lucro = lucroNovo;
+      mudou = true;
+    }
+  });
+  if (mudou) {
+    salvarLS('historicoFinancas', fin);
+    // a nuvem tem que receber o número corrigido, senão o aparelho novo
+    // restaura o lucro inflado de volta
+    if (typeof salvarRegistroHibrido === 'function') {
+      fin.slice(0, 62).forEach(function (r) {          // ~2 meses: o resto é histórico frio
+        salvarRegistroHibrido('financas', {
+          data_iso: r.dataISO, receita: r.receita || 0, liquido: r.lucro || 0,
+          taxa_real: (r.taxa != null) ? r.taxa : null,
+          km_dia: (lerLS('kmPorDia', {})[r.dataISO] || {}).km || null,
+          despesas: r.desp || 0
+        }, 'usuario_id,data_iso').catch(function () {});
+      });
+    }
+  }
+}
+
 function ordenarHistoricos() {
   [['historicoAbastecimentos', 'dataISO'], ['historicoFinancas', 'dataISO']]
     .forEach(function (par) {

@@ -863,13 +863,24 @@ function recalcularCombDosDias() {
     } else {
       r.comb = 0; r.desp = 0;
     }
-    // ⚠️ O LUCRO NÃO É RECALCULADO. Ele vem da nuvem (`liquido`), que é o que o
-    // motorista fechou naquele dia — mexer nisso seria reescrever o passado.
-    // O que se ajusta é a TAXA, que a restauração calculava como
-    // `receita - liquido` e por isso engolia combustível e despesas dentro
-    // dela. Agora ela é o que sobra depois dos custos que a gente conhece.
+    // O lucro vem da nuvem (`liquido`), que é o que o motorista fechou naquele
+    // dia — mexer nisso seria reescrever o passado. O que se ajusta é a TAXA,
+    // que a restauração calculava como `receita - liquido` e por isso engolia
+    // combustível e despesas dentro dela.
     const resto = (r.receita || 0) - (r.lucro || 0) - r.comb - (r.desp || 0);
-    r.taxa = resto > 0 ? resto : 0;
+    // ⚠️ EXCEÇÃO, E ELA IMPORTA: resto negativo quer dizer que os custos
+    // conhecidos são MAIORES que `receita - lucro`. Ou seja, o lucro guardado
+    // não cabe nos custos — ele está alto demais. Antes a taxa era travada em
+    // zero e o livro ficava aberto em silêncio: a carta do mês somava R$ 483 de
+    // custo e dizia que saíram R$ 412. Preservar um lucro que contradiz os
+    // lançamentos é pior que corrigi-lo, porque o erro cai sempre pro lado de
+    // "sobrou mais do que sobrou".
+    if (resto >= 0) {
+      r.taxa = resto;
+    } else {
+      r.taxa  = 0;
+      r.lucro = (r.receita || 0) - r.comb - (r.desp || 0);
+    }
   });
   salvarLS('historicoFinancas', fin);
 }
