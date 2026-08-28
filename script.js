@@ -5322,9 +5322,16 @@ function fecharMes(ym) {
   const taxa    = fin.reduce((t, r) => t + (r.taxa    || 0), 0);
   const desp    = fin.reduce((t, r) => t + (r.desp    || 0), 0);
   const lucro   = fin.reduce((t, r) => t + (r.lucro   || 0), 0);
-  // combustível vem do que ele PAGOU no posto, não do rateio por dia:
-  // é o dinheiro que saiu do bolso dele naquele mês
-  const comb    = abast.reduce((t, r) => t + (r.valor || 0), 0);
+  // ⚠️ EXISTEM DOIS "COMBUSTÍVEL" E A CARTA MISTURAVA OS DOIS.
+  //   combBomba = tudo que ele pagou no posto no mês (o dinheiro que saiu)
+  //   combNaConta = só o que entrou no lucro dos dias com receita registrada
+  // Eles divergem porque abastecimento em dia SEM receita não entra em conta
+  // nenhuma (limitação conhecida). A carta dizia "Saíram R$ 413" e três linhas
+  // depois "R$ 595 de combustível, R$ 83 de despesas" — 595 + 83 = 678, não 413.
+  // O motorista soma e não fecha, e para de confiar na carta inteira.
+  const combBomba   = abast.reduce((t, r) => t + (r.valor || 0), 0);
+  const combNaConta = fin.reduce((t, r) => t + (r.comb || 0), 0);
+  const comb        = combBomba;   // compatibilidade: quem já lia m.comb
 
   // ── esforço ──
   const dias = fin.length;
@@ -5361,7 +5368,18 @@ function fecharMes(ym) {
   const combDosDias = abast
     .filter(r => diasComKm.indexOf(r.dataISO) >= 0)
     .reduce((t, r) => t + (r.valor || 0), 0);
-  const custoKm = (temKm && km > 0 && combDosDias > 0) ? (combDosDias / km) : null;
+  // ⚠️ SEM GUARDA, ISTO ESCREVIA "Foram 9 km. Cada km te custou R$ 75,26."
+  // Um dia com 9 km e R$ 677 de abastecimento nos mesmos dias dá 75 — número
+  // absurdo, publicado com toda a confiança na frente do motorista.
+  // O app JÁ TEM a régua do impossível: acima de R$ 3/km o kmSuspeito descarta
+  // o registro. A carta tem que obedecer a mesma régua.
+  // E mais: km que cobre 1 de 6 dias não é "o km do mês". Sem cobertura, o
+  // número não é do mês — é de um dia solto, e dizer "foram 9 km" é mentir
+  // sobre o mês. Regra sagrada nº 2: faltou dado, avisa e cala.
+  const cobertura = dias > 0 ? (diasComKm.length / dias) : 0;
+  const kmConfiavel = temKm && km > 0 && diasComKm.length >= 2 && cobertura >= 0.5;
+  const bruto = (kmConfiavel && combDosDias > 0) ? (combDosDias / km) : null;
+  const custoKm = (bruto !== null && bruto <= 3) ? bruto : null;
 
   // ── o melhor dia (um FATO pontual, não um padrão) ──
   // ⚠️ "qual DIA DA SEMANA rende mais" é padrão — isso é lupa, é premium.
@@ -5389,7 +5407,8 @@ function fecharMes(ym) {
   return {
     ym, dias, receita, taxa, comb, desp, lucro,
     horasTotal, diasComHora, porHora,
-    km: temKm ? km : null, custoKm,
+    km: kmConfiavel ? km : null, custoKm,
+    diasComKm: diasComKm.length, combBomba, combNaConta,
     litros, precoL, postos, abastecimentos: abast.length,
     melhor, anterior,
     // um mês com menos de 5 dias não sustenta frase de conclusão
@@ -5437,29 +5456,63 @@ function cartaDoMes(m) {
            `É pouco pra eu falar do mês inteiro, então vou falar só desses dias — e não tire conclusão daqui.\n`);
   }
 
-  const sobrou = m.lucro >= 0;
+  // ⚠️ A CONTA PRECISA FECHAR NA TELA. Os três números eram arredondados
+  // separadamente: 1.190 − 413 dava 777, e a carta escrevia 778. O motorista
+  // confere na calculadora, acha R$ 1 de diferença e perde a confiança na
+  // carta inteira — que é o produto. Mesma lição da v3.43/44 (o comparador de
+  // combustível usa o valor JÁ ARREDONDADO que aparece na tela).
+  // Agora arredonda receita e lucro UMA vez, e deriva a saída dos dois.
+  const sobrou   = m.lucro >= 0;
+  const receitaR = Math.round(m.receita);
+  const lucroR   = Math.round(m.lucro);
+  const saiuR    = receitaR - lucroR;
   p.push(sobrou
-    ? `Entraram ${V(fmtBRL0(m.receita))}. Saíram ${R(fmtBRL0(m.receita - m.lucro))}. ` +
-      `Sobrou ${V(fmtBRL0(m.lucro))} no seu bolso.\n`
-    : `Entraram ${A(fmtBRL0(m.receita))}, mas saíram ${R(fmtBRL0(m.receita - m.lucro))}. ` +
-      `O mês fechou ${R('no vermelho')}: ${R(fmtBRL0(Math.abs(m.lucro)))} a menos do que entrou.\n`);
+    ? `Entraram ${V(fmtBRL0(receitaR))}. Saíram ${R(fmtBRL0(saiuR))}. ` +
+      `Sobrou ${V(fmtBRL0(lucroR))} no seu bolso.\n`
+    : `Entraram ${A(fmtBRL0(receitaR))}, mas saíram ${R(fmtBRL0(saiuR))}. ` +
+      `O mês fechou ${R('no vermelho')}: ${R(fmtBRL0(Math.abs(lucroR)))} a menos do que entrou.\n`);
 
   // ── pra onde foi o que saiu ──
+  // ⚠️ O detalhamento tem que somar EXATAMENTE o que a linha de cima chamou de
+  // "saiu". Usava o total da bomba, que inclui dia sem receita registrada.
   const saidas = [];
-  if (m.comb > 0) saidas.push(`${fmtBRL0(m.comb)} de combustível`);
-  if (m.taxa > 0) saidas.push(`${fmtBRL0(m.taxa)} de taxa das plataformas`);
-  if (m.desp > 0) saidas.push(`${fmtBRL0(m.desp)} de despesas`);
+  if (m.combNaConta > 0) saidas.push(`${fmtBRL0(m.combNaConta)} de combustível`);
+  if (m.taxa > 0)        saidas.push(`${fmtBRL0(m.taxa)} de taxa das plataformas`);
+  if (m.desp > 0)        saidas.push(`${fmtBRL0(m.desp)} de despesas`);
   if (saidas.length) {
-    const fatia = (m.receita > 0) ? Math.round(m.comb / m.receita * 100) : 0;
+    // ⚠️ O PERCENTUAL TEM QUE FALAR DO DINHEIRO DE VERDADE. Se parte do
+    // combustível ficou fora da conta, dizer "a bomba levou 28%" SUBESTIMA o
+    // custo dele — e subestimar custo é a direção perigosa neste app: faz o
+    // motorista achar que sobra mais do que sobra. Quando há diferença, o
+    // percentual sai do total da bomba e vai junto do aviso, pra não brigar
+    // com o detalhamento logo acima.
+    const foraDaConta = Math.round(m.combBomba - m.combNaConta);
+    const baseFatia = foraDaConta >= 20 ? m.combNaConta : m.comb;
+    const fatia = (m.receita > 0) ? Math.round(baseFatia / m.receita * 100) : 0;
     let bomba = '\n';
     // ⚠️ "a bomba levou 104% do que entrou" é matematicamente verdade e soa
     // como erro de conta — o motorista para de confiar no número seguinte.
     // Acima de 100% a frase muda pra dizer a MESMA coisa em português.
-    if (m.comb > 0 && m.receita > 0) {
+    // com diferença, o percentual desta linha calaria o custo real: some daqui
+    // e reaparece no aviso, medido pelo que ele pagou de verdade.
+    if (baseFatia > 0 && m.receita > 0 && foraDaConta < 20) {
       if (fatia >= 100)     bomba = ` Só a bomba custou ${R('mais do que entrou o mês inteiro')}.\n`;
       else if (fatia >= 10) bomba = ` Só a bomba levou ${A(fatia + '%')} de tudo que entrou.\n`;
     }
     p.push(`O que saiu foi ${saidas.join(', ')}.` + bomba);
+    // ⚠️ A diferença entre a bomba e a conta NÃO pode ficar escondida: é
+    // dinheiro real que o motorista gastou e que não apareceu em lugar nenhum.
+    // Em vez de sumir com ela, o Isaac nomeia e diz o que fazer.
+    if (foraDaConta >= 20) {
+      const pctReal = (m.receita > 0) ? Math.round(m.combBomba / m.receita * 100) : 0;
+      const quanto = (pctReal >= 100)
+        ? `${R('mais do que entrou o mês inteiro')}`
+        : `${A(pctReal + '%')} de tudo que entrou`;
+      p.push(`Atenção: na bomba mesmo você pagou ${A(fmtBRL0(m.combBomba))} — ${quanto}. ` +
+             `${A(fmtBRL0(foraDaConta))} caíram em dias sem receita registrada, então esse ` +
+             `dinheiro saiu do seu bolso e ${R('não entrou na conta acima')}. Registre a receita ` +
+             `do dia em que você abastece e eu fecho certo.\n`);
+    }
   }
 
   // ── esforço: o número que quase ninguém sabe ──
@@ -5478,7 +5531,13 @@ function cartaDoMes(m) {
   }
 
   // ── a comparação que ninguém faz: km em algo que ele enxerga ──
-  if (m.km !== null && m.km > 0) {
+  if (m.km === null && m.diasComKm > 0) {
+    // tem km, mas de poucos dias: dizer "foram 9 km" seria falar do mês com o
+    // dado de um dia. Diz o que tem e o que falta.
+    p.push(`Não falo do km do mês: só ${A(m.diasComKm + (m.diasComKm === 1 ? ' dia' : ' dias'))} ` +
+           `${m.diasComKm === 1 ? 'tem' : 'têm'} o km fechado, de ${m.dias}. ` +
+           `Feche o dia pelo "Bora rodar" que no mês que vem essa conta existe.\n`);
+  } else if (m.km !== null && m.km > 0) {
     let linha = `Foram ${V(fmtKm(m.km) + ' km')}`;
     const ref = referenciaDeDistancia(m.km);
     if (ref) linha += ` — ${ref}`;
