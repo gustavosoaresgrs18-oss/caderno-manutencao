@@ -1120,6 +1120,10 @@ function iniciarApp(perfil) {
   repararAbastecimentosRestaurados();   // conserta o que voltou da nuvem sem vid/ppl
   ordenarHistoricos();                  // "o mais recente" tem que ser mesmo o mais recente
   reconciliarFinancas();                // o livro tem que fechar: receita − custos = lucro
+  // ⚠️ A auditoria roda DEPOIS da reconciliação, de propósito: se ela rodasse
+  // antes, reportaria como bug exatamente o que a linha de cima acabou de
+  // consertar — e o painel viraria ruído.
+  setTimeout(auditarInvariantes, 2500);
 
   // NOVO: se tinha um turno rodando quando fechou o app, restaura o estado
   const ta = lerLS('turnoAtivo', null);
@@ -1153,6 +1157,10 @@ function iniciarApp(perfil) {
   }
 }
 
+// A sentinela liga ANTES de tudo: erro que acontece na partida é justamente o
+// que ninguém consegue reproduzir depois.
+ligarSentinela();
+
 window.addEventListener('DOMContentLoaded', function () {
   // 1ª trava do modo demonstração: só entra por ?demo=1 na URL. Não existe
   // botão em lugar nenhum — motorista não cai aqui sem querer.
@@ -1163,6 +1171,7 @@ window.addEventListener('DOMContentLoaded', function () {
   if (/[?&]semear=1(&|$)/.test(location.search)) setTimeout(semearNaConta, 1400);
   // ?premium=1 / ?premium=0 — chave de teste do portão, só pra conta do dono.
   // Gated de propósito: sem isto, bastava um motorista colar a URL pra liberar.
+  if (/[?&]erros=1(&|$)/.test(location.search)) setTimeout(abrirPainelErros, 1800);
   const mp = location.search.match(/[?&]premium=([01])(&|$)/);
   if (mp) setTimeout(function () {
     if (!souODono()) { toast('Isso não está disponível nesta conta', 'erro'); return; }
@@ -2966,6 +2975,7 @@ function diasDesdeUltimoRegistro() {
   return dias > 0 ? dias : 1;
 }
 function aplicarKmEFecharTurno(valor) {
+  migalha('fechar-turno');
   // ⚠️ CORREÇÃO (auditoria): era `new Date().toLocaleDateString()` sem locale
   // — o formato depende do idioma do aparelho (en-US, pt-BR, etc dão strings
   // diferentes pro mesmo dia). Era o ÚNICO lugar do app que não usava
@@ -3130,6 +3140,7 @@ document.getElementById('btnCorrKmSalvar').addEventListener('click', function ()
 
 // Grava a correção e refaz TUDO que dependia do número errado.
 function aplicarCorrecaoKm(valor) {
+  migalha('corrigir-km');
   const vidUsar = vidAtivo();
   const rh = lerLS('registroHoje', null);
 
@@ -3289,6 +3300,7 @@ function atualizarListaPostos() {
 }
 let editandoAbastId = null;
 function editarAbastecimento(id) {
+  migalha('editar-abastecimento');
   const h = lerLS('historicoAbastecimentos', []);
   const r = h.find(x => x.id === id);
   if (!r) return;
@@ -3335,6 +3347,7 @@ function sincronizarKmOk(r) {
 
 // O motorista assume o número. A conta volta a usá-lo e o alerta some.
 function confirmarKmAbastecimento(id) {
+  migalha('conferir-km');
   const h = lerLS('historicoAbastecimentos', []);
   const r = h.find(x => x.id === id);
   if (!r) return;
@@ -3383,6 +3396,7 @@ function desfazerDaEdicao() {
   desfazerKmAbastecimento(id);
 }
 function excluirAbastecimento(id) {
+  migalha('excluir-abastecimento');
   pedirConfirmacao(ico('lixeira') + ' Apagar abastecimento', 'Quer apagar este lançamento? Isso não dá pra desfazer.', function() {
     let h = lerLS('historicoAbastecimentos', []);
     h = h.filter(r => r.id !== id);
@@ -3542,7 +3556,7 @@ function reconciliarFinancas() {
 
   // o custo do dia entra numa linha só — duas linhas no mesmo dia contariam duas vezes
   const jaUsou = {};
-  let mudou = false;
+  let mudou = false, corrigidos = 0, piorDesvio = 0;
   fin.forEach(function (r) {
     const iso = r.dataISO;
     if (!iso) return;
@@ -3551,13 +3565,23 @@ function reconciliarFinancas() {
     jaUsou[iso] = true;
     const taxa  = r.taxa || 0;
     const lucroNovo = (r.receita || 0) - taxa - combNovo - despNovo;
+    const desvio = Math.abs((r.lucro || 0) - lucroNovo);
     if (Math.abs((r.comb || 0) - combNovo) > 0.005 ||
-        Math.abs((r.desp || 0) - despNovo) > 0.005 ||
-        Math.abs((r.lucro || 0) - lucroNovo) > 0.005) {
+        Math.abs((r.desp || 0) - despNovo) > 0.005 || desvio > 0.005) {
+      if (desvio > piorDesvio) piorDesvio = desvio;
       r.comb = combNovo; r.desp = despNovo; r.lucro = lucroNovo;
-      mudou = true;
+      mudou = true; corrigidos++;
     }
   });
+  // ⚠️ CONSERTO SILENCIOSO ESCONDE O BUG QUE O CAUSOU. Se o livro chegou
+  // aberto, ALGUMA COISA abriu — e essa causa continua viva no código. A
+  // reconciliação conserta o número pro motorista e avisa a sentinela pra mim.
+  // Sem isto, o app se auto-cura pra sempre e o defeito nunca aparece.
+  if (corrigidos > 0 && typeof registrarErro === 'function') {
+    registrarErro('invariante', 'livro-aberto-corrigido',
+      corrigidos + ' de ' + fin.length + ' dias vieram com lucro != receita-custos; ' +
+      'pior desvio R$ ' + piorDesvio.toFixed(2));
+  }
   if (mudou) {
     salvarLS('historicoFinancas', fin);
     // a nuvem tem que receber o número corrigido, senão o aparelho novo
@@ -3587,6 +3611,11 @@ function ordenarHistoricos() {
       // só grava se mudou: escrita à toa em toda abertura é desgaste sem motivo
       if (ord.map(function (r) { return r[par[1]] || ''; }).join('|') !== antes) {
         salvarLS(par[0], ord);
+        // mesma lógica do livro: ordenar sozinho esconde de onde veio a bagunça
+        if (typeof registrarErro === 'function') {
+          registrarErro('invariante', 'historico-fora-de-ordem',
+            par[0] + ' com ' + arr.length + ' registros chegou fora de ordem');
+        }
       }
     });
 }
@@ -5391,6 +5420,7 @@ function atualizarComparativoSemanal() {
 
 // ─── NAVEGAÇÃO (6 abas) ──────────────────────────────────────
 function mostrarTela(tela) {
+  migalha('tela:' + ((tela && tela.id) || '?'));
   [telaInicio,telaManutencao,telaCombustivel,telaFinancas,telaDocumentos,telaCade,document.getElementById('telaExtrato'),document.getElementById('telaExtratoFin'),document.getElementById('telaDespesas')].forEach(t => { if (t) t.style.display='none'; });
   [navInicio,navManutencao,navCombustivel,navFinancas,navDocumentos,navCade].forEach(n => n.classList.remove('ativo'));
   tela.style.display = 'block';
@@ -5720,6 +5750,7 @@ function ultimoMesFechado() {
 }
 
 function abrirRelatorioMes(ym) {
+  migalha('relatorio-mes');
   const meses = mesesComRegistro();
   if (!meses.length) { toast('Ainda não tenho mês nenhum pra fechar'); return; }
   // abre no último mês fechado; se ele ainda não existe, no mês corrente
@@ -6596,6 +6627,263 @@ function semearNaConta() {
       toast(novosFin.length + ' dias semeados — subindo pra nuvem');
       setTimeout(function () { location.replace(location.pathname); }, 1200);
     });
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+//  SENTINELA — o detector de bug do app
+// ═══════════════════════════════════════════════════════════════
+// ⚠️ A LIÇÃO QUE DESENHOU ISTO: nesta sessão foram encontrados 12 bugs. Um
+// `window.onerror` teria pego ZERO deles. Nenhum quebrou a tela: o piso nascia
+// valendo R$ 0,12, a carta somava R$ 483 e escrevia R$ 412, o lucro vinha
+// inflado em R$ 71, o lançamento offline morria calado. Tudo "funcionando".
+//
+// Detector que só escuta exceção é cego pro bug que importa neste app — o que
+// mostra um número errado com confiança. Por isso a sentinela tem DUAS metades:
+//
+//   1. ERRO DE CÓDIGO   — window.onerror / promessa rejeitada. Pega o que quebra.
+//   2. ERRO DE CONTA    — auditoria de invariantes. Pega o que MENTE.
+//
+// A segunda é a que vale. Ela confere, a cada abertura, as igualdades que
+// sustentam o app. Se `receita − taxa − combustível − despesas ≠ lucro`, existe
+// bug, mesmo que nada tenha estourado.
+//
+// ⚠️ PRIVACIDADE: nada que identifique o motorista sai daqui. Sem nome, sem
+// e-mail, sem placa, sem posto. Vão só: o que quebrou, onde, a versão do app e
+// a MAGNITUDE do desvio (não os valores). Um relatório de bug não é motivo pra
+// coletar a vida financeira de ninguém.
+// ⚠️ O RASTRO — a maior fraqueza da 1ª versão.
+// Saber "quebrou na tela de combustível" não conserta nada: essa tela tem
+// abastecimento novo, edição, exclusão, extrato e comparador. Sem saber o que
+// ele estava FAZENDO, o bug não é reproduzível — e bug que não reproduz não é
+// corrigido, é chutado.
+// Guarda as 10 últimas ações. Só o NOME do que ele fez, nunca o valor: "salvou
+// abastecimento" e não "salvou R$ 80 no Posto Tupi".
+const SENT_RASTRO = [];
+function migalha(acao) {
+  try {
+    SENT_RASTRO.push(String(acao).slice(0, 40));
+    if (SENT_RASTRO.length > 10) SENT_RASTRO.shift();
+  } catch (e) {}
+}
+const SENT_FILA   = 'sentinelaFila';
+const SENT_MAX    = 12;      // por sessão: log que enche sozinho vira lixo
+const SENT_VISTOS = {};      // dedupe em memória: o mesmo erro não vai 40 vezes
+let _sentEnviados = 0;
+
+function sentVersao() {
+  try {
+    const t = [...document.querySelectorAll('script[src*="script.js"]')]
+                .map(function (x) { return (x.src.match(/[?&]v=(\d+)/) || [])[1]; })
+                .filter(Boolean)[0];
+    return t || 'desconhecida';
+  } catch (e) { return 'desconhecida'; }
+}
+// id anônimo por aparelho: liga os erros de um mesmo celular sem dizer QUEM é
+function sentAparelho() {
+  let id = lerLS('sentinelaId', null);
+  if (!id) { id = 'ap' + Math.random().toString(36).slice(2, 10); salvarLS('sentinelaId', id); }
+  return id;
+}
+function sentTela() {
+  const telas = ['telaInicio','telaManutencao','telaCombustivel','telaFinancas',
+                 'telaDocumentos','telaCade','telaExtrato','telaExtratoFin','telaDespesas','telaCadastro'];
+  for (const id of telas) {
+    const e = document.getElementById(id);
+    if (e && e.style.display && e.style.display !== 'none') return id;
+  }
+  return 'desconhecida';
+}
+
+function registrarErro(tipo, chave, detalhe) {
+  try {
+    if (emDemo()) return;                       // demo não gera relatório de bug
+    if (_sentEnviados >= SENT_MAX) return;
+    if (SENT_VISTOS[chave]) return;
+    SENT_VISTOS[chave] = true;
+    _sentEnviados++;
+    const reg = {
+      id: 'er' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      tipo: tipo, chave: String(chave).slice(0, 180),
+      detalhe: String(detalhe || '').slice(0, 600),
+      versao: sentVersao(), tela: sentTela(), aparelho: sentAparelho(),
+      rastro: SENT_RASTRO.join(' > ').slice(0, 400),
+      quando: new Date().toISOString()
+    };
+    const fila = lerLS(SENT_FILA, []);
+    fila.push(reg);
+    salvarLS(SENT_FILA, fila.slice(-40));       // o disco do motorista não é meu depósito
+    console.warn('[Sentinela]', tipo, chave, detalhe || '');
+    enviarErros();
+  } catch (e) { /* a sentinela nunca pode ser a causa de um erro */ }
+}
+
+function enviarErros() {
+  const fila = lerLS(SENT_FILA, []);
+  if (!fila.length || !navigator.onLine) return;
+  if (typeof salvarRegistroHibrido !== 'function' || typeof usuarioId !== 'function' || !usuarioId()) return;
+  const restante = [];
+  fila.forEach(function (r) {
+    salvarRegistroHibrido('erros', {
+      id: r.id, tipo: r.tipo, chave: r.chave, detalhe: r.detalhe,
+      versao: r.versao, tela: r.tela, aparelho: r.aparelho,
+      rastro: r.rastro || '', quando: r.quando
+    }, 'id').catch(function () { restante.push(r); });
+  });
+  salvarLS(SENT_FILA, restante);
+}
+
+// ─── metade 1: o que QUEBRA ────────────────────────────────────
+function ligarSentinela() {
+  window.addEventListener('error', function (ev) {
+    if (!ev || !ev.message) return;
+    const onde = (ev.filename || '').split('/').pop() + ':' + (ev.lineno || 0);
+    registrarErro('js', ev.message + ' @ ' + onde,
+                  (ev.error && ev.error.stack ? String(ev.error.stack).slice(0, 400) : ''));
+  });
+  window.addEventListener('unhandledrejection', function (ev) {
+    const m = (ev && ev.reason && (ev.reason.message || ev.reason)) || 'promessa rejeitada';
+    registrarErro('promessa', String(m).slice(0, 180),
+                  (ev.reason && ev.reason.stack ? String(ev.reason.stack).slice(0, 400) : ''));
+  });
+  window.addEventListener('online', enviarErros);
+}
+
+// ─── metade 2: o que MENTE ─────────────────────────────────────
+// Cada checagem abaixo nasceu de um bug REAL desta sessão. Se um deles voltar,
+// o app avisa sozinho em vez de esperar o motorista somar na calculadora.
+function auditarInvariantes() {
+  try {
+    if (emDemo()) return [];
+    const achados = [];
+    const fin = lerLS('historicoFinancas', []);
+
+    // 1. o livro tem que fechar (bug v3.87 — lucro inflado em R$ 71)
+    let abertos = 0, piorDesvio = 0;
+    fin.forEach(function (r) {
+      const esperado = (r.receita || 0) - (r.taxa || 0) - (r.comb || 0) - (r.desp || 0);
+      const d = Math.abs(esperado - (r.lucro || 0));
+      if (d > 0.5) { abertos++; if (d > piorDesvio) piorDesvio = d; }
+    });
+    if (abertos > 0) achados.push({
+      chave: 'livro-aberto',
+      detalhe: abertos + ' de ' + fin.length + ' dias com receita-custos != lucro; pior desvio R$ ' + piorDesvio.toFixed(2)
+    });
+
+    // 2. custo por km impossível (bug v3.85 — "R$ 75,26 por km" na carta)
+    const ck = combustivelKmMes();
+    if (ck > 3) achados.push({ chave: 'custo-km-absurdo', detalhe: 'combustivelKmMes=' + ck.toFixed(2) });
+
+    // 3. piso sem base medida (bug v3.84 — piso nascia valendo R$ 0,12)
+    const pz = pisoPorKm();
+    if (pz && pz.piso !== null && !(combustivelKmMes() > 0)) achados.push({
+      chave: 'piso-sem-combustivel', detalhe: 'piso=' + pz.piso.toFixed(2) + ' sem combustível medido'
+    });
+
+    // 4. km de um dia fora da realidade humana
+    const mapaKm = lerLS('kmPorDia', {});
+    let kmLouco = 0;
+    Object.keys(mapaKm).forEach(function (k) {
+      const r = mapaKm[k];
+      if (r && (r.dias || 1) === 1 && r.km > 1200) kmLouco++;
+    });
+    if (kmLouco) achados.push({ chave: 'km-dia-absurdo', detalhe: kmLouco + ' dia(s) com mais de 1.200 km' });
+
+    // 5. histórico fora de ordem (bug v3.84 — restauração sem .order)
+    const ab = lerLS('historicoAbastecimentos', []);   // reusado nos itens 8+
+    let foraDeOrdem = 0;
+    for (let i = 1; i < ab.length; i++) {
+      if (String(ab[i - 1].dataISO || '') < String(ab[i].dataISO || '')) foraDeOrdem++;
+    }
+    if (foraDeOrdem > 0) achados.push({ chave: 'historico-fora-de-ordem', detalhe: foraDeOrdem + ' inversões' });
+
+    // 6. fila de sincronização entalada (bug v3.84 — coluna inexistente)
+    const filaOff = lerLS('filaOffline', []);
+    const travados = filaOff.filter(function (x) { return (x.tentativas || 0) >= 3; }).length;
+    if (travados > 0) achados.push({ chave: 'fila-travada', detalhe: travados + ' item(ns) com 3+ tentativas' });
+
+    // 7. ⚠️ ARMAZENAMENTO QUASE CHEIO — matador silencioso. Estourando a cota,
+    // `salvarLS` falha, o motorista vê um toast e segue rodando achando que
+    // salvou. Num app que só cresce, isso é questão de tempo. Melhor saber
+    // ANTES de o primeiro lançamento se perder.
+    let bytes = 0;
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        bytes += (k || '').length + (localStorage.getItem(k) || '').length;
+      }
+    } catch (e) {}
+    if (bytes > 3500000) achados.push({
+      chave: 'armazenamento-cheio', detalhe: Math.round(bytes / 1024) + ' KB usados (limite ~5 MB)'
+    });
+
+    // 8. abastecimento apontando pra veículo que não existe. Vira invisível em
+    // TODA conta por veículo — o motorista vê no extrato e some do custo/km.
+    const ids = {};
+    lerVeiculos().forEach(function (v) { ids[v.id] = true; });
+    const orfaos = ab.filter(function (a) { return a.vid && !ids[a.vid]; }).length;
+    if (orfaos) achados.push({ chave: 'abastecimento-orfao', detalhe: orfaos + ' sem veículo existente' });
+
+    // 9. dois lançamentos de receita no mesmo dia. A regra é 1 por dia; dois
+    // dobram a receita do mês e o motorista não tem como perceber.
+    const vistosDia = {};
+    let duplicados = 0;
+    fin.forEach(function (r) {
+      if (!r.dataISO) return;
+      if (vistosDia[r.dataISO]) duplicados++;
+      vistosDia[r.dataISO] = true;
+    });
+    if (duplicados) achados.push({ chave: 'receita-duplicada', detalhe: duplicados + ' dia(s) com 2+ lançamentos' });
+
+    // 10. reserva de manutenção negativa: não existe cofrinho devendo
+    const res = Number(localStorage.getItem('reservaAcumulada')) || 0;
+    if (res < 0) achados.push({ chave: 'reserva-negativa', detalhe: 'reservaAcumulada=' + res.toFixed(2) });
+
+    // 11. tem histórico mas não tem meta: o piso nunca vai nascer e o motorista
+    // não sabe por quê. Não é bug de código, é buraco de configuração — e ele
+    // custa o recurso mais importante do app.
+    if (fin.length >= 8 && !((getPerfil().metaDiaria || 0) > 0)) achados.push({
+      chave: 'sem-meta-com-historico', detalhe: fin.length + ' dias registrados e meta diária vazia'
+    });
+
+    achados.forEach(function (a) { registrarErro('invariante', a.chave, a.detalhe); });
+    return achados;
+  } catch (e) { return []; }
+}
+
+// ─── o painel do dono ──────────────────────────────────────────
+// `?erros=1`. Não é tela de app: é ferramenta de manutenção.
+async function abrirPainelErros() {
+  if (!souODono()) { toast('Isso não está disponível nesta conta', 'erro'); return; }
+  const locais = auditarInvariantes();
+  let nuvem = [];
+  try {
+    if (typeof getSB === 'function' && usuarioId()) {
+      const r = await getSB().from('erros').select('*').order('quando', { ascending: false }).limit(60);
+      nuvem = r.data || [];
+    }
+  } catch (e) {}
+  const linha = function (t, c, d, q, v) {
+    return '<div style="border-bottom:1px solid var(--line);padding:8px 0;font-size:12px;">' +
+      '<b style="color:var(--signal)">' + esc(t) + '</b> · ' + esc(c) +
+      '<div style="color:var(--dim)">' + esc(d || '') + '</div>' +
+      '<div style="color:var(--faint);font-size:11px">' + esc((q || '').slice(0, 16)) +
+      (v ? ' · v' + esc(v) : '') + '</div></div>';
+  };
+  pedirConfirmacao(ico('alerta') + ' Sentinela',
+    'Aqui em cima: o que está errado NESTE aparelho agora. Abaixo, o que chegou da nuvem.',
+    function () {});
+  const cx = document.getElementById('confirmTexto');
+  if (cx) {
+    cx.innerHTML = '<div style="text-align:left;max-height:52vh;overflow:auto">' +
+      '<b>NESTE APARELHO (' + locais.length + ')</b>' +
+      (locais.length ? locais.map(function (a) { return linha('invariante', a.chave, a.detalhe, '', sentVersao()); }).join('')
+                     : '<div style="color:var(--money);padding:8px 0">Nenhum problema encontrado.</div>') +
+      '<br><b>DA NUVEM (' + nuvem.length + ')</b>' +
+      (nuvem.length ? nuvem.map(function (r) { return linha(r.tipo, r.chave, r.detalhe, r.quando, r.versao); }).join('')
+                    : '<div style="color:var(--dim);padding:8px 0">Nada reportado.</div>') +
+      '</div>';
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
