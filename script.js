@@ -1313,9 +1313,14 @@ function renderTanqueDash() {
   const sub = document.getElementById('tqSub');
   let frac = 0;
   if (normal && normal > 0) {
-    frac = Math.max(0, Math.min(1, gasto / normal));
-    sub.textContent = 'seu normal: ~' + fmtBRL0(normal) + '/mês';
-    arc.style.stroke = frac >= 0.9 ? 'var(--danger)' : 'var(--signal)';
+    // mesma correção do tanque grande (Regra #11: regra copiada é regra que
+    // diverge — aqui ela tinha divergido de novo): trava o desenho, não o juízo
+    const fracReal = gasto / normal;
+    frac = Math.max(0, Math.min(1, fracReal));
+    sub.textContent = fracReal >= 1
+      ? 'acima do seu normal de ~' + fmtBRL0(normal) + '/mês'
+      : 'seu normal: ~' + fmtBRL0(normal) + '/mês';
+    arc.style.stroke = fracReal >= 0.9 ? 'var(--danger)' : 'var(--signal)';
   } else {
     sub.textContent = 'aprendendo seu normal';
     arc.style.stroke = 'var(--signal)';
@@ -1348,16 +1353,28 @@ function renderTanqueGrande() {
   elVal.textContent = fmtBRL0(gasto);
 
   if (normal && normal > 0) {
-    const frac = Math.max(0, Math.min(1, gasto / normal));
-    const cor  = frac >= 0.9 ? 'var(--danger)' : 'var(--signal)';
+    // ⚠️ A fração era travada em 1 ANTES de virar texto. Quem gastou 141% do
+    // normal caía no mesmo balde de quem gastou 91% e lia "quase no seu
+    // limite" — o app tranquilizando justamente quem JÁ estourou. É a Regra
+    // Sagrada #4 de cabeça pra baixo: vermelho tem que ser alerta REAL.
+    // Agora o travamento vale só pro DESENHO (o líquido não pode vazar do
+    // tanque); o texto e a porcentagem usam a fração de verdade.
+    const fracReal = gasto / normal;
+    const frac = Math.max(0, Math.min(1, fracReal));
+    const cor  = fracReal >= 0.9 ? 'var(--danger)' : 'var(--signal)';
     wave.setAttribute('fill', cor);
     liq.setAttribute('transform', 'translate(0,' + (H * (1 - frac)).toFixed(1) + ')');
     elVal.style.color = cor;
     elNor.innerHTML = 'de <b>~' + fmtBRL0(normal) + '</b> do seu gasto normal por mês';
-    const pct = Math.round(frac * 100);
-    if (frac >= 0.9)        { elPill.className = 'tanque-pill verm';  elPill.innerHTML = dot('vermelho') + ' quase no seu limite'; }
-    else if (frac >= 0.75)  { elPill.className = 'tanque-pill amar';  elPill.innerHTML = dot('laranja') + ' chegando perto · ' + pct + '%'; }
-    else                    { elPill.className = 'tanque-pill verde'; elPill.innerHTML = dot('verde') + ' dentro do normal · ' + pct + '%'; }
+    const pct = Math.round(fracReal * 100);
+    if (fracReal >= 1) {
+      const excesso = gasto - normal;
+      elPill.className = 'tanque-pill verm';
+      elPill.innerHTML = dot('vermelho') + ' ' + fmtBRL0(excesso) + ' acima do seu normal · ' + pct + '%';
+    }
+    else if (fracReal >= 0.9)  { elPill.className = 'tanque-pill verm';  elPill.innerHTML = dot('vermelho') + ' quase no seu limite · ' + pct + '%'; }
+    else if (fracReal >= 0.75) { elPill.className = 'tanque-pill amar';  elPill.innerHTML = dot('laranja')  + ' chegando perto · ' + pct + '%'; }
+    else                       { elPill.className = 'tanque-pill verde'; elPill.innerHTML = dot('verde')    + ' dentro do normal · ' + pct + '%'; }
   } else {
     // sem mês anterior: nível decorativo neutro, SEM inventar porcentagem
     wave.setAttribute('fill', 'var(--faint)');
@@ -1386,7 +1403,14 @@ function pintarKmHoje() {
   if (!el) return;
   const kmD = kmRodadoHoje();
   if (kmD !== null) {
-    el.innerHTML = '+<span class="num" id="kmHojeValor">' + fmtKm(kmD) + ' km</span> hoje';
+    // ⚠️ Dizia "hoje" mesmo quando o km cobria VÁRIOS dias — motorista que
+    // pulou um dia sem registrar fecha o turno e o total do período inteiro
+    // aparecia carimbado como se fosse de hoje. A tela Finanças já sabia disso
+    // (mostra '—' no lucro/km quando o registro cobre mais de um dia) e a
+    // Início afirmava assim mesmo: duas telas, duas verdades sobre o mesmo km.
+    const nd = diasDoRegistro(hojeISO());
+    el.innerHTML = '+<span class="num" id="kmHojeValor">' + fmtKm(kmD) + ' km</span>' +
+                   (nd > 1 ? ' em ' + nd + ' dias' : ' hoje');
     return;
   }
   const rh = lerLS('registroHoje', null);
@@ -3776,7 +3800,12 @@ function atualizarBannerLucro() {
   // com dados: tira a linha de dentro do arco (o ponteiro varre ali) e mostra abaixo
   sub.style.display = 'none';
   if (bd) {
-    bd.textContent = 'Receita ' + fmtBRL0(receita) + ' · Custos ' + fmtBRL0(custos);
+    // ⚠️ O lucro em cima vinha com centavos (R$ 49,50) e a linha de baixo
+    // arredondava receita e custos SEPARADO (R$ 96 · R$ 47). O motorista que
+    // conferia de cabeça achava R$ 49 e via R$ 49,50 — a mesma família de erro
+    // do lucro inflado da v3.87. Agora as três parcelas usam a mesma casa
+    // decimal: receita menos custos FECHA com o número grande, sempre.
+    bd.textContent = 'Receita ' + fmtBRL(receita) + ' · Custos ' + fmtBRL(custos);
     bd.style.display = '';
   }
 }
@@ -5317,7 +5346,8 @@ function atualizarTelaFinancas() {
   }
   document.getElementById('finLucroValor').textContent  = fmtBRL(ultimo.lucro);
   document.getElementById('finLucroValor').style.color  = ultimo.lucro >= 0 ? 'var(--money)' : 'var(--danger)';
-  document.getElementById('finLucroSub').textContent    = 'Receita ' + fmtBRL0(ultimo.receita) + ' · Custos ' + fmtBRL0(ultimo.taxa + ultimo.comb + (ultimo.desp || 0));
+  // mesma regra da tela Início: as parcelas têm que fechar com o total exibido
+  document.getElementById('finLucroSub').textContent    = 'Receita ' + fmtBRL(ultimo.receita) + ' · Custos ' + fmtBRL(ultimo.taxa + ultimo.comb + (ultimo.desp || 0));
   document.getElementById('finReceita').textContent     = fmtBRL(ultimo.receita);
   document.getElementById('finTaxa').textContent        = '- ' + fmtBRL(ultimo.taxa);
   document.getElementById('finCombustivel').textContent = ultimo.comb > 0 ? '- ' + fmtBRL(ultimo.comb) : '—';
@@ -5403,19 +5433,35 @@ function atualizarComparativoSemanal() {
     atual.push(porDia[isoLocal(dA)] ?? null);
     passada.push(porDia[isoLocal(dP)] ?? null);
   }
+  // ⚠️ COMPARAVA A SEMANA EM ANDAMENTO COM A SEMANA PASSADA INTEIRA.
+  // Numa segunda-feira isso é queda garantida: 1 dia contra 7. O app cuspia
+  // '▼ -82%' com toda a confiança — uma queda que não existe, inventada pelo
+  // calendário (Regra Sagrada #2: faltou dado, o app avisa; nunca conclui).
+  // Agora compara o MESMO PEDAÇO das duas semanas: segunda-até-hoje contra
+  // segunda-até-o-mesmo-dia da semana passada.
+  const diaHoje = hoje.getDay(), idxHoje = diaHoje === 0 ? 6 : diaHoje - 1;
+  const semanaFechada = idxHoje >= 6;
   const totalAtual   = atual.reduce((s,v)=>s+(v||0),0);
-  const totalPassada = passada.reduce((s,v)=>s+(v||0),0);
+  const totalPassada = passada.slice(0, idxHoje + 1).reduce((s,v)=>s+(v||0),0);
   document.getElementById('compTotalAtual').textContent = fmtBRL(totalAtual);
   const varEl = document.getElementById('compVariacao'), varLabel = document.getElementById('compVariacaoLabel');
   if (totalPassada > 0) {
     const diff = totalAtual - totalPassada, pct = ((diff/totalPassada)*100).toFixed(0);
     varEl.textContent = (diff >= 0 ? '▲ +' : '▼ ') + pct + '%';
     varEl.className   = 'comp-variacao num ' + (diff >= 0 ? '' : 'negativo');
-    varLabel.textContent = 'vs ' + fmtBRL0(totalPassada) + ' na semana passada';
-  } else { varEl.textContent = '—'; varEl.className = 'comp-variacao num neutro'; varLabel.textContent = 'sem dados anteriores'; }
+    varLabel.textContent = semanaFechada
+      ? 'vs ' + fmtBRL0(totalPassada) + ' na semana passada'
+      : 'vs ' + fmtBRL0(totalPassada) + ' até ' + DIAS[idxHoje].toLowerCase() + ' da semana passada';
+  } else if (semanaFechada) {
+    varEl.textContent = '—'; varEl.className = 'comp-variacao num neutro';
+    varLabel.textContent = 'sem dados anteriores';
+  } else {
+    // sem o mesmo pedaço da semana passada não há comparação honesta a fazer
+    varEl.textContent = '—'; varEl.className = 'comp-variacao num neutro';
+    varLabel.textContent = 'semana ainda em andamento';
+  }
   const validos = atual.filter(v => v !== null);
   const maxV    = validos.length > 0 ? Math.max(...validos.map(Math.abs)) : 1;
-  const diaHoje = hoje.getDay(), idxHoje = diaHoje === 0 ? 6 : diaHoje - 1;
   let melhorIdx = -1, piorIdx = -1, melhorVal = -Infinity, piorVal = Infinity;
   atual.forEach((v,i) => { if (v!==null) { if(v>melhorVal){melhorVal=v;melhorIdx=i;} if(v<piorVal){piorVal=v;piorIdx=i;} } });
   grafico.innerHTML = atual.map((v,i) => {
@@ -6861,6 +6907,51 @@ function auditarInvariantes() {
       chave: 'sem-meta-com-historico', detalhe: fin.length + ' dias registrados e meta diária vazia'
     });
 
+    // ── 12. LITRO IMPLAUSÍVEL ────────────────────────────────────
+    // O Gustavo lançou R$ 22,50 num teste e o app engoliu calado. Sozinho isso
+    // é inofensivo; o problema é o DEDO ERRADO no posto: quem digita 800 no
+    // lugar de 80, ou 1,5 litro no lugar de 15. O kmSuspeito só olha km e
+    // consumo — o preço do litro passava batido. E é justamente ele que
+    // alimenta o comparador de postos, que agora é produto PAGO: análise
+    // errada não é só bug, é premium nascendo quebrado.
+    let litroLouco = 0, piorPPL = 0;
+    ab.forEach(function (r) {
+      const v = r.valor || 0, l = r.litros || 0;
+      if (!(v > 0) || !(l > 0)) return;
+      const ppl = v / l;
+      if (ppl < 2 || ppl > 12 || l > 150) { litroLouco++; if (ppl > piorPPL) piorPPL = ppl; }
+    });
+    if (litroLouco) achados.push({
+      chave: 'litro-implausivel',
+      detalhe: litroLouco + ' abastecimento(s) com R$/L fora de 2–12; pior R$ ' + piorPPL.toFixed(2)
+    });
+
+    // ── 13. ABASTECIMENTO SEM LITROS ─────────────────────────────
+    // Sem litros não existe preço por litro. O registro conta no gasto do mês
+    // (o dinheiro saiu) e some de toda comparação de posto — o motorista vê o
+    // dinheiro somado e a análise vazia, sem entender que uma coisa explica a
+    // outra. É o buraco de matéria-prima da Lupa.
+    const semLitros = ab.filter(function (r) { return (r.valor || 0) > 0 && !((r.litros || 0) > 0); }).length;
+    if (semLitros >= 3) achados.push({
+      chave: 'abastecimento-sem-litros',
+      detalhe: semLitros + ' de ' + ab.length + ' sem litros — não entram na comparação de posto'
+    });
+
+    // ── 14. CUSTO/KM APOIADO EM POUCO DIA ────────────────────────
+    // O custo por km é o número mais importante do app: dele saem o piso, o
+    // fechamento e a Lupa. Ele nasce dos abastecimentos que têm km. Quando
+    // poucos têm, o número continua aparecendo — bonito, redondo e frágil.
+    // Melhor eu saber disso antes de o motorista decidir corrida com ele.
+    // só os 30 mais recentes: quem registrou mal no começo e arrumou depois
+    // não pode ficar marcado pra sempre — o que importa é como está HOJE
+    const ultimos = ab.slice(0, 30);
+    const comKm = ultimos.filter(function (r) { return (r.km || 0) > 0 && !kmSuspeito(r); }).length;
+    if (ultimos.length >= 6 && comKm / ultimos.length < 0.5) achados.push({
+      chave: 'custo-km-base-fraca',
+      detalhe: 'só ' + comKm + ' dos ' + ultimos.length + ' últimos abastecimentos têm km utilizável'
+    });
+
+
     achados.forEach(function (a) { registrarErro('invariante', a.chave, a.detalhe); });
     return achados;
   } catch (e) { return []; }
@@ -7725,10 +7816,25 @@ function gerarTextoCade() {
   }
 
   // ── 4. o carro/moto: quanto custou cada km ──
+  // ⚠️ AQUI ELE DIVIDIA O ABASTECIMENTO DO DIA PELO KM DO DIA. Abastecer é
+  // pontual (R$ 200 de uma vez), rodar é diário — as duas contas não vivem na
+  // mesma escala. Num dia de tanque cheio o Isaac afirmava "R$ 6,67 de
+  // combustível por km" com a maior confiança; num dia de R$ 22 pra 20 km,
+  // "R$ 1,13" — quando o custo medido do motorista era R$ 0,43. E a tela
+  // Início mostrava o valor CERTO ao mesmo tempo, na mesma sessão: o app se
+  // contradizendo em duas telas sobre o mesmo número (Regra Sagrada #2).
+  // Agora o Isaac lê a MESMA fonte da Início — combustivelKmMes(), que vem do
+  // tanque medido e já exclui os abastecimentos com km furado.
   if (kmHoje > 0) {
+    const ndTurno = diasDoRegistro(diaDoTurno());
     let f = `${D(kmHoje + ' km', kmHoje + ' quilômetros')} rodados`;
-    if (combHoje > 0) f += `, a ${M(combHoje / kmHoje)} de combustível por km`;
+    if (ndTurno > 1) f += ` (esse km cobre ${ndTurno} dias)`;
+    const ckm = combustivelKmMes();
+    if (ckm > 0) f += `, a ${M(ckm)} de combustível por km`;
     p.push(f + '.');
+    // o dinheiro que saiu no posto continua sendo dito — só não vira mais
+    // "custo por km", porque o tanque de hoje roda a semana inteira
+    if (combHoje > 0) p.push(`Você deixou ${M(combHoje)} no posto hoje — esse tanque roda os próximos dias, não só este.`);
   }
 
   // ── 5. o posto: contra o preço que ELE costuma pagar ──
