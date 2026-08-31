@@ -1503,3 +1503,8 @@ body.com-tarja-demo .dashboard{ padding-top:calc(44px + env(safe-area-inset-top)
    que o app inteiro virou pago. Regra sagrada nº 6 — o espelho nunca tranca. */
 .prem-pe{ font-size:var(--f1); color:var(--dim); margin-top:11px; }
 .prem-pe b{ color:var(--money); }
+
+/* gaveta de ferramentas do dono — invisível pro motorista */
+.aj-fold-dono > summary{ color:var(--purple); }
+.aj-dono-btn{ width:100%; margin-bottom:9px; color:var(--purple);
+  border-color:rgba(155,107,255,.45); }

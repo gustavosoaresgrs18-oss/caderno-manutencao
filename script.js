@@ -4712,6 +4712,21 @@ function abrirAjustes() {
   document.getElementById('ajEnviarDica').style.display    = logado ? 'block' : 'none';
   document.getElementById('ajBtnExcluirConta').style.display = logado ? 'block' : 'none';
   document.getElementById('ajExcluirDica').style.display     = logado ? 'block' : 'none';
+  // ⚠️ As ferramentas do dono só existem DENTRO do app por aqui. As chaves de
+  // URL (?erros=1, ?demo=1, ?semear=1) não funcionam no aplicativo — não há
+  // barra de endereço pra digitar. Sem esta gaveta, o app nativo ficava cego
+  // justamente pra quem precisa enxergar dentro dele.
+  const fd = document.getElementById('ajFoldDono');
+  if (fd) {
+    const dono = (typeof souODono === 'function') && souODono();
+    fd.style.display = dono ? '' : 'none';
+    const inf = document.getElementById('ajDonoInfo');
+    if (dono && inf) {
+      inf.innerHTML = 'Versão <b>' + sentVersao() + '</b> · aparelho <b>' + sentAparelho() + '</b> · '
+                    + (emDemo() ? '<b>em demonstração</b>' : 'base real')
+                    + ' · premium ' + (premiumAtivo() ? '<b>ligado</b>' : 'desligado');
+    }
+  }
   // ⚠️ O "Salvar nome" ficava sempre ali, ocupando uma fileira inteira pra uma
   // ação que o motorista faz uma vez. Agora só aparece quando o nome MUDA —
   // e aí ele é óbvio, porque surgiu na hora em que fazia sentido.
@@ -6870,20 +6885,31 @@ async function abrirPainelErros() {
       '<div style="color:var(--faint);font-size:11px">' + esc((q || '').slice(0, 16)) +
       (v ? ' · v' + esc(v) : '') + '</div></div>';
   };
-  pedirConfirmacao(ico('alerta') + ' Sentinela',
-    'Aqui em cima: o que está errado NESTE aparelho agora. Abaixo, o que chegou da nuvem.',
-    function () {});
-  const cx = document.getElementById('confirmTexto');
+  document.getElementById('sentTitulo').innerHTML = ico('alerta') + ' Sentinela';
+  const cx = document.getElementById('sentCorpo');
+  const cab = function (t) {
+    return '<div style="font-size:var(--f1);font-weight:800;letter-spacing:.08em;' +
+           'text-transform:uppercase;color:var(--purple);margin:14px 0 4px;">' + t + '</div>';
+  };
   if (cx) {
-    cx.innerHTML = '<div style="text-align:left;max-height:52vh;overflow:auto">' +
-      '<b>NESTE APARELHO (' + locais.length + ')</b>' +
+    cx.innerHTML =
+      '<div style="font-size:var(--f2);color:var(--dim);line-height:1.5;">' +
+      'Confiro as contas do app a cada abertura. Vazio aqui é boa notícia.</div>' +
+      cab('Neste aparelho (' + locais.length + ')') +
       (locais.length ? locais.map(function (a) { return linha('invariante', a.chave, a.detalhe, '', sentVersao()); }).join('')
-                     : '<div style="color:var(--money);padding:8px 0">Nenhum problema encontrado.</div>') +
-      '<br><b>DA NUVEM (' + nuvem.length + ')</b>' +
+                     : '<div style="color:var(--money);font-size:var(--f3);padding:4px 0">' +
+                       ico('check') + ' Nenhum problema encontrado.</div>') +
+      cab('Da nuvem (' + nuvem.length + ')') +
       (nuvem.length ? nuvem.map(function (r) { return linha(r.tipo, r.chave, r.detalhe, r.quando, r.versao); }).join('')
-                    : '<div style="color:var(--dim);padding:8px 0">Nada reportado.</div>') +
-      '</div>';
+                    : '<div style="color:var(--dim);font-size:var(--f3);padding:4px 0">Nada reportado.</div>') +
+      cab('Este aparelho') +
+      '<div style="font-size:var(--f2);color:var(--dim);line-height:1.6;">' +
+      'Versão <b>' + sentVersao() + '</b> · id <b>' + sentAparelho() + '</b><br>' +
+      lerLS('historicoFinancas', []).length + ' dias · ' +
+      lerLS('historicoAbastecimentos', []).length + ' abastecimentos · ' +
+      (lerLS('filaOffline', []).length) + ' na fila de envio</div>';
   }
+  document.getElementById('modalSentinela').style.display = 'flex';
 }
 
 // ═══════════════════════════════════════════════════════════════

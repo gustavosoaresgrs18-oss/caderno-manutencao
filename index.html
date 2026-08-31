@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=402">
+    <link rel="stylesheet" href="style.css?v=404">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=402"></script>
+    <script src="supabase-service.js?v=404"></script>
   </head>
   <body>
 
@@ -1166,6 +1166,20 @@
         </div>
       </div>
 
+      <!-- ══════════ SENTINELA · painel do dono ══════════
+           ⚠️ Antes isto reaproveitava o modal de confirmação, e aparecia
+           "Cancelar / Sim, confirmar" num painel que só LÊ. Botão que
+           pergunta sem ter o que perguntar é ruído — e num painel de erro
+           faz o dono achar que deixou de aprovar alguma coisa. -->
+      <div class="modal-overlay" id="modalSentinela">
+        <div class="modal-caixa" style="max-height:82vh;overflow-y:auto;">
+          <h2 class="modal-titulo" id="sentTitulo">—</h2>
+          <div id="sentCorpo" style="text-align:left;"></div>
+          <button class="modal-btn confirmar" style="width:100%;margin-top:14px;"
+                  onclick="document.getElementById('modalSentinela').style.display='none';">Fechar</button>
+        </div>
+      </div>
+
       <!-- ══════════ MODAL CONFIRMAÇÃO (Sim/Cancelar bonito) ══════════ -->
       <div class="modal-overlay" id="modalConfirm">
         <div class="modal-caixa">
@@ -1255,6 +1269,21 @@
               <div class="aj-dica" id="ajExcluirDica" style="display:none;">Apaga a conta e todo o histórico, aqui e na nuvem. Não tem volta.</div>
             </div>
           </details>
+
+          <!-- ⚠️ FERRAMENTAS DO DONO. Só aparece pra quem está na lista
+               DONOS_DO_APP — motorista nenhum vê isto.
+               Existe porque as chaves ?erros=1 / ?demo=1 / ?semear=1 NÃO
+               funcionam dentro do aplicativo: app não tem barra de endereço.
+               Foram três chaves construídas que só abriam a porta do site. -->
+          <details class="aj-fold aj-fold-dono" id="ajFoldDono" style="display:none;">
+            <summary>Ferramentas do dono</summary>
+            <div class="aj-fold-corpo">
+              <button class="modal-btn cancelar aj-dono-btn" onclick="fecharAjustes(); abrirPainelErros();">Sentinela · ver erros</button>
+              <button class="modal-btn cancelar aj-dono-btn" onclick="fecharAjustes(); entrarNaDemo();">Entrar no modo demonstração</button>
+              <button class="modal-btn cancelar aj-dono-btn" onclick="fecharAjustes(); semearNaConta();">Semear dados de teste</button>
+              <div class="aj-dica" id="ajDonoInfo">—</div>
+            </div>
+          </details>
         </div>
       </div>
 
@@ -1274,7 +1303,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=402"></script>
+    <script src="script.js?v=404"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra
