@@ -39,3 +39,8 @@ CAPACITOR.md
 # lixo de sistema
 .DS_Store
 Thumbs.db
+
+# Android Studio (configuracao da maquina, nao do app)
+.idea/
+*.iml
+
