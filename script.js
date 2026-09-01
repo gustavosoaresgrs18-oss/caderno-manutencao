@@ -2531,6 +2531,44 @@ function gaugeClique() {
     if (btn) btn.click();
   }, 60);
 }
+// ─── A RÉGUA DAS LUZES DE MANUTENÇÃO (v4.01) ─────────────────
+// ⚠️ ESTA REGRA ESTAVA ESCRITA DUAS VEZES — nas luzes do Início e na aba
+// Manutenção. Concordavam por sorte. É o mesmo padrão que já custou caro sete
+// vezes neste projeto (as duas telas de abastecimento, os dois conjuntos de
+// ícones, a regra do km furado). Agora existe UMA função e as duas telas leem
+// dela. Mudou aqui, mudou nos dois lugares.
+//
+// ⚠️ E OS LIMITES ESTAVAM ERRADOS. Eram: verde acima de 80% restante, amarelo
+// de 20% a 80%, vermelho abaixo de 20%. Numa troca de óleo de 3.000 km isso
+// dava verde só nos primeiros 600 km e AMARELO por 1.800 km — 60% da vida do
+// item. O amarelo virava o estado normal do painel, e alerta que é sempre
+// deixa de ser alerta (Regra Sagrada #4: laranja/vermelho é alerta REAL).
+//
+// ⚠️ E PORCENTAGEM SOZINHA NÃO SERVE, porque os intervalos são muito
+// diferentes. 15% de uma pastilha de freio (30.000 km) são 4.500 km piscando
+// vermelho — meses. Por isso a régua tem TETO EM QUILÔMETROS: o aviso vale
+// pelo tempo que ele leva pra chegar, não por uma fração do intervalo.
+// Um motorista de app roda ~180 km/dia, então:
+//   vermelho = 500 km  ≈ 3 dias  → "resolve esta semana"
+//   amarelo  = 1.500 km ≈ 8 dias → "já planeja"
+const MANUT_KM_VERMELHO = 500;    // ou 15% do intervalo, o que for MENOR
+const MANUT_KM_AMARELO  = 1500;   // ou 35% do intervalo, o que for MENOR
+function estadoManutencao(usado, intervalo) {
+  const restante = intervalo - usado;
+  const limVerm = Math.min(MANUT_KM_VERMELHO, intervalo * 0.15);
+  const limAmar = Math.min(MANUT_KM_AMARELO,  intervalo * 0.35);
+  const nivel = restante <= limVerm ? 'vermelho'
+              : restante <= limAmar ? 'amarelo'
+              :                       'verde';
+  return {
+    nivel: nivel,
+    cor: nivel === 'vermelho' ? 'var(--danger)' : nivel === 'amarelo' ? 'var(--signal)' : 'var(--money)',
+    restante: restante,
+    pctUsado: Math.max(0, Math.min(100, (usado / intervalo) * 100)),
+    texto: restante <= 0 ? 'Vencida' : 'faltam ' + fmtKm(restante) + ' km'
+  };
+}
+
 function atualizarAlerta(idStatus, idAlerta, idBarra, item) {
   const el = document.getElementById(idAlerta);
   const st = document.getElementById(idStatus);
@@ -2549,13 +2587,11 @@ function atualizarAlerta(idStatus, idAlerta, idBarra, item) {
     if (barra) barra.style.width = '0%';
     return;
   }
-  const usado    = kmAtual - item.kmUltima;
-  const restante = item.intervalo - usado;
-  const pctUsado = Math.max(0, Math.min(100, (usado / item.intervalo) * 100));
-  const restPct  = restante / item.intervalo;
-  st.textContent = restante <= 0 ? 'Vencida' : 'faltam ' + restante + ' km';
-  el.classList.add(restPct <= 0.2 ? 'vermelho' : restPct <= 0.8 ? 'amarelo' : 'verde');
-  if (barra) barra.style.width = pctUsado + '%';
+  const usado = kmAtual - item.kmUltima;
+  const s     = estadoManutencao(usado, item.intervalo);
+  st.textContent = s.texto;
+  el.classList.add(s.nivel);
+  if (barra) barra.style.width = s.pctUsado + '%';
 }
 function atualizarTelaManutencao() {
   [1, 2, 3].forEach(n => {
@@ -2582,14 +2618,11 @@ function atualizarTelaManutencao() {
       if (barra) { barra.style.width = '0%'; barra.style.background = 'var(--signal)'; }
       return;
     }
-    const usado    = kmAtual - it.kmUltima;
-    const restante = it.intervalo - usado;
-    const pctUsado = Math.max(0, Math.min(100, (usado / it.intervalo) * 100));
-    const restPct  = restante / it.intervalo;
-    const cor = restPct <= 0.2 ? 'var(--danger)' : restPct <= 0.8 ? 'var(--signal)' : 'var(--money)';
-    rest.textContent = restante <= 0 ? 'Vencida' : 'faltam ' + restante + ' km';
-    rest.style.color = cor;
-    if (barra) { barra.style.width = pctUsado + '%'; barra.style.background = cor; }
+    // mesma régua das luzes do Início — uma função só (v4.01)
+    const s = estadoManutencao(kmAtual - it.kmUltima, it.intervalo);
+    rest.textContent = s.texto;
+    rest.style.color = s.cor;
+    if (barra) { barra.style.width = s.pctUsado + '%'; barra.style.background = s.cor; }
   });
 }
 function atualizarTodosAlertas() {
@@ -2605,10 +2638,10 @@ const MNT_ICONES = { oleo:'oleo', pneus:'pneu', corrente:'corrente', freio:'frei
 function abrirManutencao(n) {
   manutAlvo = n;
   const it = manutencoes['item' + n];
-  const usado    = kmAtual - it.kmUltima;
-  const restante = it.intervalo - usado;
-  const pctUsado = it.kmUltima ? Math.max(0, Math.min(100, (usado / it.intervalo) * 100)) : 0;
-  const restPct  = restante / it.intervalo;
+  // ⚠️ TERCEIRA cópia da mesma régua (a v4.01 achou três). Agora todas leem
+  // de estadoManutencao — Início, aba Manutenção e este modal.
+  const s = estadoManutencao(kmAtual - it.kmUltima, it.intervalo);
+  const pctUsado = it.kmUltima ? s.pctUsado : 0;
 
   document.getElementById('mntIcone').innerHTML = ico(MNT_ICONES[it.key] || 'chave');
   document.getElementById('mntNome').textContent  = it.nome;
@@ -2617,8 +2650,8 @@ function abrirManutencao(n) {
   if (!it.kmUltima) { st.textContent = 'registre a 1ª troca'; st.className = 'mnt-status num c-amar'; }
   else if (orfao)   { st.textContent = 'registre de novo';    st.className = 'mnt-status num c-amar'; }
   else {
-    st.textContent = restante <= 0 ? 'Vencida — troque logo!' : 'faltam ' + restante + ' km';
-    st.className = 'mnt-status num ' + (restPct <= 0.2 ? 'c-verm' : restPct <= 0.8 ? 'c-amar' : 'c-verde');
+    st.textContent = s.restante <= 0 ? 'Vencida — troque logo!' : s.texto;
+    st.className = 'mnt-status num ' + ({ vermelho:'c-verm', amarelo:'c-amar', verde:'c-verde' })[s.nivel];
   }
   document.getElementById('mntBarra').style.width = (orfao ? 0 : pctUsado) + '%';
   document.getElementById('mntUltima').textContent   = !it.kmUltima ? 'não registrada'
