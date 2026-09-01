@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=407">
+    <link rel="stylesheet" href="style.css?v=408">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=407"></script>
+    <script src="supabase-service.js?v=408"></script>
   </head>
   <body>
 
@@ -295,8 +295,25 @@
             <div class="slider-thumb" id="sliderThumb"><svg class="ico"><use href="#i-moto"></use></svg></div>
           </div>
         </div>
+        <!-- ═══ O PISO — a régua de decisão (v4.00) ═══
+             ⚠️ Este número já existia inteiro no código (com tabela pronta e regra
+             de bolso), mas vivia escondido no guia. Ele saiu da Início na v3.x
+             porque virava o segundo maior bloco da tela, disputando espaço com o
+             velocímetro — e o velocímetro acabou de sair. Aqui volta na versão
+             CURTA: só o número que ele decora. A tabela continua no guia, a um
+             toque. Se o app ainda não sabe o piso, o card diz o que falta em vez
+             de mostrar número (Regra Sagrada #2).
+             ⚠️ NÃO ENGORDAR ESTE BLOCO. Ele foi expulso da tela uma vez por isso. -->
+        <div class="piso-linha" id="pisoLinha" onclick="abrirGuia()" style="display:none;">
+          <div class="pl-topo"><span class="pl-tit"><svg class="ico"><use href="#i-alvo"></use></svg> <span id="pisoTitulo">Seu piso por km</span></span>
+            <span class="pl-link" id="pisoLink">ver a tabela <svg class="ico"><use href="#i-seta-dir"></use></svg></span></div>
+          <div class="pl-corpo">
+            <span class="pl-valor num" id="pisoValor">—</span>
+            <span class="pl-frase" id="pisoFrase">—</span>
+          </div>
+        </div>
         <div class="acao-secundaria">
-          <button class="btn-simulador-mini" id="btnAbrirSimulador"><svg class="ico"><use href="#i-calc"></use></svg> Vale a pena rodar hoje?</button>
+          <button class="btn-simulador-mini" id="btnAbrirSimulador"><svg class="ico"><use href="#i-calc"></use></svg> Planejar o dia</button>
         </div>
       </div>
 
@@ -973,7 +990,7 @@
       <!-- ══════════ MODAL SIMULADOR ══════════ -->
       <div class="modal-overlay" id="modalSimulador">
         <div class="modal-caixa">
-          <h2 class="modal-titulo"><svg class="ico"><use href="#i-calc"></use></svg> Vale a pena rodar hoje?</h2>
+          <h2 class="modal-titulo"><svg class="ico"><use href="#i-calc"></use></svg> Planejar o dia</h2>
           <div class="sim-intel" id="simIntel" style="display:none;">
             <div class="sim-intel-verdict" id="simIntelVerdict">—</div>
             <div class="sim-intel-texto" id="simIntelTexto">—</div>
@@ -1308,7 +1325,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=407"></script>
+    <script src="script.js?v=408"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra

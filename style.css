@@ -760,6 +760,30 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .lucro-meta .lm-dir{ color:var(--faint); }
 .lucro-meta .int{ opacity:.65; }
 
+/* ── A LINHA DO PISO (v4.00) ──
+   ⚠️ ELA JÁ FOI EXPULSA DA TELA INÍCIO UMA VEZ, por virar um bloco de 241px
+   competindo com o velocímetro. Voltou porque o velocímetro saiu — mas voltou
+   CURTA. Se alguém for engordar isto (tabela, gráfico, mais uma linha), o
+   lugar disso é o guia, que já tem tudo. Aqui mora só o número que se decora. */
+.piso-linha{ background:var(--elev); border:1px solid rgba(78,155,255,.3); border-radius:14px;
+  padding:10px 13px 11px; margin-bottom:9px; cursor:pointer; }
+.piso-linha .pl-topo{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.piso-linha .pl-tit{ font-size:var(--f1); font-weight:800; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--info); display:inline-flex; align-items:center; gap:6px; }
+.piso-linha .pl-link{ font-size:var(--f1); font-weight:700; color:var(--faint);
+  display:inline-flex; align-items:center; gap:3px; white-space:nowrap; }
+.piso-linha .pl-corpo{ display:flex; align-items:baseline; gap:11px; margin-top:6px; }
+.piso-linha .pl-valor{ font-size:var(--f6); font-weight:800; color:var(--text); line-height:1; flex:none; }
+.piso-linha .pl-frase{ font-size:var(--f1); color:var(--dim); line-height:1.35; min-width:0; }
+/* ainda aprendendo: sem número, e o vazio é NEUTRO — nunca laranja/vermelho,
+   que no app significam alerta real (Regra Sagrada #4) */
+.piso-linha.aprendendo{ border-color:var(--line); }
+.piso-linha.aprendendo .pl-tit{ color:var(--dim); }
+.piso-linha.aprendendo .pl-valor{ color:var(--faint); }
+/* sabe o custo mas não o piso: o custo é certeza, então aparece */
+.piso-linha.parcial{ border-color:rgba(255,176,32,.3); }
+.piso-linha.parcial .pl-tit{ color:var(--signal); }
+
 /* ── OS TRÊS NÚMEROS · faixa compacta ──
    Cada rótulo carimba o período (hoje / no mês / acumulado) porque os três
    NÃO são do mesmo tempo. E o custo por km — o número que decide corrida —

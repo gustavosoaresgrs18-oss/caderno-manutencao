@@ -1449,7 +1449,7 @@ const GUIA_ROTINAS = [
   { ic: ico('doc'), cor: 'var(--info)', tit: 'Documentos', hero: 'a pé',
     isaac: 'CNH vencida não é multazinha: é gravíssima, 7 pontos, e o risco de ficar a pé — sem seu ganha-pão. A blitz não avisa. Eu aviso, com folga pra resolver sem correria.',
     fonte: 'guarda as datas — eu cutuco antes de vencer' },
-  { ic: ico('calc'), cor: 'var(--info)', tit: 'Vale a pena rodar?', hero: 'antes de ligar',
+  { ic: ico('calc'), cor: 'var(--info)', tit: 'Planejar o dia', hero: 'antes de ligar',
     isaac: 'Sair sem saber quanto PRECISA fazer é rodar no escuro e rezar. Me diz suas horas e sua meta — eu te falo na lata quanto o dia exige por hora, e se dá ou não dá. Sem falso otimismo.',
     fonte: 'eu calculo com o SEU custo de combustível real' },
   { ic: ico('sobe'), cor: 'var(--money)', tit: 'Projeção do mês', hero: 'onde você vai parar',
@@ -1593,7 +1593,56 @@ function atualizarResumoDia() {
   metaFalta.textContent = !temReceita ? ''
                         : falta > 0   ? 'faltam ' + fmtBRL0(falta)
                                       : 'meta batida! 🎯';
-  renderGaugeLucro(lucro, meta, temReceita);   // move o ponteiro do velocímetro
+  renderGaugeLucro(lucro, meta, temReceita);   // o arco saiu na v3.99; a função se protege sozinha
+  renderPisoLinha();                           // a régua de decisão, na tela toda hora
+}
+
+// ─── A LINHA DO PISO (v4.00) ─────────────────────────────────
+// O número que o motorista precisa DECORAR — porque no momento que importa
+// (os 7 segundos olhando a oferta) ele não vai abrir o Copiloto. Só a linha
+// curta mora aqui; a tabela pronta e a regra de bolso continuam no guia, a um
+// toque. Sem dado confiável NÃO mostra número: diz o que falta.
+function renderPisoLinha() {
+  const box = document.getElementById('pisoLinha');
+  if (!box) return;
+  const elV = document.getElementById('pisoValor');
+  const elF = document.getElementById('pisoFrase');
+  const elT = document.getElementById('pisoTitulo');
+  const elL = document.getElementById('pisoLink');
+  const d = (typeof pisoPorKm === 'function') ? pisoPorKm() : null;
+
+  if (!d || d.falta === 'combustivel') {
+    // sem combustível medido não existe piso — e chutar aqui é o pior erro
+    // possível: ele aceitaria corrida ruim achando que o app aprovou.
+    box.className = 'piso-linha aprendendo';
+    elT.textContent = 'Seu piso por km';
+    elV.textContent = '—';
+    elF.textContent = 'registre um abastecimento com o km e eu calculo';
+    elL.style.display = 'none';
+    box.style.display = '';
+    return;
+  }
+  if (d.piso === null) {
+    // o app já sabe o CUSTO (isso é certeza), só não sabe o piso da meta.
+    // Mostrar o custo é honesto: abaixo dele é prejuízo, sem discussão.
+    box.className = 'piso-linha parcial';
+    elT.textContent = 'Cada km te custa';
+    elV.textContent = fmtBRL(d.custo);
+    elF.textContent = d.falta === 'meta'
+      ? 'abaixo disso é prejuízo · defina sua meta pro piso nascer'
+      : 'abaixo disso é prejuízo · ' + faltamDiasPiso(false).replace(/\s+/g, ' ').trim();
+    elL.style.display = '';
+    elL.innerHTML = 'entender ' + ico('seta-dir');
+    box.style.display = '';
+    return;
+  }
+  box.className = 'piso-linha';
+  elT.textContent = 'Seu piso por km';
+  elV.textContent = fmtBRL(d.piso);
+  elF.textContent = 'abaixo disso você paga pra trabalhar';
+  elL.style.display = '';
+  elL.innerHTML = 'ver a tabela ' + ico('seta-dir');
+  box.style.display = '';
 }
 
 // abastecimentos DO VEÍCULO ATIVO (a média de um carro não descreve uma moto)
@@ -2354,7 +2403,7 @@ const AJUDAS_CARD = {
     e: 'Exemplo: abasteceu <b>R$ 50</b> e rodou <b>100 km</b> → custo de <b>R$ 0,50 por km</b>. Numa entrega de 10 km, são R$ 5 apenas de combustível.'
   },
   valepena: {
-    t: ico('calc') + ' Vale a pena rodar?',
+    t: ico('calc') + ' Planejar o dia',
     x: 'Antes de começar o dia, me informe quantas horas você tem e a sua meta de lucro. Eu calculo quanto o dia exige por hora e comparo com o que você realmente rende — sem otimismo irreal.',
     e: 'Exemplo: meta de <b>R$ 200</b> em <b>8h</b> pede <b>R$ 25/h</b>. Se o seu ritmo real é R$ 18/h, eu aviso que essa meta está pesada para o tempo que você tem.'
   },
