@@ -727,7 +727,56 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 /* ══════════════════════════════════════════════════════════
    PAINEL DE INSTRUMENTOS (dashboard v3)
    ══════════════════════════════════════════════════════════ */
-/* velocímetro do lucro */
+/* ══════════════════════════════════════════════════════════
+   LUCRO DE HOJE (v3.99) — o número é a estrela
+   ⚠️ As regras .gauge-* continuam logo abaixo de propósito: o modal de ajuda
+   e o tutorial ainda usam .gc-label, .gc-substrip e .ajuda-balao. O que saiu
+   foi só o desenho do arco.
+   ══════════════════════════════════════════════════════════ */
+.lucro-card{ background:linear-gradient(180deg,#10231b 0%,#121820 70%); border:1px solid rgba(0,224,138,.32);
+  border-radius:20px; padding:14px 14px 12px; margin-bottom:8px; position:relative; overflow:hidden; }
+.lucro-card::after{ content:""; position:absolute; left:50%; top:-70px; transform:translateX(-50%);
+  width:280px; height:190px; background:radial-gradient(ellipse,rgba(0,224,138,.13),transparent 65%); pointer-events:none; }
+.lucro-card > *{ position:relative; z-index:1; }
+.lucro-card .gc-label{ text-align:center; }
+/* o número. font-size é escrito pelo JS (ajustarValorDoArco) conforme o
+   comprimento — aqui fica só o que não muda. */
+.lucro-big{ display:block; text-align:center; font-size:50px; font-weight:800; color:var(--money);
+  line-height:1.05; letter-spacing:-.02em; margin:7px 0 2px; white-space:nowrap; cursor:pointer;
+  transition:font-size .18s ease; }
+.lucro-vazio{ text-align:center; font-size:var(--f1); color:var(--dim); margin-top:4px; }
+/* a conta do dia em três colunas: era uma linha só de 11px */
+.lucro-conta{ display:flex; align-items:stretch; margin:11px 0 4px; }
+.lucro-conta .lc-col{ flex:1; min-width:0; text-align:center; }
+.lucro-conta .lc-div{ width:1px; background:var(--line); margin:2px 0; flex:none; }
+.lucro-conta .v{ font-size:var(--f4); font-weight:800; color:var(--text); }
+.lucro-conta .v.saiu{ color:var(--danger); }
+.lucro-conta .v.sobrou{ color:var(--money); }
+.lucro-conta .k{ font-size:var(--f1); color:var(--faint); font-weight:600; margin-top:2px; }
+.lucro-bar{ margin:11px 0 6px; }
+.lucro-meta{ display:flex; justify-content:space-between; align-items:baseline; gap:10px;
+  font-size:var(--f1); font-weight:700; cursor:pointer; }
+.lucro-meta .lm-esq{ color:var(--signal); }
+.lucro-meta .lm-dir{ color:var(--faint); }
+.lucro-meta .int{ opacity:.65; }
+
+/* ── OS TRÊS NÚMEROS · faixa compacta ──
+   Cada rótulo carimba o período (hoje / no mês / acumulado) porque os três
+   NÃO são do mesmo tempo. E o custo por km — o número que decide corrida —
+   fica na caixa do meio, mais larga e mais clara que as vizinhas. */
+.faixa3{ display:flex; gap:8px; align-items:stretch; margin-bottom:7px; }
+.f3-cx{ flex:1; min-width:0; background:var(--elev); border:1px solid var(--line); border-radius:13px;
+  padding:10px 11px; display:flex; flex-direction:column; justify-content:center; cursor:pointer; }
+.f3-cx.destaque{ flex:1.35; background:var(--elev2); border-color:#3a4a5a; }
+.f3-cx .v{ font-size:var(--f5); font-weight:800; color:var(--text); line-height:1; }
+.f3-cx.destaque .v{ font-size:var(--f6); }
+.f3-cx .v.gold{ color:var(--signal); }
+.f3-cx .v.verde{ color:var(--money); }
+.f3-cx .k{ font-size:var(--f1); color:var(--faint); font-weight:600; margin-top:3px; }
+.f3-cx .k b{ color:var(--dim); font-weight:700; }
+.f3-cx .int{ opacity:.6; }
+
+/* velocímetro do lucro (o card saiu na v3.99; as regras de apoio ficam) */
 .gauge-card{ background:linear-gradient(180deg,#10231b 0%,#121820 70%); border:1px solid rgba(0,224,138,.32); border-radius:20px; padding:12px 13px 10px; margin-bottom:6px; position:relative; overflow:hidden; text-align:center; }
 .gauge-card::after{ content:""; position:absolute; left:50%; top:-70px; transform:translateX(-50%); width:280px; height:190px; background:radial-gradient(ellipse,rgba(0,224,138,.13),transparent 65%); pointer-events:none; }
 .gc-label{ font-size:var(--f1); font-weight:800; letter-spacing:.1em; color:#5f8f78; text-transform:uppercase; position:relative; z-index:1; }
@@ -752,7 +801,7 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .gc-meta{ display:inline-block; margin-top:6px; font-size:var(--f1); color:var(--signal); background:rgba(255,176,32,.1); border:1px solid rgba(255,176,32,.3); border-radius:16px; padding:4px 12px; font-weight:700; cursor:pointer; position:relative; z-index:1; }
 .gc-meta .int{ opacity:.65; font-size:var(--f1); }
 .gauge-card .hero-strip{ margin-top:8px; }
-.gc-substrip{ font-size:var(--f1); color:var(--faint); margin-top:7px; position:relative; z-index:1; }
+.gc-substrip{ font-size:var(--f1); color:var(--faint); margin-top:7px; margin-bottom:9px; text-align:center; position:relative; z-index:1; }  /* ⚠️ herdava o text-align:center do card do velocímetro; fora dele, ficou à esquerda */
 
 /* odômetro + tanque */
 .odo-row{ display:flex; gap:10px; margin-bottom:9px; }

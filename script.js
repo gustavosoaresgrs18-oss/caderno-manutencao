@@ -1588,9 +1588,11 @@ function atualizarResumoDia() {
   metaBarra.style.width = pct + '%';
   metaPct.textContent   = temReceita ? pct + '%' : '—';
   const falta = meta - lucro;
-  metaFalta.textContent = !temReceita ? 'Meta R$ ' + meta
-                        : falta > 0   ? 'Faltam ' + fmtBRL0(falta)
-                                      : 'Meta batida! 🎯';
+  // ⚠️ A esquerda agora mostra 'X% da meta de R$ 250'. Repetir 'Meta R$ 250' na
+  // direita era dizer a mesma coisa duas vezes na mesma linha.
+  metaFalta.textContent = !temReceita ? ''
+                        : falta > 0   ? 'faltam ' + fmtBRL0(falta)
+                                      : 'meta batida! 🎯';
   renderGaugeLucro(lucro, meta, temReceita);   // move o ponteiro do velocímetro
 }
 
@@ -3778,9 +3780,9 @@ function ressincronizarReceitaHoje() {
 function ajustarValorDoArco(el) {
   if (!el) return;
   const n = (el.textContent || '').length;
-  el.style.fontSize = n <= 9  ? '34px'    // R$ 250,00
-                    : n <= 11 ? '28px'    // R$ 1.250,00
-                    :           '25px';   // -R$ 1.250,00 (prejuízo)
+  el.style.fontSize = n <= 9  ? '50px'    // R$ 250,00
+                    : n <= 11 ? '41px'    // R$ 1.250,00
+                    :           '35px';   // -R$ 1.250,00 (prejuízo)
 }
 // atualiza o banner de lucro do dashboard a partir dos registros de hoje
 function atualizarBannerLucro() {
@@ -3808,9 +3810,10 @@ function atualizarBannerLucro() {
     // arredondava receita e custos SEPARADO (R$ 96 · R$ 47). O motorista que
     // conferia de cabeça achava R$ 49 e via R$ 49,50 — a mesma família de erro
     // do lucro inflado da v3.87. Agora as três parcelas usam a mesma casa
-    // decimal: receita menos custos FECHA com o número grande, sempre.
-    bd.textContent = 'Receita ' + fmtBRL(receita) + ' · Custos ' + fmtBRL(custos);
-    bd.style.display = '';
+    // decimal do número grande: receita menos custos FECHA com ele, sempre.
+    const _put = function (id, v) { const e = document.getElementById(id); if (e) e.textContent = fmtBRL(v); };
+    _put('lucroEntrou', receita); _put('lucroSaiu', custos); _put('lucroSobrou', lucro);
+    bd.style.display = 'flex';
   }
 }
 function atualizarTelaCombustivel() {

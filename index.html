@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=406">
+    <link rel="stylesheet" href="style.css?v=407">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=406"></script>
+    <script src="supabase-service.js?v=407"></script>
   </head>
   <body>
 
@@ -188,49 +188,54 @@
           </div>
         </div>
 
-        <!-- ═══ VELOCÍMETRO DO LUCRO (a estrela) ═══ -->
-        <div class="gauge-card" id="tutGauge">
+        <!-- ═══ LUCRO DE HOJE — o número é a estrela (v3.99) ═══
+             ⚠️ AQUI MORAVA O VELOCÍMETRO. Ele saiu por um motivo de produto, não
+             de gosto: ponteiro é linguagem de VELOCIDADE, e o que está na tela é
+             DINHEIRO. Além disso o arco gastava 152px de altura pra mostrar um
+             número só, e a conta do dia (entrou/saiu/sobrou) ficava espremida numa
+             linha de 11px. Agora o número manda e a conta abre em três colunas.
+             O JS que animava o arco (renderGaugeLucro) já sai fora sozinho quando
+             não acha os elementos — por isso ele continua no script.js sem quebrar. -->
+        <div class="lucro-card" id="tutGauge">
           <div class="gc-label">Lucro de hoje</div>
-          <div class="gauge-wrap" onclick="gaugeClique()" style="cursor:pointer;" title="Registrar receita do dia">
-            <svg viewBox="0 0 270 152" width="100%" style="max-width:240px;display:block;margin:0 auto;">
-              <defs>
-                <linearGradient id="gArcOn" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0" stop-color="#FFB020"/><stop offset="1" stop-color="#00E08A"/>
-                </linearGradient>
-              </defs>
-              <path d="M 25 135 A 110 110 0 0 1 245 135" fill="none" stroke="#1a2430" stroke-width="14" stroke-linecap="round"/>
-              <path id="gaugeArc" d="M 25 135 A 110 110 0 0 1 245 135" fill="none" stroke="url(#gArcOn)" stroke-width="14" stroke-linecap="round" stroke-dasharray="345.6" stroke-dashoffset="345.6"/>
-              <g stroke="#3a4a5a" stroke-width="2">
-                <line x1="25" y1="135" x2="33" y2="131"/><line x1="57" y1="72" x2="64" y2="78"/>
-                <line x1="135" y1="25" x2="135" y2="34"/><line x1="213" y1="72" x2="206" y2="78"/>
-                <line x1="245" y1="135" x2="237" y2="131"/>
-              </g>
-              <g id="gaugePonteiro">
-                <line x1="135" y1="57" x2="135" y2="33" stroke="#F2F6FA" stroke-width="4" stroke-linecap="round"/>
-                <circle cx="135" cy="31" r="4" fill="#F2F6FA"/>
-              </g>
-            </svg>
-            <div class="gauge-center">
-              <span class="banner-valor num" id="bannerLucroValor">—</span>
-              <span class="banner-sub" id="bannerLucroSub">Registre sua receita do dia</span>
-            </div>
+          <div class="lucro-big num" id="bannerLucroValor" onclick="gaugeClique()" title="Registrar receita do dia">—</div>
+          <div class="lucro-vazio" id="bannerLucroSub">Registre sua receita do dia</div>
+          <div class="lucro-conta" id="gaugeBreakdown" style="display:none;">
+            <div class="lc-col"><div class="v num" id="lucroEntrou">—</div><div class="k">entrou</div></div>
+            <div class="lc-div"></div>
+            <div class="lc-col"><div class="v num saiu" id="lucroSaiu">—</div><div class="k">saiu</div></div>
+            <div class="lc-div"></div>
+            <div class="lc-col"><div class="v num sobrou" id="lucroSobrou">—</div><div class="k">sobrou</div></div>
           </div>
-          <div class="gc-breakdown" id="gaugeBreakdown" style="display:none;"></div>
-          <div class="gc-meta" id="metaCard" onclick="editarMeta()"><svg class="ico"><use href="#i-alvo"></use></svg> <b class="num" id="metaPct">—</b> da meta · <span id="metaFalta">Meta R$ 250</span> <span class="int" onclick="abrirAjuda('meta', event)">ⓘ</span></div>
-          <span style="display:none" id="metaValorTexto">R$ 250</span>
-          <div class="meta-bar" style="display:none"><span id="metaBarra" style="width:0%"></span></div>
-          <div class="hero-strip" id="tutStrip">
-            <div class="hero-m gold ajuda" onclick="abrirAjuda('hora', event)"><div class="v num" id="ganhoHoraValor">—</div><div class="k">/ hora real <span class="int">ⓘ</span></div></div>
-            <div class="hero-m ajuda" onclick="abrirAjuda('km', event)"><div class="v num" id="custoKmStrip">—</div><div class="k">/ km real <span class="int">ⓘ</span></div></div>
-            <div class="hero-m ajuda" onclick="editarReserva()"><div class="v num" style="color:var(--money)" id="reservaValor">R$ 0</div><div class="k">reserva 🐷</div></div>
+          <div class="meta-bar lucro-bar"><span id="metaBarra" style="width:0%"></span></div>
+          <div class="lucro-meta" id="metaCard" onclick="editarMeta()">
+            <span class="lm-esq"><b class="num" id="metaPct">—</b> da meta de <span id="metaValorTexto">R$ 250</span>
+              <span class="int" onclick="event.stopPropagation();abrirAjuda('meta', event)">ⓘ</span></span>
+            <span class="lm-dir" id="metaFalta">Meta R$ 250</span>
           </div>
-          <div class="gc-substrip"><span style="display:none" id="custoPorKmValor">—</span><span id="custoRealSub">combustível + reserva</span><span style="display:none" id="reservaSub"></span></div>
           <div class="ajuda-balao" id="ajudaBalao" style="display:none;">
             <div class="ajuda-topo"><span class="ajuda-titulo" id="ajudaTitulo">—</span><span class="ajuda-x" onclick="fecharAjuda()"><svg class="ico"><use href="#i-x"></use></svg></span></div>
             <div class="ajuda-texto" id="ajudaTexto">—</div>
             <div class="ajuda-conta" id="ajudaConta"></div>
           </div>
         </div>
+
+        <!-- ═══ OS TRÊS NÚMEROS — faixa compacta ═══
+             ⚠️ Eram três caixas iguais DENTRO do card escrito "Lucro de hoje", e
+             só uma delas era de hoje: a hora é do dia, o custo/km é média do MÊS e
+             a reserva é o acumulado DESDE SEMPRE. Três escalas de tempo debaixo de
+             um rótulo que dizia "hoje". Agora a faixa é um bloco próprio, cada
+             rótulo carimba o seu período, e o custo/km — que é o número que decide
+             corrida — ganha a caixa do meio, maior e mais clara. -->
+        <div class="faixa3" id="tutStrip">
+          <div class="f3-cx ajuda" onclick="abrirAjuda('hora', event)">
+            <div class="v num gold" id="ganhoHoraValor">—</div><div class="k">hora <b>hoje</b> <span class="int">ⓘ</span></div></div>
+          <div class="f3-cx destaque ajuda" onclick="abrirAjuda('km', event)">
+            <div class="v num" id="custoKmStrip">—</div><div class="k">cada km · <b>no mês</b> <span class="int">ⓘ</span></div></div>
+          <div class="f3-cx ajuda" onclick="editarReserva()">
+            <div class="v num verde" id="reservaValor">R$ 0</div><div class="k">cofre 🐷</div></div>
+        </div>
+        <div class="gc-substrip"><span style="display:none" id="custoPorKmValor">—</span><span id="custoRealSub">combustível + reserva</span><span style="display:none" id="reservaSub"></span></div>
 
         <!-- ═══ ODÔMETRO + TANQUE DO MÊS ═══ -->
         <div class="odo-row">
@@ -1303,7 +1308,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=406"></script>
+    <script src="script.js?v=407"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra
