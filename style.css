@@ -804,7 +804,12 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .tanque-valor{ font-family:'Sora'; font-size:34px; font-weight:800; color:var(--signal); line-height:1; letter-spacing:-.02em; }
 .tanque-normal{ font-size:var(--f1); color:var(--dim); margin-top:6px; line-height:1.4; }
 .tanque-normal b{ color:var(--text); font-weight:700; }
-.tanque-pill{ display:inline-flex; align-items:center; margin-top:10px; font-size:var(--f1); font-weight:800; padding:4px 11px; border-radius:16px; white-space:nowrap; }
+/* ⚠️ white-space:nowrap num inline-flex = o balão não encolhe NEM quebra: ele
+   simplesmente cresce pra fora do card. Passou despercebido enquanto o texto
+   era curto ("aprendendo"); quando virou "R$ 777 acima do seu normal · 141%"
+   o número mais importante do aviso ficou cortado na borda da tela. Agora ele
+   quebra em duas linhas em vez de vazar. */
+.tanque-pill{ display:inline-flex; flex-wrap:wrap; align-items:center; gap:0 2px; margin-top:10px; font-size:var(--f1); font-weight:800; padding:5px 11px; border-radius:14px; white-space:normal; max-width:100%; line-height:1.35; }
 .tanque-pill.verde{ color:var(--money);  background:rgba(0,224,138,.12);  border:1px solid rgba(0,224,138,.4); }
 .tanque-pill.amar{  color:var(--signal); background:rgba(255,176,32,.12);  border:1px solid rgba(255,176,32,.4); }
 .tanque-pill.verm{  color:var(--danger); background:rgba(255,90,95,.12);   border:1px solid rgba(255,90,95,.45); }

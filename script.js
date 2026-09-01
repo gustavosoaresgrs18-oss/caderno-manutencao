@@ -1370,9 +1370,9 @@ function renderTanqueGrande() {
     if (fracReal >= 1) {
       const excesso = gasto - normal;
       elPill.className = 'tanque-pill verm';
-      elPill.innerHTML = dot('vermelho') + ' ' + fmtBRL0(excesso) + ' acima do seu normal · ' + pct + '%';
+      elPill.innerHTML = dot('vermelho') + ' ' + fmtBRL0(excesso) + ' a mais · ' + pct + '%';
     }
-    else if (fracReal >= 0.9)  { elPill.className = 'tanque-pill verm';  elPill.innerHTML = dot('vermelho') + ' quase no seu limite · ' + pct + '%'; }
+    else if (fracReal >= 0.9)  { elPill.className = 'tanque-pill verm';  elPill.innerHTML = dot('vermelho') + ' quase no limite · ' + pct + '%'; }
     else if (fracReal >= 0.75) { elPill.className = 'tanque-pill amar';  elPill.innerHTML = dot('laranja')  + ' chegando perto · ' + pct + '%'; }
     else                       { elPill.className = 'tanque-pill verde'; elPill.innerHTML = dot('verde')    + ' dentro do normal · ' + pct + '%'; }
   } else {
@@ -2365,7 +2365,11 @@ const AJUDAS_CARD = {
 function abrirAjudaCard(qual) {
   const a = AJUDAS_CARD[qual];
   if (!a) return;
-  document.getElementById('ajudaCardTitulo').textContent = a.t;
+  // ⚠️ O título vem com o ícone dentro (ico() devolve um <svg>), e isto era
+  // textContent: o modal imprimia a TAG na cara do motorista em vez do
+  // desenho. Valia pros 5 cards de ajuda — projeção, gasto no mês, custo/km,
+  // vale a pena e ritmo. Não é entrada de usuário, é constante do código.
+  document.getElementById('ajudaCardTitulo').innerHTML = a.t;
   document.getElementById('ajudaCardTexto').innerHTML    = a.x;
   const ex = document.getElementById('ajudaCardExemplo');
   if (a.e) { ex.innerHTML = a.e; ex.style.display = 'block'; } else { ex.style.display = 'none'; }
