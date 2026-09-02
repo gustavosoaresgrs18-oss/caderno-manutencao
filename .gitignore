@@ -4,13 +4,20 @@
 node_modules/
 www/
 
-# A pasta android/ é gerada por `npx cap add android`. Ela PODE ser versionada
-# quando você começar a editar coisas nativas à mão (AndroidManifest, ícones,
-# assinatura). Enquanto for 100% gerada, deixe fora.
-# ⚠️ Quando começar a versionar, NUNCA suba a chave de assinatura (.jks/.keystore)
-# nem o arquivo com as senhas dela — quem tem a chave publica atualização no seu
-# lugar, e perder a chave significa não conseguir mais atualizar o app.
-android/
+# A pasta android/ AGORA É VERSIONADA. Passou a ser na v4.03, quando entrou o
+# primeiro arquivo nativo feito à mão: o ícone da notificação
+# (res/drawable-*/ic_stat_copiloto.png). Enquanto era 100% gerada dava pra
+# deixar fora; a partir do momento em que tem coisa que só existe aqui, ficar
+# fora significa PERDER num computador novo.
+# O que continua fora é só o que o build cospe:
+android/build/
+android/app/build/
+android/.gradle/
+android/.idea/
+android/local.properties
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/capacitor-cordova-android-plugins/
 
 # chaves de assinatura — nunca, em hipótese nenhuma
 *.jks
@@ -39,8 +46,3 @@ CAPACITOR.md
 # lixo de sistema
 .DS_Store
 Thumbs.db
-
-# Android Studio (configuracao da maquina, nao do app)
-.idea/
-*.iml
-

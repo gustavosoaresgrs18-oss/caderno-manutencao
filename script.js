@@ -4869,6 +4869,7 @@ async function testarLembrete() {
       title: 'Fechou o dia?',
       body: 'Registre a receita e eu te digo quanto sobrou de verdade.',
       schedule: { at: quando, allowWhileIdle: false },
+      smallIcon: 'ic_stat_copiloto',
       channelId: 'copiloto-fechamento'
     }] });
     toast('Vai tocar às ' + String(quando.getHours()).padStart(2, '0') + ':'
@@ -7166,9 +7167,10 @@ async function agendarLembretes() {
         // exige permissão à parte, que o Google revisa a dedo — e um lembrete
         // que chega 22h05 em vez de 22h00 serve igual.
         schedule: { at: quando, allowWhileIdle: false },
-        // ⚠️ sem smallIcon de propósito: apontar pra um recurso que não existe
-        // no projeto Android rende ícone quebrado. Quando houver um ícone de
-        // notificação de verdade (branco, transparente), é aqui que ele entra.
+        // ⚠️ O ícone da barra de status é uma MÁSCARA: o Android descarta a cor
+        // e usa só o alfa. Por isso ic_stat_copiloto é branco puro sobre fundo
+        // transparente — qualquer cor ali viraria um borrão branco sólido.
+        smallIcon: 'ic_stat_copiloto',
         channelId: 'copiloto-fechamento'
       });
     }
