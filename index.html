@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=410">
+    <link rel="stylesheet" href="style.css?v=412">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=410"></script>
+    <script src="supabase-service.js?v=412"></script>
   </head>
   <body>
 
@@ -1329,6 +1329,7 @@
               <button class="modal-btn cancelar aj-dono-btn" onclick="fecharAjustes(); abrirPainelErros();">Sentinela · ver erros</button>
               <button class="modal-btn cancelar aj-dono-btn" onclick="fecharAjustes(); entrarNaDemo();">Entrar no modo demonstração</button>
               <button class="modal-btn cancelar aj-dono-btn" onclick="fecharAjustes(); semearNaConta();">Semear dados de teste</button>
+              <button class="modal-btn cancelar aj-dono-btn" onclick="fecharAjustes(); testarLembrete();">Testar lembrete (1 min)</button>
               <div class="aj-dica" id="ajDonoInfo">—</div>
             </div>
           </details>
@@ -1351,7 +1352,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=410"></script>
+    <script src="script.js?v=412"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra

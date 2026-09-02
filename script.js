@@ -4833,6 +4833,51 @@ function processarFilaBalaoProg() {
 //  Só LÊ e grava perfil/veículos pelas funções que já existem.
 //  A troca de veículo usa trocarVeiculo() (não apaga histórico).
 // ═══════════════════════════════════════════════════════════════
+// ─── TESTE DO LEMBRETE (ferramenta do dono) ──────────────────
+// ⚠️ Existe porque testar de verdade exigiria esperar até o horário, com o
+// app em segundo plano — e o seletor dos Ajustes só tem horas cheias. Isto
+// dispara em 1 minuto, num id fora da faixa dos lembretes reais (não atropela
+// nem é atropelado pelo reagendamento).
+const NOTIF_ID_TESTE = 4299;
+async function testarLembrete() {
+  if (!souODono()) { toast('Isso não está disponível nesta conta', 'erro'); return; }
+  const LN = _notifPlugin();
+  if (!LN) {
+    // em vez de só dizer 'não deu', mostra O QUE o app está vendo — foi
+    // exatamente essa cegueira que custou uma rodada de teste.
+    const d = _notifDiagnostico();
+    pedirConfirmacao('Plugin não encontrado',
+      'plataforma: ' + d.plataforma + '\n' +
+      'é app nativo: ' + d.nativo + '\n' +
+      'Capacitor.Plugins: ' + d.temPlugins + '\n' +
+      'via Plugins: ' + d.viaPlugins + '\n' +
+      'plugins nativos: ' + d.headers,
+      function () {});
+    return;
+  }
+  try {
+    await _garantirCanal();
+    let r = await LN.checkPermissions();
+    if (!r || r.display !== 'granted') {
+      r = await LN.requestPermissions();
+      if (!r || r.display !== 'granted') { toast('Sem permissão pra notificar', 'erro'); return; }
+      salvarLS('notifLigada', true); salvarLS('notifJaPerguntou', true);
+    }
+    const quando = new Date(Date.now() + 60000);
+    await LN.schedule({ notifications: [{
+      id: NOTIF_ID_TESTE,
+      title: 'Fechou o dia?',
+      body: 'Registre a receita e eu te digo quanto sobrou de verdade.',
+      schedule: { at: quando, allowWhileIdle: false },
+      channelId: 'copiloto-fechamento'
+    }] });
+    toast('Vai tocar às ' + String(quando.getHours()).padStart(2, '0') + ':'
+          + String(quando.getMinutes()).padStart(2, '0') + ' — saia do app');
+  } catch (e) {
+    toast('Não consegui agendar: ' + (e && e.message || e), 'erro');
+  }
+}
+
 // ─── LEMBRETE nos Ajustes (v4.02) ────────────────────────────
 // A seção inteira some fora do app: no site não existe plugin, e um
 // controle que não faz nada é pior que controle nenhum.
@@ -7005,11 +7050,45 @@ const NOTIF_ID_BASE     = 4200;    // faixa de ids só deste lembrete
 
 // O plugin só existe dentro do app. No site (GitHub Pages) tudo aqui
 // vira no-op — o Copiloto continua funcionando igual, sem erro.
+// ⚠️ AQUI ESTAVA O ERRO QUE FEZ O BOTÃO DE TESTE DIZER "só funciona dentro do
+// aplicativo" MESMO DENTRO DELE. Este app não tem bundler: os arquivos entram
+// por <script src> e o `copiar-para-www.js` copia só os 9 arquivos do app. O
+// pacote JS do plugin mora em node_modules e NUNCA chega no www/ — então
+// `Capacitor.Plugins.LocalNotifications`, que é criado por esse pacote, não
+// existe. Quem registra o plugin de verdade é a ponte NATIVA.
+//
+// `Capacitor.PluginHeaders` é a lista do que o Android realmente expõe — é a
+// fonte da verdade. Se o nome estiver lá, `registerPlugin` devolve o proxy que
+// fala com o código nativo, sem precisar de import nenhum.
+let _lnCache = null;
 function _notifPlugin() {
+  if (_lnCache) return _lnCache;
   try {
-    const P = window.Capacitor && window.Capacitor.Plugins;
-    return (P && P.LocalNotifications) ? P.LocalNotifications : null;
-  } catch (e) { return null; }
+    const C = window.Capacitor;
+    if (!C) return null;
+    if (C.Plugins && C.Plugins.LocalNotifications) { _lnCache = C.Plugins.LocalNotifications; return _lnCache; }
+    const temNativo = Array.isArray(C.PluginHeaders)
+      && C.PluginHeaders.some(function (h) { return h && h.name === 'LocalNotifications'; });
+    if (temNativo && typeof C.registerPlugin === 'function') {
+      _lnCache = C.registerPlugin('LocalNotifications');
+      return _lnCache;
+    }
+  } catch (e) {}
+  return null;
+}
+// diagnóstico: o que o app está enxergando (só o dono vê)
+function _notifDiagnostico() {
+  const C = window.Capacitor;
+  return {
+    temCapacitor: !!C,
+    nativo: !!(C && C.isNativePlatform && C.isNativePlatform()),
+    plataforma: (C && C.getPlatform && C.getPlatform()) || 'web',
+    temPlugins: !!(C && C.Plugins),
+    viaPlugins: !!(C && C.Plugins && C.Plugins.LocalNotifications),
+    headers: (C && Array.isArray(C.PluginHeaders))
+      ? C.PluginHeaders.map(function (h) { return h && h.name; }).join(', ') : '(sem PluginHeaders)',
+    resolveu: !!_notifPlugin()
+  };
 }
 function notifDisponivel() { return !!_notifPlugin(); }
 function notifLigada()     { return lerLS('notifLigada', false) === true; }
