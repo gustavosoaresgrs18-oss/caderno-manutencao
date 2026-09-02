@@ -1515,7 +1515,10 @@ function abrirGuia(origem) {
   _guiaIdx = 0;
   _guiaRender();
   document.getElementById('guiaSuporte').style.display = (origem === 'ajuda') ? 'block' : 'none';
-  document.getElementById('guiaBtn').textContent = (origem === 'ajuda') ? 'Fechar' : 'T\u00f4 dentro';
+  // ⚠️ "Tô dentro" é resposta de convite — serve na primeira abertura do app.
+  // Quem tocou no piso veio CONSULTAR uma régua, não aceitar nada.
+  document.getElementById('guiaBtn').textContent =
+    (origem === 'inicio') ? 'T\u00f4 dentro' : 'Fechar';
   document.getElementById('modalGuia').style.display = 'flex';
   document.getElementById('modalGuia').scrollTop = 0;
 }

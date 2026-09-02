@@ -15,6 +15,15 @@
 const SUPABASE_URL  = 'https://mrnvapqxomyecbjyjobw.supabase.co';
 const SUPABASE_KEY  = 'sb_publishable_VO10AiANSgnMfNFS9e-KWA_K8ZhFnQW';
 
+// ⚠️ O endereço público do app. Existe porque DENTRO do aplicativo
+// window.location.origin vale 'https://localhost' — o Capacitor serve os
+// arquivos de lá. Qualquer link que o app mande por e-mail tem que apontar
+// pra cá, nunca pro location, senão o motorista recebe um endereço que só
+// existe dentro do celular dele.
+// ⚠️ A barra no fim é obrigatória (GitHub Pages) e este endereço tem que
+// estar em Authentication → URL Configuration → Redirect URLs no Supabase.
+const SITE_PUBLICO = 'https://gustavosoaresgrs18-oss.github.io/caderno-manutencao/';
+
 // ── Cliente Supabase (via CDN — sem build tool) ─────────────────
 // O <script> do Supabase já foi adicionado no index.html.
 // 'supabase' é a variável global exposta pelo CDN.
@@ -354,7 +363,16 @@ async function sbEntrar(email, senha) {
 async function sbRecuperarSenha(email) {
   try {
     const { error } = await getSB().auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + window.location.pathname
+      // ⚠️ AQUI ESTAVA UM LINK MORTO ESPERANDO O PRIMEIRO TESTADOR.
+      // Era window.location.origin — que no SITE dá o endereço certo, mas
+      // DENTRO DO APLICATIVO dá 'https://localhost'. O Capacitor serve o app
+      // a partir de localhost, então o motorista que pedisse a senha pelo app
+      // receberia um e-mail com link pra um endereço que não existe em lugar
+      // nenhum do mundo. Ele não voltaria — e não teria como voltar.
+      // (O que salvava até agora era o Supabase recusar redirect fora da lista
+      // e cair no Site URL. Depender disso é depender de configuração remota.)
+      // Agora o endereço é o site de verdade, sempre, venha de onde vier.
+      redirectTo: SITE_PUBLICO
     });
     if (error) throw error;
     return { ok: true };

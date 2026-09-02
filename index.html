@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=416">
+    <link rel="stylesheet" href="style.css?v=418">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=416"></script>
+    <script src="supabase-service.js?v=418"></script>
   </head>
   <body>
 
@@ -305,7 +305,7 @@
              toque. Se o app ainda não sabe o piso, o card diz o que falta em vez
              de mostrar número (Regra Sagrada #2).
              ⚠️ NÃO ENGORDAR ESTE BLOCO. Ele foi expulso da tela uma vez por isso. -->
-        <div class="piso-linha" id="pisoLinha" onclick="abrirGuia()" style="display:none;">
+        <div class="piso-linha" id="pisoLinha" onclick="abrirGuia('piso')" style="display:none;">
           <div class="pl-topo"><span class="pl-tit"><svg class="ico"><use href="#i-alvo"></use></svg> <span id="pisoTitulo">Seu piso por km</span></span>
             <span class="pl-link" id="pisoLink">ver a tabela <svg class="ico"><use href="#i-seta-dir"></use></svg></span></div>
           <div class="pl-corpo">
@@ -754,6 +754,10 @@
       <!-- ══════════ GUIA · o que cada rotina faz (Isaac lenda explica) ══════════ -->
       <div class="modal-overlay" id="modalGuia">
         <div class="modal-caixa guia-caixa">
+          <!-- ⚠️ O X existe porque o único jeito de sair daqui era o botão do
+               FIM do card — e o card do piso é longo, então o botão nasce fora
+               da tela. Quem abria pra consultar o piso ficava preso. -->
+          <button class="guia-x" onclick="fecharGuia()" aria-label="Fechar"><svg class="ico"><use href="#i-x"></use></svg></button>
           <div class="guia-topo">
             <div class="guia-lobo" id="guiaLobo"></div>
             <div class="guia-balao">
@@ -1352,7 +1356,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=416"></script>
+    <script src="script.js?v=418"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra

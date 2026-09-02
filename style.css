@@ -1139,6 +1139,15 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 #modalGuia .guia-suporte,
 #modalGuia .guia-fechar { flex-shrink: 0; }
 
+/* X do guia: colado no canto do card, acima de tudo.
+   ⚠️ Sem ele, a única saída era o botão do FIM do card — e o card do piso é
+   longo o bastante pra esse botão nascer fora da tela. */
+#modalGuia .guia-caixa { position: relative; }
+.guia-x{ position:absolute; top:10px; right:10px; z-index:3;
+  background:var(--elev2); border:1px solid var(--line); color:var(--dim);
+  width:34px; height:34px; border-radius:50%; display:flex; align-items:center;
+  justify-content:center; cursor:pointer; padding:0; }
+.guia-x:active{ transform:scale(.92); }
 .guia-topo {
   display: flex; align-items: flex-start; gap: 10px; margin-bottom: 18px;
 }
