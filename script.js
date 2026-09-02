@@ -1602,6 +1602,7 @@ function atualizarResumoDia() {
                                       : 'meta batida! 🎯';
   renderGaugeLucro(lucro, meta, temReceita);   // o arco saiu na v3.99; a função se protege sozinha
   renderPisoLinha();                           // a régua de decisão, na tela toda hora
+  reconciliarStreak();                         // conserta quem semeou ou restaurou dados
 }
 
 // ─── A LINHA DO PISO (v4.00) ─────────────────────────────────
@@ -2792,6 +2793,18 @@ function abrirModalKm(gpsDist) {
       avisoD.style.display = 'none';
     }
   }
+  // ⚠️ O exemplo do campo era FIXO: "Ex: 32.480", com o odômetro dele em
+  // 105.636. Logo abaixo o app convida a "digitar só o final" — e o motorista
+  // bate o olho num exemplo de 5 dígitos que não tem nada a ver com o carro
+  // dele. Ou ele desconfia do app, ou digita 5 dígitos e o número entra errado.
+  // Agora o exemplo nasce do próprio painel dele: mesmos dígitos, mesma cara.
+  if (ultimo !== null) {
+    const prox = ultimo + 12;                       // um dia curto à frente
+    const fim  = String(prox).slice(-3);            // o final, que é o que ele digita
+    inputKm.placeholder = 'Ex: ' + fmtKm(prox) + '  ·  ou só ' + fim;
+  } else {
+    inputKm.placeholder = 'O km que está no painel agora';
+  }
   kmErro.style.display = 'none';
   atualizarKmVivo();
   modal.style.display = 'flex';
@@ -3165,6 +3178,7 @@ function aplicarKmEFecharTurno(valor) {
     sincronizarPerfil();
     salvarLS('streakUltimoDia', hoje);
   }
+  reconciliarStreak();          // o histórico pode provar mais que o contador
   streakDisplay.textContent = '🔥 ' + streak;
   modal.style.display = 'none';
   inputKm.value = '';
@@ -3320,7 +3334,10 @@ btnSimAbasteceu.addEventListener('click', function() {
   // faltando num deles, e depois o aviso de km suspeito tambem.
   modalCombustivel.style.display = 'none';
   _abastDoTurno = true;
-  abrirFormAbastecimento(kmTurnoAtual > 0 ? kmTurnoAtual : null);
+  // ⚠️ Mandava kmTurnoAtual — o km de HOJE — num campo que pergunta o km
+  // desde o último TANQUE. Agora manda o número calculado, e quando o app
+  // não consegue calcular manda null: campo vazio é melhor que campo errado.
+  abrirFormAbastecimento(kmDesdeUltimoAbastecimento());
 });
 
 // aplica o último combustível usado (destaca o botão certo e devolve o nome)
@@ -3593,6 +3610,55 @@ document.querySelector('#btnSalvarTela').addEventListener('click', function() {
 // Abre o formulario de abastecimento — UNICO no app. Usado pelos dois caminhos:
 // o botao da aba Combustivel e o "Sim" depois de encerrar o turno.
 // kmSugerido: preenche o campo de km (o pos-turno manda o km que ele rodou).
+// ─── KM DESDE O ÚLTIMO ABASTECIMENTO (v4.04) ─────────────────
+// ⚠️ AQUI MORAVA UM BUG DA MESMA FAMÍLIA DO GPS. O campo pergunta "km desde o
+// último abastecimento" e o app preenchia com o KM DO TURNO DE HOJE. Só bate
+// se o último tanque tiver sido ontem. Quem enche a cada 4 dias recebia um
+// número 4x menor — e o custo por km sai inflado na mesma proporção, porque é
+// valor ÷ km. Com uma mensagem verde afirmativa em cima, que faz o motorista
+// exausto confirmar sem pensar. Mesmo erro, mesmo desfecho.
+//
+// Agora o app calcula de verdade, em duas vias, e quando não sabe ele CALA:
+//   1. odômetro de agora menos o odômetro gravado no último abastecimento
+//      (exato — vale pros abastecimentos daqui pra frente);
+//   2. soma dos km dos dias DEPOIS daquele abastecimento (para os registros
+//      antigos, que não têm o odômetro guardado).
+// Sem nenhuma das duas, devolve null e o campo nasce vazio.
+function kmDesdeUltimoAbastecimento() {
+  try {
+    const vid = vidAtivo();
+    const hist = lerLS('historicoAbastecimentos', [])
+      .filter(function (r) { return !vid || r.vid === vid; })
+      .filter(function (r) { return !!r.dataISO; })
+      .sort(function (a, b) { return String(b.dataISO).localeCompare(String(a.dataISO)); });
+    if (!hist.length) return null;              // primeiro abastecimento: não há "desde"
+    const ult = hist[0];
+    const odoAgora = ultimoOdoAtivo();
+
+    // via 1 — subtração pura
+    if (ult.odo != null && odoAgora != null && odoAgora > ult.odo) {
+      const d = odoAgora - ult.odo;
+      if (d > 0 && d < 20000) return Math.round(d);
+    }
+    // via 2 — soma dos dias posteriores. Só entram dias de UM dia (registro que
+    // cobre vários não diz quanto foi em cada, e chutar aqui é inventar).
+    const mapa = lerLS('kmPorDia', {});
+    let soma = 0, achouAlgum = false, temBuraco = false;
+    Object.keys(mapa).forEach(function (iso) {
+      if (iso <= ult.dataISO) return;
+      const r = mapa[iso];
+      if (!r || !(r.km > 0)) return;
+      if ((r.dias || 1) !== 1) { temBuraco = true; return; }
+      if (vid && r.vid && r.vid !== vid) return;
+      soma += r.km; achouAlgum = true;
+    });
+    // ⚠️ Com buraco na série o total sai MENOR que a realidade — e menor aqui
+    // significa custo por km MAIOR. Errar pra cima faz o motorista recusar
+    // corrida boa. Melhor não preencher.
+    if (achouAlgum && !temBuraco && soma > 0 && soma < 20000) return Math.round(soma);
+    return null;
+  } catch (e) { return null; }
+}
 function abrirFormAbastecimento(kmSugerido) {
   editandoAbastId = null;
   document.querySelector('#btnSalvarTela').innerHTML = ico('check') + ' Registrar';
@@ -3604,8 +3670,16 @@ function abrirFormAbastecimento(kmSugerido) {
   // branco" so confunde
   const dicaT = document.querySelector('#dicaKmTurno');
   const dicaN = document.querySelector('#dicaKmNormal');
-  if (dicaT) dicaT.style.display = _abastDoTurno ? 'block' : 'none';
-  if (dicaN) dicaN.style.display = _abastDoTurno ? 'none' : 'block';
+  // a dica só faz sentido quando o campo VEIO preenchido — e agora ela diz de
+  // onde o número saiu, porque afirmar sem dizer a origem é o que fazia o
+  // motorista confirmar um valor errado sem conferir
+  const veioPreenchido = _abastDoTurno && !!kmSugerido;
+  if (dicaT) {
+    dicaT.style.display = veioPreenchido ? 'block' : 'none';
+    if (veioPreenchido) dicaT.textContent =
+      'Preenchi com os ' + fmtKm(kmSugerido) + ' km que você rodou desde o último abastecimento. Confira no painel.';
+  }
+  if (dicaN) dicaN.style.display = veioPreenchido ? 'none' : 'block';
   tipoSelecionadoTela = aplicarUltimoTipo('#modalAbastecer');
   calcCustoPorKmTela();
   document.getElementById('modalAbastecer').style.display = 'flex';
@@ -3778,6 +3852,10 @@ function salvarAbastecimento(tipo, valor, litros, km, cpm, posto) {
     id: gerarIdAbast(),
     dataISO: hojeISO(),   // data completa pra filtrar por mês/semana no extrato
     vid: vidAtivo(),      // de QUAL veículo é esse combustível (a média não mistura)
+    // ⚠️ O odômetro NO MOMENTO do abastecimento. Sem ele, "km desde o último
+    // tanque" só dava pra estimar somando os dias — e dia sem registro sumia da
+    // conta. Com ele a próxima vez é subtração pura: odo agora menos odo daqui.
+    odo: ultimoOdoAtivo(),
     tipo, valor, litros, km, cpm, ppl, posto: posto || null
   };
   historico.unshift(registro);
@@ -4599,9 +4677,58 @@ document.querySelector('#btnSalvarNovoDoc').addEventListener('click', function()
 });
 
 // ─── STREAK ──────────────────────────────────────────────────
+// ⚠️ O STREAK ERA SÓ UM CONTADOR GUARDADO — nunca era conferido contra o
+// histórico. Quem tinha 84 dias registrados e semeava/restaurava os dados via
+// o contador em ZERO, porque o histórico entrava mas o contador não. No
+// primeiro fechamento ele virava 1, e o motorista lia "1 dia seguido" com dois
+// meses e meio de disciplina nas costas.
+//
+// É a mesma armadilha do resto do app: número GUARDADO em vez de número
+// DERIVADO. Guardado, ele diverge da verdade em silêncio.
+//
+// Agora o app conta os dias no histórico. Um dia conta como fechado se tem km
+// registrado OU receita lançada — as duas marcas de que o motorista fechou.
+function calcularStreakDoHistorico() {
+  try {
+    const dias = {};
+    Object.keys(lerLS('kmPorDia', {})).forEach(function (k) { dias[k] = true; });
+    lerLS('historicoFinancas', []).forEach(function (r) { if (r.dataISO) dias[r.dataISO] = true; });
+    // a corrente pode terminar HOJE ou ONTEM: quem ainda não fechou hoje não
+    // perdeu a sequência, só não somou ainda.
+    let cursor = dias[hojeISO()] ? hojeISO() : (dias[ontemISO()] ? ontemISO() : null);
+    if (!cursor) return 0;
+    let n = 0;
+    while (dias[cursor] && n < 3650) { n++; cursor = diaAnteriorISO(cursor); }
+    return n;
+  } catch (e) { return 0; }
+}
+// Conserta o contador quando o histórico prova mais do que ele diz.
+// ⚠️ Só CORRIGE PRA CIMA, de propósito. Baixar a sequência de alguém a partir
+// de um histórico que pode estar incompleto (motorista antigo, dado que veio
+// de antes do kmPorDia existir) seria punir por falta de dado — e sequência
+// perdida por engano é o tipo de coisa que faz desinstalar o app.
+function reconciliarStreak() {
+  const antes = streak;
+  const calc = calcularStreakDoHistorico();
+  if (calc > streak) {
+    streak = calc;
+    salvarLS('streak', streak);
+    const ult = lerLS('kmPorDia', {})[hojeISO()] ? hojeISO() : ontemISO();
+    if (!localStorage.getItem('streakUltimoDia')) salvarLS('streakUltimoDia', ult);
+    if (typeof streakDisplay !== 'undefined' && streakDisplay) streakDisplay.textContent = '🔥 ' + streak;
+    if (typeof registrarErro === 'function') {
+      registrarErro('invariante', 'streak-atrasado',
+        'contador estava em ' + antes + ' e o histórico mostra ' + calc + ' dias seguidos');
+    }
+  }
+}
 function mostrarStreak() {
   const dataHoje = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+  reconciliarStreak();                 // confere com o histórico antes de mostrar
   modalStreakNum.textContent  = streak;
+  // ⚠️ o rótulo era fixo em "dias seguidos!" — com 1 dia lia "1 dias seguidos!"
+  const lbl = document.getElementById('modalStreakLabel');
+  if (lbl) lbl.textContent = (streak === 1 ? 'dia seguido!' : 'dias seguidos!');
   modalStreakData.textContent = dataHoje;
   const diasTxt = streak === 1 ? '1 dia seguido' : streak + ' dias seguidos';
   modalStreakInfo.textContent = diasTxt + '. Enquanto tem gente parada, você tá construindo a sua saída.';
