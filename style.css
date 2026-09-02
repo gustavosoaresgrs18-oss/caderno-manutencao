@@ -825,6 +825,10 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .gc-meta{ display:inline-block; margin-top:6px; font-size:var(--f1); color:var(--signal); background:rgba(255,176,32,.1); border:1px solid rgba(255,176,32,.3); border-radius:16px; padding:4px 12px; font-weight:700; cursor:pointer; position:relative; z-index:1; }
 .gc-meta .int{ opacity:.65; font-size:var(--f1); }
 .gauge-card .hero-strip{ margin-top:8px; }
+/* ── LEMBRETE nos Ajustes (v4.02) ── */
+.aj-notif-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.aj-notif-row > span{ font-size:var(--f3); font-weight:700; color:var(--text); }
+#ajNotifHora:disabled{ opacity:.55; }
 .gc-substrip{ font-size:var(--f1); color:var(--faint); margin-top:7px; margin-bottom:9px; text-align:center; position:relative; z-index:1; }  /* ⚠️ herdava o text-align:center do card do velocímetro; fora dele, ficou à esquerda */
 
 /* odômetro + tanque */

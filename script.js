@@ -1204,6 +1204,13 @@ window.addEventListener('DOMContentLoaded', function () {
       }
     }).catch(function (e) { console.warn('[Copiloto] Supabase indisponível agora:', e); });
   }
+
+  // ── LEMBRETE (v4.02) ──
+  // Reagenda a cada abertura. Não usa `repeats` de propósito: repetição
+  // dispararia também nos dias já fechados, e não dá pra cancelar um dia
+  // avulso de uma série. Agendar 7 dias e refazer a cada abertura resolve —
+  // e ainda cobre o motorista que passa alguns dias sem abrir o app.
+  setTimeout(function () { try { agendarLembretes(); } catch (e) {} }, 2200);
 });
 
 // ─── SELETORES ───────────────────────────────────────────────
@@ -3162,6 +3169,15 @@ function aplicarKmEFecharTurno(valor) {
   modal.style.display = 'none';
   inputKm.value = '';
   pontoA = null; pontoB = null;
+  // ── LEMBRETE (v4.02) ──
+  // a hora deste fechamento entra na amostra: é assim que o app aprende o
+  // horário DELE em vez de chutar um.
+  registrarHoraFechamento();
+  // o lembrete de hoje perdeu o motivo de existir — cancela antes que toque
+  cancelarLembreteDeHoje();
+  // e, se for o primeiro dia fechado, é AGORA que o convite faz sentido:
+  // ele acabou de ver o próprio número (ver talvezOferecerNotif).
+  talvezOferecerNotif();
   enfileirarBalaoProg('encerrarDia');   // 1º da fila — NÃO mexe em km, só ensina (dispara após o streak)
   abrirModalCombustivel();
 }
@@ -4817,10 +4833,84 @@ function processarFilaBalaoProg() {
 //  Só LÊ e grava perfil/veículos pelas funções que já existem.
 //  A troca de veículo usa trocarVeiculo() (não apaga histórico).
 // ═══════════════════════════════════════════════════════════════
+// ─── LEMBRETE nos Ajustes (v4.02) ────────────────────────────
+// A seção inteira some fora do app: no site não existe plugin, e um
+// controle que não faz nada é pior que controle nenhum.
+function renderNotifAjustes() {
+  const box = document.getElementById('ajFoldNotif');
+  if (!box) return;
+  if (!notifDisponivel()) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  const ligada = notifLigada();
+  const negou  = lerLS('notifJaPerguntou', false) && !ligada;
+  document.getElementById('ajNotifEstado').textContent = ligada ? 'Ligado' : 'Desligado';
+  const btn = document.getElementById('ajBtnNotif');
+  btn.textContent = ligada ? 'Desligar' : 'Ligar';
+  document.getElementById('ajNotifHoraBox').style.display = ligada ? '' : 'none';
+  document.getElementById('ajNotifNegada').style.display  = negou ? '' : 'none';
+
+  const sel = document.getElementById('ajNotifHora');
+  if (sel && !sel.options.length) {
+    for (let h = 12; h <= 23; h++) {
+      const o = document.createElement('option');
+      o.value = String(h); o.textContent = String(h).padStart(2, '0') + ':00';
+      sel.appendChild(o);
+    }
+  }
+  if (sel) sel.value = String(notifHora());
+  // ⚠️ Quando o app já aprendeu o horário dele, quem manda é a medição — e o
+  // motorista precisa SABER disso, senão ele mexe no seletor, nada muda e ele
+  // acha que o app está quebrado.
+  const tipica = horaTipicaFechamento();
+  const dica = document.getElementById('ajNotifAprendeu');
+  if (dica) {
+    if (tipica !== null) {
+      dica.textContent = 'Você costuma fechar por volta das '
+        + String(tipica).padStart(2, '0') + 'h — é esse horário que eu uso.';
+      if (sel) sel.disabled = true;
+    } else {
+      const n = lerLS('horasFechamento', []).length;
+      dica.textContent = 'Depois de ' + Math.max(1, 5 - n)
+        + ' dia(s) fechando, eu aprendo o seu horário e passo a usar ele.';
+      if (sel) sel.disabled = false;
+    }
+  }
+}
+function ligarBotoesNotif() {
+  const btn = document.getElementById('ajBtnNotif');
+  if (btn) btn.addEventListener('click', async function () {
+    if (notifLigada()) {
+      salvarLS('notifLigada', false);
+      await cancelarTodosLembretes();
+      toast('Lembrete desligado');
+    } else if (lerLS('notifJaPerguntou', false)) {
+      // já respondeu antes. Se o Android ainda concede, religa sem novo prompt;
+      // se não, o aviso de "vá nas configurações" já está na tela.
+      const LN = _notifPlugin();
+      let ok = false;
+      try { const r = await LN.checkPermissions(); ok = r && r.display === 'granted'; } catch (e) {}
+      if (ok) { salvarLS('notifLigada', true); await agendarLembretes(); toast('Lembrete ligado'); }
+      else    { await pedirPermissaoNotif(); }
+    } else {
+      const ok = await pedirPermissaoNotif();
+      toast(ok ? 'Lembrete ligado' : 'Sem permissão pra notificar');
+    }
+    renderNotifAjustes();
+  });
+  const sel = document.getElementById('ajNotifHora');
+  if (sel) sel.addEventListener('change', async function () {
+    salvarLS('notifHora', Number(sel.value));
+    await agendarLembretes();
+    toast('Horário salvo');
+  });
+}
+ligarBotoesNotif();
+
 function abrirAjustes() {
   const p = getPerfil();
   document.getElementById('ajNome').value       = p.nome || '';
   renderVeiculosAjustes();
+  renderNotifAjustes();
   // Botão "Sair" só aparece pra quem está logado — quem não está não tem
   // de onde sair, e o botão só confundiria.
   const logado = (typeof usuarioLogado === 'function') && !!usuarioLogado();
@@ -6884,6 +6974,189 @@ function enviarErros() {
 }
 
 // ─── metade 1: o que QUEBRA ────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════
+//  LEMBRETE DE FECHAR O DIA (v4.02) — notificação LOCAL
+//  ─────────────────────────────────────────────────────────────
+//  Por que existe: o Copiloto depende de disciplina diária. Quem
+//  esquece de fechar perde o streak, perde o dia no histórico, e a
+//  análise do mês nasce furada. Até aqui, lembrar era 100% memória
+//  do motorista.
+//
+//  Por que LOCAL e não push: um lembrete no horário dele não precisa
+//  de servidor, de Firebase nem de internet. É agendado no próprio
+//  aparelho. Custo zero, funciona offline, e nada da vida financeira
+//  dele trafega pra lugar nenhum.
+//
+//  ⚠️ TRÊS REGRAS QUE PROTEGEM O CANAL. Notificação chata é desligada
+//  uma vez e nunca mais volta — no Android o app não pode pedir de novo.
+//   1. A permissão só é pedida DEPOIS do primeiro dia fechado, quando
+//      ele já viu o valor. Nunca na primeira abertura.
+//   2. Se ele já fechou o dia, o lembrete daquele dia é CANCELADO.
+//      Aviso que chega depois de feito é a definição de app chato.
+//   3. Nada de `repeats: true`. Repetição dispara nos dias fechados
+//      também, e não dá pra cancelar um dia só de uma série.
+//      Por isso: agenda os próximos 7 dias, um a um, e reagenda a
+//      cada abertura do app.
+// ═══════════════════════════════════════════════════════════════
+const NOTIF_HORA_PADRAO = 22;      // 22h — só até ele escolher a dele
+const NOTIF_DIAS        = 7;       // quantos dias agendados por vez
+const NOTIF_ID_BASE     = 4200;    // faixa de ids só deste lembrete
+
+// O plugin só existe dentro do app. No site (GitHub Pages) tudo aqui
+// vira no-op — o Copiloto continua funcionando igual, sem erro.
+function _notifPlugin() {
+  try {
+    const P = window.Capacitor && window.Capacitor.Plugins;
+    return (P && P.LocalNotifications) ? P.LocalNotifications : null;
+  } catch (e) { return null; }
+}
+function notifDisponivel() { return !!_notifPlugin(); }
+function notifLigada()     { return lerLS('notifLigada', false) === true; }
+function notifHora()       { const h = lerLS('notifHora', NOTIF_HORA_PADRAO); return (h >= 0 && h <= 23) ? h : NOTIF_HORA_PADRAO; }
+
+// ── APRENDER O HORÁRIO DELE ──────────────────────────────────
+// ⚠️ O app guardava QUANTO tempo ele rodou (horasPorDia), nunca A QUE
+// HORAS ele fecha. Sem isso o lembrete só podia chutar um horário.
+// A partir daqui ele mede. Enquanto não tem amostra, usa o que o
+// motorista escolheu — não inventa (Regra Sagrada #2).
+function registrarHoraFechamento() {
+  try {
+    const arr = lerLS('horasFechamento', []);
+    arr.unshift(new Date().getHours());
+    salvarLS('horasFechamento', arr.slice(0, 30));
+  } catch (e) {}
+}
+// Mediana, não média: um dia que ele fechou às 3 da manhã não pode
+// puxar o horário de todos os outros.
+function horaTipicaFechamento() {
+  const arr = lerLS('horasFechamento', []).filter(function (h) { return h >= 0 && h <= 23; });
+  if (arr.length < 5) return null;                 // amostra fraca = não afirma
+  const ord = arr.slice().sort(function (a, b) { return a - b; });
+  return ord[Math.floor(ord.length / 2)];
+}
+
+// ── O TEXTO ──────────────────────────────────────────────────
+// ⚠️ É escolhido na hora de AGENDAR (até 7 dias antes), então não pode
+// falar de números do dia — o app ainda não sabe como aquele dia foi.
+// E nunca cobra: quem foi cobrado desliga.
+const NOTIF_TEXTOS = [
+  { t: 'Fechou o dia?',        b: 'Registre a receita e eu te digo quanto sobrou de verdade.' },
+  { t: 'Como foi hoje?',       b: 'Um minuto agora e o seu mês continua batendo certo.' },
+  { t: 'Bora fechar a conta',  b: 'Receita, km e pronto. Eu faço o resto.' }
+];
+
+// ── AGENDAR ──────────────────────────────────────────────────
+// ⚠️ No Android 8+ notificação SEM CANAL simplesmente não aparece — e o canal
+// só era criado dentro de pedirPermissaoNotif(). Quem já tinha concedido a
+// permissão numa sessão anterior caía no caminho de agendar sem canal nenhum:
+// o app agendaria tudo direitinho e NADA tocaria, sem erro em lugar algum.
+// createChannel é idempotente, então chamar sempre é seguro.
+async function _garantirCanal() {
+  const LN = _notifPlugin();
+  if (!LN || !LN.createChannel) return;
+  try {
+    await LN.createChannel({
+      id: 'copiloto-fechamento', name: 'Lembrete de fechar o dia',
+      description: 'Um toque no fim do dia pra você não perder o registro.',
+      importance: 4, visibility: 1
+    });
+  } catch (e) {}
+}
+async function agendarLembretes() {
+  const LN = _notifPlugin();
+  if (!LN || !notifLigada()) return;
+  try {
+    await _garantirCanal();
+    // limpa o que já estava agendado por nós (evita duplicar a cada abertura)
+    await cancelarTodosLembretes();
+    const hora = horaTipicaFechamento() !== null ? horaTipicaFechamento() : notifHora();
+    const agora = new Date();
+    const fechouHoje = _diaJaFechado(hojeISO());
+    const notifs = [];
+    for (let i = 0; i < NOTIF_DIAS; i++) {
+      const quando = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + i, hora, 0, 0, 0);
+      if (quando <= agora) continue;               // horário de hoje já passou
+      if (i === 0 && fechouHoje) continue;         // já fechou: não incomoda
+      const txt = NOTIF_TEXTOS[i % NOTIF_TEXTOS.length];
+      notifs.push({
+        id: NOTIF_ID_BASE + i,
+        title: txt.t,
+        body: txt.b,
+        // ⚠️ allowWhileIdle:false de propósito. Alarme exato no Android 12+
+        // exige permissão à parte, que o Google revisa a dedo — e um lembrete
+        // que chega 22h05 em vez de 22h00 serve igual.
+        schedule: { at: quando, allowWhileIdle: false },
+        // ⚠️ sem smallIcon de propósito: apontar pra um recurso que não existe
+        // no projeto Android rende ícone quebrado. Quando houver um ícone de
+        // notificação de verdade (branco, transparente), é aqui que ele entra.
+        channelId: 'copiloto-fechamento'
+      });
+    }
+    if (notifs.length) await LN.schedule({ notifications: notifs });
+  } catch (e) {
+    if (typeof registrarErro === 'function') registrarErro('js', 'notif-agendar', String(e && e.message || e));
+  }
+}
+function _diaJaFechado(iso) {
+  try {
+    const fin = lerLS('historicoFinancas', []);
+    return fin.some(function (r) { return r.dataISO === iso; });
+  } catch (e) { return false; }
+}
+async function cancelarTodosLembretes() {
+  const LN = _notifPlugin();
+  if (!LN) return;
+  try {
+    const ids = [];
+    for (let i = 0; i < NOTIF_DIAS; i++) ids.push({ id: NOTIF_ID_BASE + i });
+    await LN.cancel({ notifications: ids });
+  } catch (e) {}
+}
+// chamado ao fechar o dia: o lembrete de hoje não tem mais motivo de existir
+async function cancelarLembreteDeHoje() {
+  const LN = _notifPlugin();
+  if (!LN) return;
+  try { await LN.cancel({ notifications: [{ id: NOTIF_ID_BASE }] }); } catch (e) {}
+}
+
+// ── PERMISSÃO ────────────────────────────────────────────────
+// Pedida UMA vez, e só depois do primeiro dia fechado. Se ele disser
+// não, o app não pergunta de novo — fica o botão nos Ajustes.
+async function pedirPermissaoNotif() {
+  const LN = _notifPlugin();
+  if (!LN) return false;
+  try {
+    // canal do Android 8+: sem ele a notificação não aparece
+    await _garantirCanal();
+    const r = await LN.requestPermissions();
+    const ok = r && r.display === 'granted';
+    salvarLS('notifLigada', ok);
+    salvarLS('notifJaPerguntou', true);
+    if (ok) await agendarLembretes();
+    return ok;
+  } catch (e) {
+    salvarLS('notifJaPerguntou', true);
+    return false;
+  }
+}
+// O convite: só aparece no app, uma vez, depois do 1º dia fechado.
+function talvezOferecerNotif() {
+  if (!notifDisponivel()) return;
+  if (lerLS('notifJaPerguntou', false)) return;
+  if (!_diaJaFechado(hojeISO())) return;
+  salvarLS('notifJaPerguntou', true);   // marca antes: nunca pergunta duas vezes
+  setTimeout(function () {
+    if (typeof pedirConfirmacao !== 'function') { pedirPermissaoNotif(); return; }
+    pedirConfirmacao(
+      'Quer que eu te lembre?',
+      'Fechar o dia leva um minuto — o problema é lembrar. Posso te dar um toque no fim do dia. '
+      + 'Só isso: nada de propaganda, e você desliga quando quiser nos Ajustes.',
+      function () { pedirPermissaoNotif(); }
+    );
+  }, 1400);   // deixa o streak e o balão do fechamento saírem da frente
+}
+
 function ligarSentinela() {
   window.addEventListener('error', function (ev) {
     if (!ev || !ev.message) return;

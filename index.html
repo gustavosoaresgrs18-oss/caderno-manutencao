@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=409">
+    <link rel="stylesheet" href="style.css?v=410">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=409"></script>
+    <script src="supabase-service.js?v=410"></script>
   </head>
   <body>
 
@@ -84,6 +84,7 @@
     <symbol id="i-lixeira" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></symbol>
     <symbol id="i-email" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m3 6.5 9 6 9-6"/></symbol>
     <symbol id="i-relogio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.2 2"/></symbol>
+    <symbol id="i-sino" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8.5a6 6 0 1 0-12 0c0 5.5-2 7-2 7h16s-2-1.5-2-7"/><path d="M13.7 19.5a2 2 0 0 1-3.4 0"/></symbol>
     <symbol id="i-balanca" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2v17.6M8 20.8h8M12 6.6 5 9.2M12 6.6l7 2.6"/><path d="M2 15.2l3-6 3 6a3 3 0 0 1-6 0Z"/><path d="M16 17.8l3-6 3 6a3 3 0 0 1-6 0Z"/></symbol>
     <symbol id="i-atualizar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11a8.5 8.5 0 1 0-.7 4.5"/><path d="M21 6.5V12h-5.5"/></symbol>
     <symbol id="i-freio" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="12" r="7.6"/><circle cx="10.5" cy="12" r="2.6"/><path d="M18 8.6h1.9A1.3 1.3 0 0 1 21.2 10v4a1.3 1.3 0 0 1-1.3 1.3H18"/></symbol>
@@ -1263,6 +1264,31 @@
                ⚠️ O título diz "excluir conta" de propósito: a Play Store exige
                que o caminho de exclusão seja fácil de achar dentro do app. Um
                toque numa seção com esse nome cumpre; esconder não cumpriria. -->
+          <!-- ⚠️ LEMBRETE. Fica ANTES da seção de conta porque é a única coisa
+               aqui que o motorista mexe mais de uma vez na vida. E fica em
+               Ajustes, e não numa tela de onboarding, porque quem desligou sem
+               querer precisa achar o caminho de volta — no Android, permissão
+               negada não pode ser pedida de novo pelo app. -->
+          <details class="aj-fold" id="ajFoldNotif" style="display:none;">
+            <summary><span><svg class="ico"><use href="#i-sino"></use></svg> Lembrete de fechar o dia</span></summary>
+            <div class="aj-fold-corpo">
+              <div class="aj-notif-row">
+                <span id="ajNotifEstado">Desligado</span>
+                <button class="modal-btn cancelar" id="ajBtnNotif" style="width:auto; padding:8px 18px;">Ligar</button>
+              </div>
+              <div id="ajNotifHoraBox" style="display:none; margin-top:12px;">
+                <label class="aj-label" for="ajNotifHora">Que horas eu te chamo?</label>
+                <select id="ajNotifHora" class="aj-input"></select>
+                <div class="aj-dica" id="ajNotifAprendeu"></div>
+              </div>
+              <div class="aj-dica">Um toque só, no fim do dia, e nada mais. Se você já tiver fechado, eu fico quieto.</div>
+              <div class="aj-dica" id="ajNotifNegada" style="display:none; color:var(--signal);">
+                Você recusou a permissão antes. Pra reativar, é nas configurações do Android:
+                Apps → Copiloto → Notificações.
+              </div>
+            </div>
+          </details>
+
           <details class="aj-fold">
             <summary><span><svg class="ico"><use href="#i-salvar"></use></svg> Conta e cópia de segurança</span></summary>
             <div class="aj-fold-corpo">
@@ -1325,7 +1351,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=409"></script>
+    <script src="script.js?v=410"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra
