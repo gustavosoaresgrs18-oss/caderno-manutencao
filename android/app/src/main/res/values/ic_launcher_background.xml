@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Fundo do ícone adaptativo. É COR CHAPADA de propósito: alguns launchers
+     aplicam paralaxe no fundo (ele desliza atrás da arte quando você arrasta),
+     e degradê nesse movimento fica sujo. O verde escuro é o mesmo --bg/--gauge
+     do app, então o ícone e a primeira tela conversam. -->
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <color name="ic_launcher_background">#10231B</color>
 </resources>
