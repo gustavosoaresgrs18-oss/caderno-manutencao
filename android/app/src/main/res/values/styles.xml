@@ -15,8 +15,19 @@
         <item name="android:background">@null</item>
     </style>
 
+    <!-- TELA DE ABERTURA.
 
+         ATENCAO: este tema usa Theme.SplashScreen, que e a API de splash do
+         Android 12 pra frente. Ela IGNORA o android:background e desenha por
+         conta propria: uma cor de fundo mais o icone do app no meio.
+
+         Sem a linha windowSplashScreenBackground abaixo, o Android usava o
+         padrao dele — fundo BRANCO — e a abertura do app piscava claro antes
+         de entrar na tela escura. Os arquivos splash.png que existem nas
+         pastas drawable so sao usados no Android 11 e anteriores; e por isso
+         que eles continuam ali, como reserva. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/copiloto_splash_bg</item>
         <item name="android:background">@drawable/splash</item>
     </style>
 </resources>
