@@ -1162,23 +1162,22 @@ function iniciarApp(perfil) {
 ligarSentinela();
 
 window.addEventListener('DOMContentLoaded', function () {
-  // 1ª trava do modo demonstração: só entra por ?demo=1 na URL. Não existe
-  // botão em lugar nenhum — motorista não cai aqui sem querer.
-  if (/[?&]demo=1(&|$)/.test(location.search) && !emDemo()) { entrarNaDemo(); return; }
+  // ⚠️ AQUI MORAVAM QUATRO CHAVES DE URL: ?demo=1, ?semear=1, ?erros=1 e
+  // ?premium=1. Todas removidas na limpeza pré-lançamento, por dois motivos:
+  //
+  // 1. O ?demo=1 NÃO TINHA TRAVA DE DONO — era a única das quatro sem. Ele
+  //    chama entrarNaDemo(), que faz localStorage.clear() e escreve dados
+  //    falsos por cima. Existe backup e dá pra voltar, mas o motorista não
+  //    sabe disso: ele abre o app dele e vê a vida de outra pessoa. E o site
+  //    é PÚBLICO — bastava alguém colar esse link num grupo de WhatsApp.
+  //
+  // 2. As outras três eram travadas, mas não funcionavam onde importa: dentro
+  //    do aplicativo não existe barra de endereço pra digitar URL. Eram três
+  //    chaves construídas que só abriam a porta do site.
+  //
+  // Tudo isso vive agora em Ajustes → Ferramentas do dono: travado pelo
+  // e-mail, e funcionando nos dois lugares.
   pintarTarjaDemo();
-  // ?semear=1 — planta os lançamentos na conta REAL (só depois do app subir,
-  // porque precisa do veículo ativo e da sessão do Supabase carregados)
-  if (/[?&]semear=1(&|$)/.test(location.search)) setTimeout(semearNaConta, 1400);
-  // ?premium=1 / ?premium=0 — chave de teste do portão, só pra conta do dono.
-  // Gated de propósito: sem isto, bastava um motorista colar a URL pra liberar.
-  if (/[?&]erros=1(&|$)/.test(location.search)) setTimeout(abrirPainelErros, 1800);
-  const mp = location.search.match(/[?&]premium=([01])(&|$)/);
-  if (mp) setTimeout(function () {
-    if (!souODono()) { toast('Isso não está disponível nesta conta', 'erro'); return; }
-    salvarLS('premiumAtivo', mp[1] === '1');
-    toast(mp[1] === '1' ? 'Premium ligado (teste)' : 'Premium desligado (teste)');
-    setTimeout(function () { location.replace(location.pathname); }, 900);
-  }, 1500);
   const perfil = lerLS('perfilUsuario', null);
   if (perfil && perfil.nome) iniciarApp(perfil);
   else {
@@ -4963,6 +4962,23 @@ function processarFilaBalaoProg() {
 //  Só LÊ e grava perfil/veículos pelas funções que já existem.
 //  A troca de veículo usa trocarVeiculo() (não apaga histórico).
 // ═══════════════════════════════════════════════════════════════
+// ─── PORTÃO DO PREMIUM (ferramenta do dono) ──────────────────
+// ⚠️ Era a chave ?premium=1 na URL. Saiu junto com as outras três: dentro do
+// aplicativo não há barra de endereço, então ela só servia no site. Aqui
+// funciona nos dois, e continua travada pelo e-mail.
+function alternarPremiumTeste() {
+  if (!souODono()) { toast('Isso não está disponível nesta conta', 'erro'); return; }
+  const novo = !premiumAtivo();
+  salvarLS('premiumAtivo', novo);
+  toast(novo ? 'Premium ligado (teste)' : 'Premium desligado (teste)');
+  renderBotaoPremiumDono();
+  if (typeof atualizarTelaFinancas === 'function') atualizarTelaFinancas();
+}
+function renderBotaoPremiumDono() {
+  const b = document.getElementById('ajBtnPremium');
+  if (b) b.textContent = 'Premium: ' + (premiumAtivo() ? 'LIGADO' : 'desligado');
+}
+
 // ─── TESTE DO LEMBRETE (ferramenta do dono) ──────────────────
 // ⚠️ Existe porque testar de verdade exigiria esperar até o horário, com o
 // app em segundo plano — e o seletor dos Ajustes só tem horas cheias. Isto
@@ -5087,6 +5103,7 @@ function abrirAjustes() {
   document.getElementById('ajNome').value       = p.nome || '';
   renderVeiculosAjustes();
   renderNotifAjustes();
+  renderBotaoPremiumDono();
   // Botão "Sair" só aparece pra quem está logado — quem não está não tem
   // de onde sair, e o botão só confundiria.
   const logado = (typeof usuarioLogado === 'function') && !!usuarioLogado();

@@ -412,7 +412,11 @@ async function sbSair() {
 function inicializarAuth(callbackMudanca) {
   getSB().auth.onAuthStateChange((evento, sessao) => {
     _usuarioAtual = sessao?.user || null;
-    console.log('[Copiloto] Auth:', evento, _usuarioAtual?.email || 'sem sessão');
+    // ⚠️ ISTO IMPRIMIA O E-MAIL DO MOTORISTA no console, a cada evento de
+    // login. É dado pessoal indo pra um lugar que qualquer um abre com F12 —
+    // e a política de privacidade do app promete que isso não acontece.
+    // Saber SE tem sessão basta pra diagnosticar; saber DE QUEM não.
+    console.log('[Copiloto] Auth:', evento, _usuarioAtual ? 'com sessão' : 'sem sessão');
     if (typeof callbackMudanca === 'function') callbackMudanca(evento, _usuarioAtual);
     // Quando faz login, sincroniza a fila offline
     if (evento === 'SIGNED_IN') sincronizarFilaOffline();
@@ -916,5 +920,6 @@ async function inicializarSupabase(callbackAuth) {
   await obterUsuario();
   // 4. Sincroniza fila offline (se já tiver sessão e conexão)
   await sincronizarFilaOffline();
-  console.log('[Copiloto] Supabase inicializado. Usuário:', _usuarioAtual?.email || 'não logado');
+  // mesmo motivo do de cima: o estado interessa, a identidade não
+  console.log('[Copiloto] Supabase inicializado.', _usuarioAtual ? 'Logado.' : 'Sem sessão.');
 }

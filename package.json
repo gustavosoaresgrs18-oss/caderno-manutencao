@@ -1,6 +1,6 @@
 {
   "name": "copiloto",
-  "version": "4.5.2",
+  "version": "4.6.0",
   "private": true,
   "description": "Copiloto — o caderninho do motorista de app",
   "scripts": {
