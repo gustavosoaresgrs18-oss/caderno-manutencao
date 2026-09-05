@@ -3334,6 +3334,25 @@ function abrirModalCombustivel() {
   etapaAbasteceu.style.display = 'block';
   modalCombustivel.style.display = 'flex';
 }
+// ⚠️ ESTE BOTÃO ESTAVA MORTO. `btnNaoAbasteceu` era declarado lá em cima e
+// NUNCA recebia um listener — a variável existia, então o código parecia
+// ligado, e ninguém percebeu. Quem respondia "Não abasteci" ficava preso: o
+// modal não fechava, o streak não aparecia, o dia não terminava.
+//
+// É a trava mais cara possível: acontece no FECHAMENTO DO DIA, que é o hábito
+// que sustenta o app inteiro, e no caminho MAIS COMUM — porque o motorista
+// abastece uma vez a cada 3 ou 4 dias e responde "Não" em todos os outros.
+//
+// Como passou: os testes do fecha-turno sempre clicaram em "Sim" (salvar e
+// cancelar, os dois registrados como testados). O "Não" nunca foi tocado.
+// ⚠️ REGRA: pergunta de dois botões precisa dos DOIS testados. O caminho que
+// não cria registro é justamente o que ninguém lembra de testar.
+btnNaoAbasteceu.addEventListener('click', function () {
+  modalCombustivel.style.display = 'none';
+  _abastDoTurno = false;          // não veio abastecimento nenhum
+  mostrarStreak();                // o dia fecha igual: o streak é do turno, não do tanque
+});
+
 btnSimAbasteceu.addEventListener('click', function() {
   // Abre o MESMO formulario da aba Combustivel. Antes existiam dois formularios
   // separados fazendo a mesma coisa — foi por isso que o campo de km ficou
@@ -3975,6 +3994,57 @@ function ajustarValorDoArco(el) {
                     :           '35px';   // -R$ 1.250,00 (prejuízo)
 }
 // atualiza o banner de lucro do dashboard a partir dos registros de hoje
+// A linha que explica o dia do tanque. Fica logo abaixo da conta
+// entrou/saiu/sobrou, e só existe quando faz sentido — nos outros dias some.
+//
+// ⚠️ NÃO afirma "você lucrou X". Isso seria trocar a conta do caixa por uma
+// conta de consumo escondida no texto, e aí o app teria duas verdades de novo
+// (foi o bug da v3.97). Ele diz o que É fato: o dinheiro virou tanque, e o
+// tanque roda os próximos dias.
+function pintarAvisoTanque(mostrar, combHoje, semComb) {
+  let cx = document.getElementById('avisoTanqueDia');
+  if (!cx) {
+    const bd = document.getElementById('gaugeBreakdown');
+    if (!bd || !bd.parentNode) return;
+    cx = document.createElement('div');
+    cx.id = 'avisoTanqueDia';
+    cx.className = 'aviso-tanque';
+    bd.parentNode.insertBefore(cx, bd.nextSibling);
+  }
+  if (!mostrar) { cx.style.display = 'none'; cx.innerHTML = ''; return; }
+
+  // quantos dias esse tanque cobre, SE o app souber o custo por km dele.
+  // Sem esse número medido, não estima — só diz que o tanque continua lá.
+  const ckm = (typeof combustivelKmMes === 'function') ? combustivelKmMes() : 0;
+  const kmDia = (typeof mediaKmPorDia === 'function') ? mediaKmPorDia() : null;
+  let quanto = '';
+  if (ckm > 0 && kmDia > 0) {
+    const dias = Math.round(combHoje / (ckm * kmDia));
+    if (dias >= 2 && dias <= 30) quanto = ' — dá pra uns <b>' + dias + ' dias</b> de rua';
+  }
+  // ⚠️ A 1ª versão dizia "Dia de tanque, NÃO DIA RUIM" — e o teste pegou o app
+  // afirmando isso num dia de R$ 29. O app não sabe se o dia foi bom; ele sabe
+  // de onde veio o vermelho. Julgar é papel dele, não meu (Regra nº 2 no
+  // espírito: não afirmar o que não dá pra medir).
+  cx.style.display = 'block';
+  cx.innerHTML = ico('bomba') + ' <b>' + fmtBRL(combHoje) + ' foi tanque.</b> '
+               + 'Sem ele, o dia fechou em <b>' + fmtBRL(semComb) + '</b>'
+               + quanto + '. Esse combustível não acabou hoje.';
+}
+
+// média de km por dia dos últimos dias registrados — serve só pra dizer
+// "esse tanque dá uns X dias". Devolve null quando não há base.
+function mediaKmPorDia() {
+  const mapa = lerLS('kmPorDia', {});
+  const dias = Object.keys(mapa).sort().slice(-14);
+  let soma = 0, n = 0;
+  dias.forEach(function (iso) {
+    const r = mapa[iso];
+    if (r && r.km > 0 && (r.dias || 1) === 1) { soma += r.km; n++; }
+  });
+  return n >= 3 ? soma / n : null;
+}
+
 function atualizarBannerLucro() {
   const el  = document.getElementById('bannerLucroValor');
   const sub = document.getElementById('bannerLucroSub');
@@ -3992,7 +4062,27 @@ function atualizarBannerLucro() {
   const custos  = recs.reduce((s, r) => s + r.taxa + r.comb + (r.desp || 0), 0);
   el.textContent = fmtBRL(lucro);
   ajustarValorDoArco(el);
-  el.style.color = lucro >= 0 ? 'var(--money)' : 'var(--danger)';
+
+  // ⚠️ DIA DE TANQUE ≠ DIA RUIM. Abastecer é pontual (R$ 150 de uma vez),
+  // rodar é diário — as duas contas não vivem na mesma escala. Quem enche o
+  // tanque numa tarde de 4 horas via "−R$ 15" em VERMELHO e concluía que tinha
+  // trabalhado de graça. Não tinha: o dinheiro virou combustível que roda os
+  // próximos dias.
+  //
+  // A conta continua sendo CAIXA — o que saiu do bolso — porque é o único
+  // número que ele pode conferir contra o próprio extrato, e a credibilidade
+  // é o produto inteiro. O que estava errado era a COR e o silêncio.
+  //
+  // Regra Sagrada nº 4: vermelho é alerta REAL, nunca convite. Vermelho num
+  // dia bom é alarme falso — e alarme falso ensina o motorista a ignorar os
+  // alertas de verdade, inclusive os que importam.
+  const _combHoje = combustívelHoje();
+  const _semComb  = receita - recs.reduce((s, r) => s + r.taxa + (r.desp || 0), 0);
+  // só é "dia de tanque" quando o abastecimento é o ÚNICO motivo do vermelho
+  const _diaDeTanque = lucro < 0 && _combHoje > 0 && _semComb > 0;
+  el.style.color = _diaDeTanque ? 'var(--dim)'
+                 : (lucro >= 0 ? 'var(--money)' : 'var(--danger)');
+  pintarAvisoTanque(_diaDeTanque, _combHoje, _semComb);
   // com dados: tira a linha de dentro do arco (o ponteiro varre ali) e mostra abaixo
   sub.style.display = 'none';
   if (bd) {
@@ -4003,6 +4093,12 @@ function atualizarBannerLucro() {
     // decimal do número grande: receita menos custos FECHA com ele, sempre.
     const _put = function (id, v) { const e = document.getElementById(id); if (e) e.textContent = fmtBRL(v); };
     _put('lucroEntrou', receita); _put('lucroSaiu', custos); _put('lucroSobrou', lucro);
+    // ⚠️ "sobrou" era verde SEMPRE — inclusive mostrando "−R$ 50,10" em verde
+    // de dinheiro. Verde é a cor do que entrou no bolso; número negativo verde
+    // é o app dizendo uma coisa com a cor e outra com o sinal.
+    const _sob = document.getElementById('lucroSobrou');
+    if (_sob) _sob.style.color = _diaDeTanque ? 'var(--dim)'
+                               : (lucro >= 0 ? '' : 'var(--danger)');
     bd.style.display = 'flex';
   }
 }

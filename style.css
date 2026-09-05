@@ -1635,3 +1635,15 @@ body.com-tarja-demo .dashboard{ padding-top:calc(44px + env(safe-area-inset-top)
   border-radius:10px; padding:9px 11px; word-break:break-word; }
 .ocr-diag b{ color:var(--purple); }
 .ocr-diag i{ color:var(--text); font-style:normal; }
+
+/* ⚠️ O dia em que ele enche o tanque parecia prejuízo. A conta está certa
+   (é caixa: o dinheiro saiu), o que faltava era o app dizer que aquilo não
+   é gasto do dia — é tanque. Regra nº 4: vermelho é alerta real; vermelho
+   num dia bom é alarme falso, e alarme falso mata os alertas de verdade.
+   Por isso este aviso é NEUTRO, não verde de comemoração nem vermelho. */
+.aviso-tanque{ margin-top:10px; font-size:var(--f1); line-height:1.55;
+  color:var(--dim); background:rgba(147,161,176,.09);
+  border:1px solid rgba(147,161,176,.24); border-radius:11px; padding:9px 12px; }
+.aviso-tanque b{ color:var(--text); }
+.aviso-tanque .ico{ width:15px; height:15px; vertical-align:-.16em;
+  margin-right:3px; color:var(--signal); }
