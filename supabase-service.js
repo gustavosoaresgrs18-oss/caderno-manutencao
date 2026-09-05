@@ -43,13 +43,26 @@ function getSB() {
 let _usuarioAtual = null;
 
 async function obterUsuario() {
+  // ⚠️ ISTO CHAMAVA SÓ `getUser()`, QUE BATE NA REDE. Num celular sem chip, ou
+  // com o Wi-Fi fora do ar na hora de abrir o app, a chamada falha e o app
+  // conclui que NINGUÉM está logado: some o "Sair da conta", some o "enviar
+  // tudo", e o que ele registrar naquele dia não sobe pra nuvem — mesmo com a
+  // conta dele intacta no aparelho.
+  // É a Regra Sagrada nº 10 ao contrário: a conta atrapalhando o registro.
+  //
+  // `getSession()` lê a sessão GUARDADA no próprio aparelho, sem rede nenhuma.
+  // É ela que manda aqui. A rede entra depois só pra confirmar ou renovar —
+  // e quando o servidor RESPONDE, a resposta dele vale (token revogado tem que
+  // deslogar mesmo). Quando não responde, fica valendo o que está no aparelho.
   try {
-    const { data } = await getSB().auth.getUser();
-    _usuarioAtual = data?.user || null;
-    return _usuarioAtual;
-  } catch (e) {
-    return null;
-  }
+    const { data: s } = await getSB().auth.getSession();
+    _usuarioAtual = s?.session?.user || null;
+  } catch (e) { /* sem sessão guardada: segue pro passo da rede */ }
+  try {
+    const { data, error } = await getSB().auth.getUser();
+    if (!error) _usuarioAtual = data?.user || null;
+  } catch (e) { /* offline: fica com a sessão do aparelho */ }
+  return _usuarioAtual;
 }
 
 function usuarioId() {

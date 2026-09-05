@@ -5148,53 +5148,10 @@ function acharAbastecimentoNaFoto(res) {
   }
   if (melhor) return { valor: melhor.valor, litros: melhor.litros, preco: melhor.preco, completo: true };
 
-  // ── VOLTA: VALOR + LITROS, e o preço sai da divisão ──────────
-  // ⚠️ ISTO NASCEU DE UM TESTE REAL, com o celular na mão. A câmera leu
-  // "32,26" e "200,00" certos e errou só o preço ("6,199" virou "o,499").
-  // O app recusou o cupom inteiro — sendo que 200 ÷ 32,26 JÁ ERA o preço.
-  // Eu exigia três números quando dois bastavam. Valor e litros são o par
-  // mais confiável: vêm em fonte grande e é o que a bomba mostra no visor.
-  //
-  // Dividir dois números LIDOS não é inventar. O perigo é outro: num recibo
-  // qualquer, algum par de números divide por acaso dentro da faixa de
-  // combustível — e aí o app criaria um abastecimento do nada. O primeiro
-  // teste desta função fez exatamente isso com "123,45 / 999,99 / 7,77 /
-  // 55,10", que não é cupom de posto nenhum.
-  //
-  // Por isso a divisão SÓ vale se o preço que sai dela bater com o que ele
-  // costuma pagar, com folga curta. Preço deduzido é prova mais fraca que
-  // preço lido — então a trava aqui é mais apertada (10%) do que na volta
-  // seguinte (15%), onde a câmera pelo menos VIU o preço.
-  // Sem histórico não há com o que comparar: o app cala e ele digita.
-  const TOL_DIVISAO = 0.10;
-  if (pref !== null) {
-    let melhorDiv = null;
-    for (let i = 0; i < unicos.length; i++) {
-      for (let j = 0; j < unicos.length; j++) {
-        if (i === j) continue;
-        const valor = unicos[i], litros = unicos[j];
-        if (valor < 3 || valor > 3000) continue;
-        if (litros < 0.5 || litros > 200) continue;
-        const preco = valor / litros;
-        if (preco < 2 || preco > 12) continue;
-        const dist = Math.abs(preco - pref) / pref;
-        if (dist > TOL_DIVISAO) continue;
-        if (!melhorDiv || dist < melhorDiv.dist) {
-          melhorDiv = { valor: valor, litros: litros,
-                        preco: Math.round(preco * 1000) / 1000, dist: dist };
-        }
-      }
-    }
-    if (melhorDiv) {
-      return { valor: melhorDiv.valor, litros: melhorDiv.litros,
-               preco: melhorDiv.preco, completo: false };
-    }
-  }
-
-  // ── VOLTA 2: VALOR + PREÇO, e os litros saem da divisão ───────
-  // ⚠️ ESTA ERA FROUXA DEMAIS. Com "123,45 / 999,99 / 7,77" — três números sem
-  // relação nenhuma — ela devolvia um abastecimento inventado, porque QUALQUER
-  // par vira uma divisão possível. O app estaria criando dado do nada.
+  // ⚠️ A VOLTA COM DUAS ERA FROUXA DEMAIS. Com "123,45 / 999,99 / 7,77" — três
+  // números sem relação nenhuma — ela devolvia um abastecimento inventado,
+  // porque QUALQUER par vira uma divisão possível. O app estaria criando dado
+  // do nada, que é a Regra Sagrada nº 2 ao contrário.
   // Agora só vale se o preço bater com o que ele costuma pagar. Sem histórico,
   // não há como conferir: melhor não preencher.
   if (pref === null) return null;
@@ -5225,25 +5182,6 @@ function mostrarBotoesFoto() {
   });
 }
 
-
-// ⚠️ ESTA CAIXA É A DIFERENÇA ENTRE CONSERTAR E CHUTAR.
-// Quando a leitura falha, "não consegui ler" não diz NADA: pode ser a câmera
-// que não abriu, o ML Kit que leu letra nenhuma, ou o meu cálculo que recusou
-// números bons. São três consertos diferentes.
-// Então, só na conta do dono, o app mostra o texto CRU que saiu da foto.
-// É a mesma cegueira que custou uma rodada de teste no lembrete.
-let _ocrUltimoTexto = '';
-function _ocrDiagnostico(res) {
-  if (!souODono()) return '';
-  const t = (res && String(res.text || '').trim()) || '';
-  _ocrUltimoTexto = t;
-  const nums = res ? _numerosDaFoto(res).map(function (n) { return n.texto; }) : [];
-  return '<div class="ocr-diag"><b>diagnóstico (só você vê)</b><br>'
-       + (t ? 'a câmera leu:<br><i>' + esc(t).replace(/\n/g, ' ⏎ ') + '</i>'
-            : 'a câmera <b>não leu texto nenhum</b> nesta foto')
-       + '<br>números aproveitáveis: ' + (nums.length ? esc(nums.join(' · ')) : '(nenhum)')
-       + '</div>';
-}
 function _ocrTrabalhando(id, ligado, textoNormal) {
   const b = document.getElementById(id);
   if (!b) return;
@@ -5302,8 +5240,6 @@ async function lerOdometroPelaFoto() {
   }
 
   toast('Não consegui ler o painel. Digite o km', 'erro');
-  const dg = _ocrDiagnostico(res);
-  if (dg && cx) { cx.style.display = 'block'; cx.innerHTML = dg; }
 }
 
 // ── botão do cupom (formulário de abastecimento) ────────────────
@@ -5317,12 +5253,7 @@ async function lerCupomPelaFoto() {
   if (!res) return;
 
   const r = acharAbastecimentoNaFoto(res);
-  if (!r) {
-    toast('Não consegui ler o cupom. Digite os valores', 'erro');
-    const dg = _ocrDiagnostico(res);
-    if (dg && cx) { cx.style.display = 'block'; cx.innerHTML = dg; }
-    return;
-  }
+  if (!r) { toast('Não consegui ler o cupom. Digite os valores', 'erro'); return; }
 
   const iv = document.getElementById('inputValorTela');
   const il = document.getElementById('inputLitrosTela');
@@ -5485,16 +5416,9 @@ function abrirAjustes() {
     fd.style.display = dono ? '' : 'none';
     const inf = document.getElementById('ajDonoInfo');
     if (dono && inf) {
-      // ⚠️ O estado do login entrou aqui porque o "Sair da conta" sumiu e não
-      // havia como saber se era bug de tela ou sessão perdida. Mesma cegueira
-      // do OCR e do lembrete: quando o app depende de algo de fora (rede,
-      // câmera, sessão), o dono precisa de uma janela pro que ele está vendo.
-      const _log = (typeof usuarioLogado === 'function') && usuarioLogado();
       inf.innerHTML = 'Versão <b>' + sentVersao() + '</b> · aparelho <b>' + sentAparelho() + '</b> · '
                     + (emDemo() ? '<b>em demonstração</b>' : 'base real')
-                    + ' · premium ' + (premiumAtivo() ? '<b>ligado</b>' : 'desligado')
-                    + ' · sessão ' + (_log ? '<b>ativa</b>' : '<b>NENHUMA</b>')
-                    + ' · rede ' + (navigator.onLine ? 'ok' : '<b>fora</b>');
+                    + ' · premium ' + (premiumAtivo() ? '<b>ligado</b>' : 'desligado');
     }
   }
   // ⚠️ O "Salvar nome" ficava sempre ali, ocupando uma fileira inteira pra uma
