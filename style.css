@@ -1647,3 +1647,40 @@ body.com-tarja-demo .dashboard{ padding-top:calc(44px + env(safe-area-inset-top)
 .aviso-tanque b{ color:var(--text); }
 .aviso-tanque .ico{ width:15px; height:15px; vertical-align:-.16em;
   margin-right:3px; color:var(--signal); }
+
+/* a explicação do "li certo, mas está atrás do guardado" */
+.ocr-nota{ font-size:var(--f1); color:var(--dim); line-height:1.5; margin:6px 0 9px; }
+
+/* ═══ EXTRATO DA PLATAFORMA (v4.14) ═══
+   Botão discreto de propósito: é coisa de uma vez por semana, não do dia a
+   dia. Se competir com "Registrar receita", atrapalha o hábito que importa. */
+.btn-extrato-plat{ display:none; width:100%; align-items:center; justify-content:center;
+  gap:7px; margin-top:9px; padding:12px; border-radius:13px; cursor:pointer;
+  background:transparent; border:1px dashed rgba(147,161,176,.4);
+  color:var(--dim); font-family:"Inter"; font-size:var(--f2); font-weight:600; }
+.btn-extrato-plat .ico{ width:16px; height:16px; }
+.btn-extrato-plat:active{ transform:scale(.985); }
+
+.ext-plat-conf{ background:rgba(0,224,138,.07); border:1px solid rgba(0,224,138,.3);
+  border-radius:13px; padding:12px 14px; margin-top:10px; }
+.epc-linha{ display:flex; justify-content:space-between; align-items:baseline;
+  font-size:var(--f2); color:var(--dim); padding:4px 0; }
+.epc-linha b{ color:var(--text); font-family:"Sora"; }
+.epc-linha b.saiu{ color:var(--danger); }
+.epc-linha.total{ border-top:1px solid rgba(147,161,176,.2); margin-top:5px; padding-top:8px; }
+.epc-linha.total b{ color:var(--money); font-size:var(--f4); }
+.epc-pct{ font-size:var(--f1); color:var(--dim); margin-top:8px; }
+.epc-pct b{ color:var(--signal); }
+
+.ocr-op.plat{ flex:1 1 40%; font-family:"Inter"; font-size:var(--f2); font-weight:700; }
+.ocr-op.plat.ativo{ background:rgba(0,224,138,.14); border-color:rgba(0,224,138,.5); color:var(--money); }
+
+.ext-plat-lista{ margin-top:8px; }
+.ext-plat-item{ display:flex; align-items:center; gap:9px; padding:9px 11px;
+  background:var(--card); border:1px solid var(--line); border-radius:11px; margin-top:6px; }
+.epi-nome{ font-weight:800; font-size:var(--f2); color:var(--text); }
+.epi-per{ flex:1; font-size:var(--f1); color:var(--faint); }
+.epi-val{ font-size:var(--f2); color:var(--danger); font-weight:700; }
+.epi-val i{ font-style:normal; color:var(--dim); font-size:var(--f1); }
+.epi-x{ background:none; border:none; color:var(--faint); cursor:pointer; padding:2px; }
+.epi-x .ico{ width:15px; height:15px; }

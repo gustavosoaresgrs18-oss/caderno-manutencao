@@ -1189,8 +1189,12 @@ window.addEventListener('DOMContentLoaded', function () {
   // o app segue 100% funcional local (é só a nuvem que fica pra depois).
   if (typeof inicializarSupabase === 'function') {
     inicializarSupabase(function (evento, usuario) {
-      if (evento === 'SIGNED_IN' && usuario && typeof migrarMotoristaAntigo === 'function') {
-        migrarMotoristaAntigo(usuario.id);
+      if (evento === 'SIGNED_IN' && usuario) {
+        if (typeof migrarMotoristaAntigo === 'function') migrarMotoristaAntigo(usuario.id);
+        // O plano é do MOTORISTA, não do aparelho: entrou, pergunta de novo.
+        if (typeof buscarPlano === 'function') buscarPlano(usuario.id).then(function () {
+          if (typeof renderBotaoPremiumDono === 'function') renderBotaoPremiumDono();
+        });
       }
       tratarRecuperacaoSenha(evento);
     }).then(function () {
@@ -5109,25 +5113,31 @@ function renderBotaoPremiumDono() {
 function ocrDisponivel() { return !!(plugNativo('Camera') && plugNativo('TextRecognition')); }
 
 // tira a foto e devolve o resultado bruto do ML Kit ({text, blocks})
-async function fotografarELer() {
+// ⚠️ `origem` existe porque nem tudo que o app precisa ler está no MUNDO.
+// Painel e cupom estão: aponta a câmera. Mas o extrato da plataforma está
+// DENTRO do celular — ele tira um print do app da Uber. Ninguém fotografa a
+// própria tela com outro aparelho.
+// Sem a opção de galeria, o recurso do extrato simplesmente não funcionaria.
+async function fotografarELer(origem) {
   const Cam = plugNativo('Camera');
   const OCR = plugNativo('TextRecognition');
   if (!Cam || !OCR) { toast('Só funciona dentro do aplicativo', 'erro'); return null; }
+  const daGaleria = (origem === 'galeria');
   try {
     const foto = await Cam.getPhoto({
       quality: 85, allowEditing: false, correctOrientation: true,
       resultType: 'uri',        // precisamos do caminho do arquivo, não do base64
-      source: 'CAMERA', saveToGallery: false
+      source: daGaleria ? 'PHOTOS' : 'CAMERA', saveToGallery: false
     });
     const caminho = foto && (foto.path || foto.webPath);
     if (!caminho) return null;
     return await OCR.processImage({ path: caminho, script: 'LATIN' });
   } catch (e) {
-    // cancelar a câmera cai aqui e NÃO é erro — não vale toast de falha
+    // cancelar a câmera/galeria cai aqui e NÃO é erro — não vale toast de falha
     const m = String((e && e.message) || e).toLowerCase();
     if (m.indexOf('cancel') < 0 && m.indexOf('denied') < 0) {
-      toast('Não consegui usar a câmera', 'erro');
-      if (typeof registrarErro === 'function') registrarErro('js', 'ocr-camera', String(e && e.message || e));
+      toast(daGaleria ? 'Não consegui abrir suas fotos' : 'Não consegui usar a câmera', 'erro');
+      if (typeof registrarErro === 'function') registrarErro('js', 'ocr-' + (daGaleria ? 'galeria' : 'camera'), String(e && e.message || e));
     }
     return null;
   }
@@ -5171,9 +5181,24 @@ function acharOdometroNaFoto(res, ultimoOdo) {
     const teto = ultimoOdo + OCR_KM_MAX_DIA * dias;
     const dentro = nums.filter(function (v) { return v >= ultimoOdo && v <= teto; });
     const unicos = dentro.filter(function (v, i, a) { return a.indexOf(v) === i; }).sort(function (a, b) { return a - b; });
+
+    // ⚠️ ISTO NASCEU DE UM TESTE REAL. A câmera leu o odômetro CERTO (106.532)
+    // e o app respondeu "não consegui ler o painel" — porque o registro
+    // guardado estava em 106.547, à frente do carro. A trava está certa
+    // (odômetro não anda pra trás), mas a MENSAGEM mentiu, e o dono passou
+    // meia hora achando que a câmera tinha quebrado.
+    //
+    // Quando o número lido é plausível mas está ATRÁS do guardado, isso não é
+    // falha de leitura — é sinal de que o km guardado provavelmente está
+    // errado. O app tem que dizer exatamente isso: é a diferença entre
+    // "não sei" e "sei, e o problema é outro".
+    const atras = nums.filter(function (v) { return v < ultimoOdo && v >= ultimoOdo * 0.8; })
+      .filter(function (v, i, a) { return a.indexOf(v) === i; })
+      .sort(function (a, b) { return b - a; }).slice(0, 3);
+
     // o MENOR dos plausíveis: um maior tende a ser leitura errada
     // (dígito a mais) e errar pra cima infla o km do dia inteiro.
-    return { valor: unicos.length ? unicos[0] : null, candidatos: unicos };
+    return { valor: unicos.length ? unicos[0] : null, candidatos: unicos, atras: atras };
   }
 
   // Sem odômetro anterior o app NÃO TEM como escolher — e escolher errado
@@ -5310,6 +5335,134 @@ function acharAbastecimentoNaFoto(res) {
 }
 
 
+
+// ═══════════════════════════════════════════════════════════════
+//  EXTRATO DA PLATAFORMA (v4.14) — o print que ele já tem no celular
+//  ─────────────────────────────────────────────────────────────
+//  A Uber mostra, na tela "Repasse de ganhos", exatamente três números:
+//      Pagamentos de usuários   R$ 1.259,57
+//      Valor pago à Uber       −R$    35,79
+//      Seus ganhos              R$ 1.223,78
+//
+//  ⚠️ ISTO NÃO ENCOSTA NO REGISTRO DIÁRIO. Alimenta só o relatório do mês —
+//  foi decisão do dono do produto, e é a decisão certa: o fluxo de todo dia é
+//  o hábito que sustenta o app, e engordar ele pra caber uma análise seria
+//  trocar o que funciona pelo que é bonito.
+//
+//  ⚠️ E O APP NÃO PRECISA PROCURAR RÓTULO. Cada plataforma escreve de um
+//  jeito, e print cortado perde justamente a palavra. O que não muda é a
+//  ARITMÉTICA: bruto − taxa = líquido. O parser acha três valores que fecham
+//  essa conta. Se nenhum trio fecha, ele não inventa — igual ao cupom.
+// ═══════════════════════════════════════════════════════════════
+
+// todos os valores em dinheiro de um print (com vírgula ou ponto decimal)
+function _valoresDoExtrato(res) {
+  if (!res) return [];
+  const achados = [];
+  String(res.text || '').split(/\s+/).forEach(function (p) {
+    const limpo = p.replace(/[Oo]/g, '0').replace(/[Il|]/g, '1').replace(/[^\d.,]/g, '');
+    if (!limpo || !/[.,]/.test(limpo)) return;          // dinheiro sempre tem decimal
+    const t = limpo.replace(/\./g, ',');
+    const partes = t.split(',');
+    const dec = partes[partes.length - 1];
+    if (dec.length !== 2) return;                        // centavos têm 2 casas
+    const v = Number(partes.slice(0, -1).join('') + '.' + dec);
+    if (isFinite(v) && v > 0 && v < 1000000) achados.push(v);
+  });
+  return achados.filter(function (v, i, a) { return a.indexOf(v) === i; });
+}
+
+// ⚠️ TOLERÂNCIA DE CENTAVOS, não percentual. A plataforma arredonda cada linha
+// pra 2 casas, então a soma pode fechar com 1 ou 2 centavos de diferença. Um
+// percentual aqui deixaria passar trio errado em valores grandes.
+const EXTRATO_FOLGA = 0.05;
+function acharExtratoNaFoto(res) {
+  const v = _valoresDoExtrato(res);
+  if (v.length < 3) return null;
+
+  let melhor = null;
+  for (let i = 0; i < v.length; i++) {
+    for (let j = 0; j < v.length; j++) {
+      for (let k = 0; k < v.length; k++) {
+        if (i === j || j === k || i === k) continue;
+        const bruto = v[i], taxa = v[j], liquido = v[k];
+        // o bruto é o maior dos três, sempre — se não for, o trio está trocado
+        if (bruto <= liquido || bruto <= taxa) continue;
+        const erro = Math.abs(bruto - taxa - liquido);
+        if (erro > EXTRATO_FOLGA) continue;
+        // ⚠️ Taxa de 0% ou acima de 60% não é extrato de plataforma — é outra
+        // conta qualquer que por acaso fechou. Melhor recusar do que registrar
+        // um número que vai virar análise depois.
+        const pct = (taxa / bruto) * 100;
+        if (pct < 0.3 || pct > 60) continue;
+        // ⚠️ O DESEMPATE É O TAMANHO, NÃO A EXATIDÃO. No Resumo Fiscal real da
+        // Uber existem três linhas miúdas que fecham a conta por acidente
+        // (Extras 23,10 − Taxas regulatórias 5,19 = Outros 17,91), e elas
+        // fecham EXATO — tão exato quanto os totais de verdade.
+        // Num extrato, o que interessa são os TOTAIS, e total é o maior
+        // número da tela. Por isso vence o maior bruto; a exatidão só
+        // desempata entre brutos iguais.
+        if (!melhor || bruto > melhor.bruto || (bruto === melhor.bruto && erro < melhor.erro)) {
+          melhor = { bruto: bruto, taxa: taxa, liquido: liquido, pct: pct, erro: erro };
+        }
+      }
+    }
+  }
+  if (!melhor) return null;
+  return {
+    bruto: melhor.bruto,
+    taxa: melhor.taxa,
+    liquido: melhor.liquido,
+    pct: Math.round(melhor.pct * 10) / 10
+  };
+}
+
+// ── período: o print quase sempre traz as datas ─────────────────
+// Não é obrigatório — sem período, o extrato entra com a data de hoje e o
+// app AVISA que foi ele quem chutou a data, nunca finge que veio do print.
+const _MESES_PT = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+function acharPeriodoNaFoto(res) {
+  const txt = String((res && res.text) || '').toLowerCase();
+  // "24 de ago. - 31 de ago." | "01-30 Junho 2026" | "01/09 a 30/09/2026"
+  const mes = txt.match(/(\d{1,2})\s*(?:de\s+)?([a-zç]{3,10})\.?\s*(?:-|a|até)\s*(\d{1,2})\s*(?:de\s+)?([a-zç]{3,10})?/);
+  if (mes) {
+    const nome = (mes[4] || mes[2] || '').slice(0, 3);
+    const iMes = _MESES_PT.indexOf(nome);
+    if (iMes >= 0) {
+      const ano = (txt.match(/20\d{2}/) || [String(new Date().getFullYear())])[0];
+      return { texto: mes[0].trim(), ym: ano + '-' + String(iMes + 1).padStart(2, '0') };
+    }
+  }
+  return null;
+}
+
+// ── guardar ─────────────────────────────────────────────────────
+// Um extrato por plataforma por período: reenviar o mesmo print corrige em
+// vez de duplicar. Duplicata aqui viraria "a Uber levou o dobro" no relatório.
+function salvarExtratoPlataforma(e) {
+  const lista = lerLS('extratosPlataforma', []);
+  const chave = e.plataforma + '|' + e.ym;
+  const i = lista.findIndex(function (x) { return (x.plataforma + '|' + x.ym) === chave; });
+  const reg = {
+    id: 'ext' + Date.now(), plataforma: e.plataforma, ym: e.ym,
+    periodo: e.periodo || null, bruto: e.bruto, taxa: e.taxa,
+    liquido: e.liquido, pct: e.pct, dataISO: hojeISO(), dataChutada: !e.periodo
+  };
+  if (i >= 0) { reg.id = lista[i].id; lista[i] = reg; } else { lista.unshift(reg); }
+  salvarLS('extratosPlataforma', lista);
+  if (typeof salvarRegistroHibrido === 'function') {
+    salvarRegistroHibrido('extratos_plataforma', {
+      id: reg.id, plataforma: reg.plataforma, ym: reg.ym, periodo: reg.periodo,
+      bruto: reg.bruto, taxa: reg.taxa, liquido: reg.liquido, pct: reg.pct
+    }, 'id').catch(function () {});
+  }
+  return reg;
+}
+
+// o que a plataforma levou num mês — só com extrato DAQUELE mês
+function extratosDoMes(ym) {
+  return lerLS('extratosPlataforma', []).filter(function (x) { return x.ym === ym; });
+}
 // ── LIGAÇÃO COM A TELA ──────────────────────────────────────────
 // Os dois botões só existem dentro do aplicativo. No site eles nem
 // aparecem — botão que não funciona é pior que botão que não existe.
@@ -5397,6 +5550,30 @@ async function lerOdometroPelaFoto() {
     return;
   }
 
+  // ⚠️ ANTES DE DIZER "não consegui ler": o número pode ter sido lido certo e
+  // estar ATRÁS do registro guardado. Dizer "não consegui" aí é mentira, e
+  // manda o motorista caçar problema na câmera em vez de no km guardado.
+  if (r.atras && r.atras.length && cx) {
+    const ult = ultimoOdoAtivo();
+    cx.style.display = 'block';
+    cx.innerHTML = '<div class="ocr-pergunta">' + ico('alerta') + ' Li <b class="num">' + fmtKm(r.atras[0])
+      + '</b> no painel — mas seu último registro é <b class="num">' + fmtKm(ult) + '</b>.</div>'
+      + '<div class="ocr-nota">Odômetro não anda pra trás, então um dos dois está errado. '
+      + 'Se o painel é que está certo, use o número dele — o app vai te perguntar sobre o km guardado.</div>'
+      + '<div class="ocr-opcoes">'
+      + r.atras.map(function (v) {
+          return '<button type="button" class="ocr-op num" data-v="' + v + '">usar ' + fmtKm(v) + '</button>';
+        }).join('')
+      + '</div>' + _ocrDiagnostico(res);
+    cx.querySelectorAll('.ocr-op').forEach(function (b) {
+      b.addEventListener('click', function () {
+        const inp = document.getElementById('inputKm');
+        if (inp) { inp.value = fmtKm(Number(b.dataset.v)); if (typeof atualizarKmVivo === 'function') atualizarKmVivo(); }
+      });
+    });
+    return;
+  }
+
   toast('Não consegui ler o painel. Digite o km', 'erro');
   const dg = _ocrDiagnostico(res);
   if (dg && cx) { cx.style.display = 'block'; cx.innerHTML = dg; }
@@ -5436,6 +5613,118 @@ async function lerCupomPelaFoto() {
       + (r.completo ? ' Confira antes de registrar.'
                     : ' Os litros eu calculei pelo preço — confira no cupom.') + '</div>';
   }
+}
+
+// ── LIGAÇÃO COM A TELA (extrato da plataforma) ──────────────────
+const PLATAFORMAS_CONHECIDAS = ['Uber', '99', 'inDrive', 'Outra'];
+let _extPlatLido = null;
+
+function abrirExtratoPlat() {
+  _extPlatLido = null;
+  const cx = document.getElementById('extPlatResultado');
+  if (cx) { cx.style.display = 'none'; cx.innerHTML = ''; }
+  const bs = document.getElementById('btnExtPlatSalvar');
+  if (bs) bs.style.display = 'none';
+  document.getElementById('modalExtratoPlat').style.display = 'flex';
+}
+function fecharExtratoPlat() {
+  document.getElementById('modalExtratoPlat').style.display = 'none';
+}
+
+async function lerExtratoPlataforma() {
+  const cx = document.getElementById('extPlatResultado');
+  const bs = document.getElementById('btnExtPlatSalvar');
+  _ocrTrabalhando('btnExtPlatFoto', true);
+  let res = null;
+  // ⚠️ GALERIA, não câmera: o print está no próprio celular dele.
+  try { res = await fotografarELer('galeria'); } catch (e) { res = null; }
+  _ocrTrabalhando('btnExtPlatFoto', false, 'Escolher o print');
+  if (!res) return;
+
+  const r = acharExtratoNaFoto(res);
+  if (!r) {
+    toast('Não achei a conta nesse print', 'erro');
+    if (cx) {
+      cx.style.display = 'block';
+      cx.innerHTML = '<div class="ocr-nota">Preciso de uma tela que mostre os <b>três</b> números: '
+                   + 'o que os passageiros pagaram, o que a plataforma ficou, e o que sobrou pra você. '
+                   + 'Na Uber é em <b>Ganhos → Repasse de ganhos</b>.</div>' + _ocrDiagnostico(res);
+    }
+    if (bs) bs.style.display = 'none';
+    return;
+  }
+
+  const per = acharPeriodoNaFoto(res);
+  _extPlatLido = {
+    bruto: r.bruto, taxa: r.taxa, liquido: r.liquido, pct: r.pct,
+    periodo: per ? per.texto : null,
+    ym: per ? per.ym : hojeISO().slice(0, 7),
+    plataforma: lerLS('ultimaPlataformaExtrato', 'Uber')
+  };
+
+  // ⚠️ Mostra ANTES de guardar. Ele confere contra o print que está na mão —
+  // é a mesma regra da foto do odômetro: o app preenche, ele confirma.
+  cx.style.display = 'block';
+  cx.innerHTML =
+      '<div class="ext-plat-conf">'
+    +   '<div class="epc-linha"><span>Passageiros pagaram</span><b class="num">' + fmtBRL(r.bruto) + '</b></div>'
+    +   '<div class="epc-linha"><span>A plataforma ficou</span><b class="num saiu">' + fmtBRL(r.taxa) + '</b></div>'
+    +   '<div class="epc-linha total"><span>Sobrou pra você</span><b class="num">' + fmtBRL(r.liquido) + '</b></div>'
+    +   '<div class="epc-pct">taxa de <b>' + String(r.pct).replace('.', ',') + '%</b>'
+    +     (per ? ' · ' + esc(per.texto) : ' · <b>sem data no print</b> — vou usar o mês de hoje')
+    +   '</div>'
+    + '</div>'
+    + '<div class="ocr-pergunta" style="margin-top:11px;">De qual plataforma é esse extrato?</div>'
+    + '<div class="ocr-opcoes">'
+    + PLATAFORMAS_CONHECIDAS.map(function (p) {
+        const at = (p === _extPlatLido.plataforma) ? ' ativo' : '';
+        return '<button type="button" class="ocr-op plat' + at + '" data-p="' + p + '">' + p + '</button>';
+      }).join('')
+    + '</div>';
+
+  cx.querySelectorAll('.ocr-op.plat').forEach(function (b) {
+    b.addEventListener('click', function () {
+      _extPlatLido.plataforma = b.dataset.p;
+      cx.querySelectorAll('.ocr-op.plat').forEach(function (o) { o.classList.remove('ativo'); });
+      b.classList.add('ativo');
+    });
+  });
+  if (bs) bs.style.display = '';
+}
+
+function salvarExtratoDaTela() {
+  if (!_extPlatLido) return;
+  salvarLS('ultimaPlataformaExtrato', _extPlatLido.plataforma);
+  salvarExtratoPlataforma(_extPlatLido);
+  fecharExtratoPlat();
+  renderExtratosPlat();
+  toast('Extrato guardado — vai aparecer no relatório do mês');
+}
+
+// lista discreta dos extratos guardados, na tela Finanças
+function renderExtratosPlat() {
+  const cx = document.getElementById('extPlatLista');
+  const bt = document.getElementById('btnExtratoPlat');
+  // o botão só existe dentro do app (precisa de galeria + leitura)
+  if (bt) bt.style.display = (typeof ocrDisponivel === 'function' && ocrDisponivel()) ? 'flex' : 'none';
+  if (!cx) return;
+  const lista = lerLS('extratosPlataforma', []);
+  if (!lista.length) { cx.innerHTML = ''; return; }
+  cx.innerHTML = lista.slice(0, 6).map(function (x) {
+    return '<div class="ext-plat-item">'
+      +      '<span class="epi-nome">' + esc(x.plataforma) + '</span>'
+      +      '<span class="epi-per">' + esc(x.periodo || x.ym) + '</span>'
+      +      '<span class="epi-val num">' + fmtBRL(x.taxa) + ' <i>' + String(x.pct).replace('.', ',') + '%</i></span>'
+      +      '<button class="epi-x" data-id="' + x.id + '" aria-label="Apagar">' + ico('x') + '</button>'
+      +    '</div>';
+  }).join('');
+  cx.querySelectorAll('.epi-x').forEach(function (b) {
+    b.addEventListener('click', function () {
+      const l = lerLS('extratosPlataforma', []).filter(function (x) { return x.id !== b.dataset.id; });
+      salvarLS('extratosPlataforma', l);
+      renderExtratosPlat();
+    });
+  });
 }
 // ─── TESTE DO LEMBRETE (ferramenta do dono) ──────────────────
 // ⚠️ Existe porque testar de verdade exigiria esperar até o horário, com o
@@ -5589,6 +5878,15 @@ function abrirAjustes() {
       inf.innerHTML = 'Versão <b>' + sentVersao() + '</b> · aparelho <b>' + sentAparelho() + '</b> · '
                     + (emDemo() ? '<b>em demonstração</b>' : 'base real')
                     + ' · premium ' + (premiumAtivo() ? '<b>ligado</b>' : 'desligado')
+                    // ⚠️ QUAL plano e ate quando: sem isto, 'premium desligado'
+                    // não diz se o SQL não rodou, se o servidor respondeu
+                    // 'gratis' ou se a assinatura venceu. Três causas, uma tela.
+                    + ' · plano ' + (function () {
+                        const c = lerLS('planoAssinatura', null);
+                        if (!c) return '<b>sem cópia</b> (nunca perguntou ao servidor)';
+                        return '<b>' + esc(c.plano || '?') + '</b>'
+                             + (c.ate ? ' até ' + esc(String(c.ate).slice(0, 10)) : ' (sem prazo)');
+                      })()
                     + ' · sessão ' + (_log ? '<b>ativa</b>' : '<b>NENHUMA</b>')
                     + ' · rede ' + (navigator.onLine ? 'ok' : '<b>fora</b>');
     }
@@ -5671,6 +5969,10 @@ document.getElementById('ajBtnSair').addEventListener('click', function () {
     'Você vai precisar entrar de novo para salvar suas alterações. Quer sair?',
     async function () {
       if (typeof sbSair === 'function') await sbSair();
+      // O Premium sai junto com o motorista: a cópia do plano é dele, não do
+      // aparelho. Sem isto, o próximo que entrasse aqui herdaria a assinatura.
+      if (typeof esquecerPlano === 'function') esquecerPlano();
+      salvarLS('premiumAtivo', false);   // e a chave de teste do dono também
       salvarLS('saiuDaConta', true);   // se fechar o app, continua travado ao reabrir
       _pediuLogin = false;
       // Sair significa sair: o app trava na tela de login (opção A). Os dados
@@ -6162,6 +6464,7 @@ function atualizarTelaFinancas() {
   renderDespesas();
   const historico = lerLS('historicoFinancas', []);
   renderProjecao();
+  if (typeof renderExtratosPlat === 'function') renderExtratosPlat();
   if (historico.length === 0) {
     ['finLucroValor','finReceita','finTaxa','finCombustivel','finLucroKm'].forEach(id => document.getElementById(id).textContent = '—');
     document.getElementById('finLucroSub').textContent = 'Registre sua receita do dia';
@@ -6538,6 +6841,37 @@ function cartaDoMes(m) {
     }
   }
 
+  // ── o que a plataforma ficou, MEDIDO do extrato dele ────────────
+  // ⚠️ Só existe se ele mandou o print daquele mês. Sem extrato, o app NÃO
+  // estima: a pesquisa de campo mostrou três motoristas com taxas de 3%,
+  // 16,7% e "ninguém sabe" — qualquer palpite estaria errado pra quase todo
+  // mundo, e errar pra MENOS aqui faria o Copiloto defender a plataforma.
+  //
+  // ⚠️ CORREÇÃO DE UM COMENTÁRIO MEU (v4.15). Aqui estava escrito que esta
+  // linha é espelho e por isso "nunca fica atrás de assinatura" — mas ela
+  // está DENTRO da carta, e a carta é paga desde a decisão "o dia é grátis,
+  // o mês é pago". O comentário prometia uma coisa e o código fazia outra.
+  // Não é defeito: o fato cru (Uber · 24-31 ago · R$ 35,79 · 3%) o motorista
+  // vê de graça na lista da tela Finanças, assim que manda o print. O que a
+  // carta acrescenta é a leitura do MÊS — e isso é o que se cobra.
+  if (typeof extratosDoMes === 'function') {
+    const exs = extratosDoMes(m.ym);
+    if (exs.length) {
+      const porPlat = exs.map(function (x) {
+        return `${A(fmtBRL0(x.taxa))} pra ${x.plataforma} (${String(x.pct).replace('.', ',')}%)`;
+      });
+      const somaTaxa = exs.reduce(function (s, x) { return s + x.taxa; }, 0);
+      let linha = exs.length === 1
+        ? `Do que os passageiros pagaram, ${porPlat[0]} ficaram com a plataforma.`
+        : `As plataformas ficaram com ${A(fmtBRL0(somaTaxa))}: ` + porPlat.join(' e ') + '.';
+      // ⚠️ O extrato quase nunca cobre o mês inteiro (o da Uber é semanal).
+      // Dizer "a Uber levou X no mês" a partir de uma semana seria inventar.
+      const per = exs.map(function (x) { return x.periodo; }).filter(Boolean);
+      if (per.length) linha += ` Isso é o que estava no extrato que você mandou (${esc(per.join(' · '))}) — não o mês fechado.`;
+      p.push(linha + '\n');
+    }
+  }
+
   // ── esforço: o número que quase ninguém sabe ──
   if (m.porHora !== null) {
     const h = Math.round(m.horasTotal);
@@ -6700,9 +7034,35 @@ function plurDia(i) { return DIAS_SEM[i] + (DIAS_MASC[i] ? 's' : 's'); }
 // hábito diário continua livre (regra sagrada nº 6 — o espelho nunca tranca),
 // e o que se cobra é a leitura do conjunto.
 //
-// ⚠️ Uma função só controla tudo. Quando o Pix existir, ela consulta a
-// assinatura — nada mais no app precisa mudar.
-function premiumAtivo() { return lerLS('premiumAtivo', false) === true; }
+// ⚠️ Uma função só controla tudo — e a partir da v4.15 ela NÃO acredita mais
+// no aparelho. Antes era `lerLS('premiumAtivo')`: qualquer pessoa abria o
+// console do navegador, digitava uma linha e destravava tudo. Servia pra
+// testar; não pode virar produto pago.
+// Agora quem decide é o SERVIDOR (perfil.plano / perfil.premium_ate), e o
+// aparelho só guarda uma cópia do que o servidor respondeu — pra que o mês
+// continue aberto sem internet, que é a regra sagrada nº 10.
+//
+// Honestidade técnica, pra não se enganar: num app 100% front-end ninguém
+// impede um motorista TÉCNICO de editar o próprio JavaScript. O que isto
+// resolve é a fraude de uma linha — que é a única que acontece de verdade
+// com este público. Blindagem real só existe calculando a lupa no servidor,
+// e isso é decisão de outra fatia.
+const PLANO_TOLERANCIA_DIAS = 3;   // renovação atrasada não derruba quem pagou
+function premiumAtivo() {
+  // 1. a chave de teste, e SÓ nas contas donas
+  if (lerLS('premiumAtivo', false) === true && souODono()) return true;
+  // 2. a assinatura, do jeito que o servidor contou
+  const c = lerLS('planoAssinatura', null);
+  if (!c || !c.plano || c.plano === 'gratis') return false;
+  if (c.plano === 'fundador') return true;         // os testadores: vitalício, não vence
+  // ⚠️ Só estes três planos existem. Sem esta linha, `{plano:'x', ate:'2099'}`
+  // escrito na mão passava — o teste pegou. O banco já recusa pela `check`,
+  // mas quem lê a cópia é o aparelho, e o aparelho tem que recusar também.
+  if (c.plano !== 'premium') return false;
+  if (!c.ate) return false;                        // premium sem validade não é assinatura
+  const limite = new Date(c.ate).getTime() + PLANO_TOLERANCIA_DIAS * 86400000;
+  return isFinite(limite) && limite > Date.now();
+}
 // compatibilidade com o nome antigo
 function lupaLiberada() { return premiumAtivo(); }
 

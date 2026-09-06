@@ -411,6 +411,42 @@ async function sbTrocarSenha(novaSenha) {
   }
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  O PLANO (v4.15) — quem decide se é Premium é o SERVIDOR
+//  ─────────────────────────────────────────────────────────────
+//  Lê perfil.plano / perfil.premium_ate e guarda uma CÓPIA no
+//  aparelho. O app nunca pergunta ao banco na hora de abrir o
+//  relatório: se perguntasse, o motorista sem sinal ficaria sem o
+//  que pagou (regra sagrada nº 10). Aqui se busca; lá se usa a cópia.
+//
+//  ⚠️ O motorista NÃO consegue escrever nessas duas colunas: o SQL
+//  da v4.15 revoga o update em perfil e devolve coluna por coluna,
+//  de fora `plano` e `premium_ate`. RLS filtra linha, não coluna —
+//  sem esse revoke, ele daria a si mesmo o Premium pelo próprio app.
+// ═══════════════════════════════════════════════════════════════
+async function buscarPlano(userId) {
+  const id = userId || (_usuarioAtual && _usuarioAtual.id);
+  if (!id) return null;
+  try {
+    const { data, error } = await getSB()
+      .from('perfil').select('plano, premium_ate')
+      .eq('usuario_id', id).maybeSingle();
+    // ⚠️ Erro de rede NÃO derruba o plano guardado. Sem isto, ficar sem sinal
+    // no dia do pagamento cancelaria a assinatura de quem pagou.
+    if (error || !data) return null;
+    const c = { plano: data.plano || 'gratis', ate: data.premium_ate || null,
+                em: new Date().toISOString() };
+    salvarLS('planoAssinatura', c);
+    return c;
+  } catch (e) { return null; }
+}
+
+// Sair da conta apaga a cópia: senão o Premium de um motorista ficaria
+// valendo pro próximo que entrasse NESTE aparelho.
+function esquecerPlano() {
+  try { localStorage.removeItem('planoAssinatura'); } catch (e) {}
+}
+
 async function sbSair() {
   try {
     await getSB().auth.signOut();
@@ -690,6 +726,10 @@ async function restaurarDoSupabase(userId) {
       salvarLS('reservaAcumulada', p.reserva_acumulada || 0);
       salvarLS('streak',           p.streak || 0);
       salvarLS('pontosPatente',    p.pontos_patente || 0);
+      // Trocou de celular: a assinatura vem junto, na mesma viagem.
+      salvarLS('planoAssinatura', { plano: p.plano || 'gratis',
+                                    ate: p.premium_ate || null,
+                                    em: new Date().toISOString() });
     }
 
     // 2. VEÍCULOS
@@ -933,6 +973,8 @@ async function inicializarSupabase(callbackAuth) {
   await obterUsuario();
   // 4. Sincroniza fila offline (se já tiver sessão e conexão)
   await sincronizarFilaOffline();
+  // 5. Confere o plano no servidor (silencioso: falhou, fica a cópia de antes)
+  await buscarPlano();
   // mesmo motivo do de cima: o estado interessa, a identidade não
   console.log('[Copiloto] Supabase inicializado.', _usuarioAtual ? 'Logado.' : 'Sem sessão.');
 }

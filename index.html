@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=425">
+    <link rel="stylesheet" href="style.css?v=428">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=425"></script>
+    <script src="supabase-service.js?v=428"></script>
   </head>
   <body>
 
@@ -543,6 +543,25 @@
           <div class="desempenho-ph" id="desempenhoPlaceholder" style="display:none;"></div>
         </div>
         <button class="btn-ver-extrato-full" id="btnVerExtratoFin"><svg class="ico"><use href="#i-doc"></use></svg> Ver extrato de finanças <svg class="ico"><use href="#i-seta-dir"></use></svg></button>
+        <button class="btn-extrato-plat" id="btnExtratoPlat" style="display:none;" onclick="abrirExtratoPlat()"><svg class="ico"><use href="#i-camera"></use></svg> Mandar extrato da plataforma</button>
+        <div class="ext-plat-lista" id="extPlatLista"></div>
+      </div>
+
+      <!-- ══════════ MODAL EXTRATO DA PLATAFORMA ══════════ -->
+      <!-- ⚠️ Isto NÃO entra no fechamento do dia. Alimenta só o relatório do
+           mês. O registro diário é o hábito que sustenta o app — engordar ele
+           pra caber uma análise seria trocar o que funciona pelo que é bonito. -->
+      <div class="modal-overlay" id="modalExtratoPlat">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo"><svg class="ico"><use href="#i-doc"></use></svg> Extrato da plataforma</h2>
+          <p class="modal-desc" id="extPlatDesc">Tire um print da tela de ganhos do seu app (Uber, 99...) e mande aqui. Eu leio e guardo pro relatório do mês.</p>
+          <button class="btn-foto" id="btnExtPlatFoto" style="display:flex;" onclick="lerExtratoPlataforma()"><svg class="ico"><use href="#i-camera"></use></svg> Escolher o print</button>
+          <div id="extPlatResultado" style="display:none;"></div>
+          <div class="modal-botoes" style="margin-top:14px;">
+            <button class="modal-btn cancelar" onclick="fecharExtratoPlat()">Fechar</button>
+            <button class="modal-btn confirmar" id="btnExtPlatSalvar" style="display:none;" onclick="salvarExtratoDaTela()"><svg class="ico"><use href="#i-check"></use></svg> Guardar</button>
+          </div>
+        </div>
       </div>
 
       <!-- ══════════ MODAL AJUDA COMPARATIVO ══════════ -->
@@ -1362,7 +1381,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=425"></script>
+    <script src="script.js?v=428"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra
