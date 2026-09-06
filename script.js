@@ -5078,17 +5078,65 @@ function processarFilaBalaoProg() {
 // ⚠️ Era a chave ?premium=1 na URL. Saiu junto com as outras três: dentro do
 // aplicativo não há barra de endereço, então ela só servia no site. Aqui
 // funciona nos dois, e continua travada pelo e-mail.
+// ⚠️ v4.15 — AGORA SÃO DUAS COISAS, E O BOTÃO SÓ FALA DE UMA.
+// Antes existia um booleano só. Com o plano vindo do servidor passaram a
+// existir DUAS coisas independentes: o plano (fundador/premium/gratis) e esta
+// chave de teste. O botão continuava lendo `premiumAtivo()` — o EFEITO das
+// duas — então com plano 'fundador' ele dizia LIGADO pra sempre e a chave
+// nunca ligava (`novo = !true` = false, toda vez). O dono desligava, voltava,
+// e estava ligado de novo. Bug real, achado no A55.
+// Regra agora: o BOTÃO é a chave. A linha de diagnóstico é o resultado.
+function chaveDeTesteLigada() { return lerLS('premiumAtivo', false) === true; }
 function alternarPremiumTeste() {
   if (!souODono()) { toast('Isso não está disponível nesta conta', 'erro'); return; }
-  const novo = !premiumAtivo();
+  const novo = !chaveDeTesteLigada();
   salvarLS('premiumAtivo', novo);
-  toast(novo ? 'Premium ligado (teste)' : 'Premium desligado (teste)');
+  // ⚠️ Desligar a chave NÃO desliga o Premium quando o servidor já deu o plano.
+  // Dizer 'Premium desligado' aí seria mentira — foi o que confundiu no teste.
+  const c = lerLS('planoAssinatura', null);
+  const peloPlano = !novo && premiumAtivo();
+  toast(novo ? 'Chave de teste LIGADA'
+             : (peloPlano ? 'Chave desligada — mas o Premium continua pelo plano '
+                            + ((c && c.plano) || '?')
+                          : 'Chave de teste desligada'));
   renderBotaoPremiumDono();
+  renderInfoDono();
   if (typeof atualizarTelaFinancas === 'function') atualizarTelaFinancas();
+  if (typeof pintarSeloMes === 'function') pintarSeloMes();   // o cadeado do botão do mês
 }
 function renderBotaoPremiumDono() {
   const b = document.getElementById('ajBtnPremium');
-  if (b) b.textContent = 'Premium: ' + (premiumAtivo() ? 'LIGADO' : 'desligado');
+  if (b) b.textContent = 'Chave de teste: ' + (chaveDeTesteLigada() ? 'LIGADA' : 'desligada');
+}
+
+// A janela do dono pro que o app está enxergando. Fica aqui, junto do botão,
+// porque os dois têm que contar a MESMA história — foi por estarem separados
+// que a linha dizia 'premium ligado' com o botão dizendo 'desligado'.
+function renderInfoDono() {
+  const fd = document.getElementById('ajFoldDono');
+  if (!fd) return;
+  const dono = (typeof souODono === 'function') && souODono();
+  fd.style.display = dono ? '' : 'none';
+  const inf = document.getElementById('ajDonoInfo');
+  if (!dono || !inf) return;
+  const _log = (typeof usuarioLogado === 'function') && usuarioLogado();
+  const c = lerLS('planoAssinatura', null);
+  // ⚠️ QUAL plano e até quando: sem isto, 'premium desligado' não diz se o SQL
+  // não rodou, se o servidor respondeu 'gratis' ou se a assinatura venceu.
+  const plano = !c ? '<b>sem cópia</b> (nunca perguntou ao servidor)'
+                   : '<b>' + esc(c.plano || '?') + '</b>'
+                     + (c.ate ? ' até ' + esc(String(c.ate).slice(0, 10)) : ' (sem prazo)');
+  // e POR QUE o premium está ligado: pelo plano ou pela chave. Sem isso, o
+  // dono não sabe se está testando o produto ou testando a própria chave.
+  const por = premiumAtivo()
+    ? '<b>ligado</b> (' + (chaveDeTesteLigada() ? 'chave de teste' : 'plano') + ')'
+    : 'desligado';
+  inf.innerHTML = 'Versão <b>' + sentVersao() + '</b> · aparelho <b>' + sentAparelho() + '</b> · '
+                + (emDemo() ? '<b>em demonstração</b>' : 'base real')
+                + ' · premium ' + por
+                + ' · plano ' + plano
+                + ' · sessão ' + (_log ? '<b>ativa</b>' : '<b>NENHUMA</b>')
+                + ' · rede ' + (navigator.onLine ? 'ok' : '<b>fora</b>');
 }
 
 
@@ -5864,33 +5912,7 @@ function abrirAjustes() {
   // URL (?erros=1, ?demo=1, ?semear=1) não funcionam no aplicativo — não há
   // barra de endereço pra digitar. Sem esta gaveta, o app nativo ficava cego
   // justamente pra quem precisa enxergar dentro dele.
-  const fd = document.getElementById('ajFoldDono');
-  if (fd) {
-    const dono = (typeof souODono === 'function') && souODono();
-    fd.style.display = dono ? '' : 'none';
-    const inf = document.getElementById('ajDonoInfo');
-    if (dono && inf) {
-      // ⚠️ O estado do login entrou aqui porque o "Sair da conta" sumiu e não
-      // havia como saber se era bug de tela ou sessão perdida. Mesma cegueira
-      // do OCR e do lembrete: quando o app depende de algo de fora (rede,
-      // câmera, sessão), o dono precisa de uma janela pro que ele está vendo.
-      const _log = (typeof usuarioLogado === 'function') && usuarioLogado();
-      inf.innerHTML = 'Versão <b>' + sentVersao() + '</b> · aparelho <b>' + sentAparelho() + '</b> · '
-                    + (emDemo() ? '<b>em demonstração</b>' : 'base real')
-                    + ' · premium ' + (premiumAtivo() ? '<b>ligado</b>' : 'desligado')
-                    // ⚠️ QUAL plano e ate quando: sem isto, 'premium desligado'
-                    // não diz se o SQL não rodou, se o servidor respondeu
-                    // 'gratis' ou se a assinatura venceu. Três causas, uma tela.
-                    + ' · plano ' + (function () {
-                        const c = lerLS('planoAssinatura', null);
-                        if (!c) return '<b>sem cópia</b> (nunca perguntou ao servidor)';
-                        return '<b>' + esc(c.plano || '?') + '</b>'
-                             + (c.ate ? ' até ' + esc(String(c.ate).slice(0, 10)) : ' (sem prazo)');
-                      })()
-                    + ' · sessão ' + (_log ? '<b>ativa</b>' : '<b>NENHUMA</b>')
-                    + ' · rede ' + (navigator.onLine ? 'ok' : '<b>fora</b>');
-    }
-  }
+  renderInfoDono();
   // ⚠️ O "Salvar nome" ficava sempre ali, ocupando uma fileira inteira pra uma
   // ação que o motorista faz uma vez. Agora só aparece quando o nome MUDA —
   // e aí ele é óbvio, porque surgiu na hora em que fazia sentido.
@@ -7050,7 +7072,7 @@ function plurDia(i) { return DIAS_SEM[i] + (DIAS_MASC[i] ? 's' : 's'); }
 const PLANO_TOLERANCIA_DIAS = 3;   // renovação atrasada não derruba quem pagou
 function premiumAtivo() {
   // 1. a chave de teste, e SÓ nas contas donas
-  if (lerLS('premiumAtivo', false) === true && souODono()) return true;
+  if (chaveDeTesteLigada() && souODono()) return true;
   // 2. a assinatura, do jeito que o servidor contou
   const c = lerLS('planoAssinatura', null);
   if (!c || !c.plano || c.plano === 'gratis') return false;
