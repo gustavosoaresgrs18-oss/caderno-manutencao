@@ -548,7 +548,17 @@ function salvarVeiculos(vs) { salvarLS('veiculos', vs); }
 // salvarLS grava string sem aspas e lerLS faz JSON.parse, que engasga e
 // devolve null. Guardamos e lemos direto, como o streak já faz.
 function vidAtivo()         { try { return localStorage.getItem('veiculoAtivo') || null; } catch (e) { return null; } }
-function setVidAtivo(id)    { try { localStorage.setItem('veiculoAtivo', id); } catch (e) {} }
+// ⚠️ v4.17 — TROCAR DE VEÍCULO AGORA SOBE PRA NUVEM.
+// Qual veículo ele está rodando nunca foi guardado em lugar nenhum: a nuvem
+// ADIVINHAVA pelo campo `ate` na hora de restaurar. Como todo veículo nasce
+// com `ate: null` e adicionar não troca o ativo, com dois veículos os dois
+// tinham `ate: null` e o palpite saía errado — o segundo aparelho abria noutro
+// carro e a tela vinha vazia. O motorista lê isso como 'o app perdeu tudo'.
+// A sincronização é aqui, no único lugar por onde a troca passa (Regra #11).
+function setVidAtivo(id)    {
+  try { localStorage.setItem('veiculoAtivo', id); } catch (e) {}
+  if (typeof sincronizarPerfil === 'function') sincronizarPerfil();
+}
 function veiculoPorId(id)   { return lerVeiculos().find(v => v.id === id) || null; }
 function veiculoAtivo()     { return veiculoPorId(vidAtivo()); }
 function tipoVeiculoAtivo() { const v = veiculoAtivo(); return (v && v.tipo) || getPerfil().veiculo || 'moto'; }
@@ -636,7 +646,9 @@ function sincronizarPerfil() {
       plataformas:       p.plataformas || [],
       reserva_acumulada: lerLS('reservaAcumulada', 0),
       streak:            lerLS('streak', 0),
-      pontos_patente:    lerLS('pontosPatente', 0)
+      pontos_patente:    lerLS('pontosPatente', 0),
+      // qual veículo ele está rodando — FATO guardado, não palpite
+      veiculo_ativo_id:  vidAtivo()
     }, 'usuario_id').catch(function () {});
   }, 1200);
 }
@@ -679,6 +691,21 @@ function maiorKmDia()  {
 // ─── MIGRAÇÃO ────────────────────────────────────────────────
 // Roda 1x. Só ADICIONA: não apaga, não sobrescreve, não reescreve
 // histórico. Rodar duas vezes não faz mal.
+// ⚠️ A REDE DE SEGURANÇA DO VEÍCULO ATIVO (v4.17).
+// Tem garagem mas nenhum veículo ativo? A tela abre VAZIA e o app não explica
+// nada — o motorista lê isso como 'perdi meus dados'. E é pior do que parece:
+// `migrarVeiculos()` volta atrás só quando há veículos E ativo, então sem o
+// ativo ela criaria um veículo DUPLICADO em cima da garagem que já existe.
+// Por isso esta roda ANTES dela.
+// Não inventa nada: só reaponta pra um veículo que já é dele.
+function consertarVeiculoAtivo() {
+  const vs = lerVeiculos();
+  if (!vs.length) return;                       // sem garagem, quem resolve é migrarVeiculos()
+  if (vs.some(function (v) { return v.id === vidAtivo(); })) return;   // já aponta pra um que existe
+  const bom = vs.find(function (v) { return !v.ate; }) || vs[0];
+  if (bom) setVidAtivo(bom.id);                 // e sobe pra nuvem, pelo próprio setVidAtivo
+}
+
 function migrarVeiculos() {
   if (lerVeiculos().length > 0 && vidAtivo()) return;
   const p = getPerfil();
@@ -1107,6 +1134,7 @@ function iniciarApp(perfil) {
   if (perfil.reservaManutKm === undefined) { perfil.reservaManutKm = perfil.veiculo === 'carro' ? 0.15 : 0.12; mudou = true; }
   if (perfil.reservaObjetivo === undefined) { perfil.reservaObjetivo = 0; mudou = true; }
   if (mudou) salvarLS('perfilUsuario', perfil);
+  consertarVeiculoAtivo();   // ANTES da migração: ver o comentário da função
   migrarVeiculos();   // 1x: cria o veículo 1 e carimba o histórico existente
 
   const hora = new Date().getHours();

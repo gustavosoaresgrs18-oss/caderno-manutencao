@@ -518,7 +518,9 @@ async function migrarMotoristaAntigo(userId, forcar) {
         reserva_acumulada: lerLS('reservaAcumulada', 0),
         streak:          lerLS('streak', 0),
         pontos_patente:  lerLS('pontosPatente', 0),
-        migrado_em:      new Date().toISOString()
+        migrado_em:      new Date().toISOString(),
+        // sobe junto na migração: quem já usa o app não pode ficar sem isto
+        veiculo_ativo_id: (typeof vidAtivo === 'function' ? vidAtivo() : null)
       }, { onConflict: 'usuario_id' });
       if (error) erros.push('perfil: ' + error.message);
     }
@@ -733,7 +735,11 @@ async function restaurarDoSupabase(userId) {
     }
 
     // 2. VEÍCULOS
-    const { data: veics } = await sb.from('veiculos').select('*').eq('usuario_id', userId);
+    // ⚠️ COM .order(). Sem ela o Postgres devolve na ordem física da tabela, e
+    // o desempate abaixo virava sorteio. Mesma lição das finanças, logo abaixo:
+    // ordem indefinida sempre vira bug que só aparece no segundo aparelho.
+    const { data: veics } = await sb.from('veiculos').select('*')
+      .eq('usuario_id', userId).order('desde', { ascending: true });
     if (veics && veics.length) {
       achouAlgo = true;
       const veiculos = veics.map(v => ({
@@ -743,10 +749,16 @@ async function restaurarDoSupabase(userId) {
         desde: v.desde || null, ate: v.ate || null
       }));
       salvarLS('veiculos', veiculos);
-      const ativo = veiculos.find(v => !v.ate) || veiculos[0];
+      // ⚠️ A ORDEM DAS TENTATIVAS É O CONSERTO.
+      // 1ª  o que o motorista ESCOLHEU (fato, gravado no perfil)
+      // 2ª  só então o palpite antigo, pra conta velha que nunca gravou isso
+      // 3ª  e nunca fica sem nenhum: sem veículo ativo a tela abre VAZIA, que é
+      //     o que fazia ele achar que o app tinha perdido os dados dele.
+      const escolhido = (p && p.veiculo_ativo_id)
+                        ? veiculos.find(v => v.id === p.veiculo_ativo_id) : null;
+      const ativo = escolhido || veiculos.find(v => !v.ate) || veiculos[0];
       if (ativo) localStorage.setItem('veiculoAtivo', ativo.id);   // mesma regra do script.js: string pura, sem JSON
     }
-
     // 3. FINANÇAS
     // ⚠️ SEM .order() o Postgres devolve na ordem física da tabela. E o app
     // inteiro trata `historico[0]` como "o mais recente": o extrato mostra "os
