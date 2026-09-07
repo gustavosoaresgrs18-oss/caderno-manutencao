@@ -429,12 +429,17 @@ async function buscarPlano(userId) {
   if (!id) return null;
   try {
     const { data, error } = await getSB()
-      .from('perfil').select('plano, premium_ate')
+      .from('perfil').select('plano, premium_ate, veiculos_max')
       .eq('usuario_id', id).maybeSingle();
     // ⚠️ Erro de rede NÃO derruba o plano guardado. Sem isto, ficar sem sinal
     // no dia do pagamento cancelaria a assinatura de quem pagou.
     if (error || !data) return null;
     const c = { plano: data.plano || 'gratis', ate: data.premium_ate || null,
+                // ⚠️ Vem na MESMA viagem de propósito. Numa segunda consulta
+                // haveria a janela em que o app já sabe o plano e ainda não
+                // sabe quantos veículos cabem — e travaria o 3º veículo de
+                // quem pagou por ele.
+                veiculosMax: data.veiculos_max,
                 em: new Date().toISOString() };
     salvarLS('planoAssinatura', c);
     return c;
@@ -731,6 +736,7 @@ async function restaurarDoSupabase(userId) {
       // Trocou de celular: a assinatura vem junto, na mesma viagem.
       salvarLS('planoAssinatura', { plano: p.plano || 'gratis',
                                     ate: p.premium_ate || null,
+                                    veiculosMax: p.veiculos_max,
                                     em: new Date().toISOString() });
     }
 
@@ -746,7 +752,8 @@ async function restaurarDoSupabase(userId) {
         id: v.id, tipo: v.tipo || 'moto', modelo: v.modelo || '', placa: v.placa || '',
         odo: v.odo != null ? v.odo : null,
         reservaManutKm: v.reserva_manut_km != null ? v.reserva_manut_km : null,
-        desde: v.desde || null, ate: v.ate || null
+        desde: v.desde || null, ate: v.ate || null,
+        arquivado: v.arquivado === true
       }));
       salvarLS('veiculos', veiculos);
       // ⚠️ A ORDEM DAS TENTATIVAS É O CONSERTO.
@@ -754,9 +761,13 @@ async function restaurarDoSupabase(userId) {
       // 2ª  só então o palpite antigo, pra conta velha que nunca gravou isso
       // 3ª  e nunca fica sem nenhum: sem veículo ativo a tela abre VAZIA, que é
       //     o que fazia ele achar que o app tinha perdido os dados dele.
+      // ⚠️ E nunca num ARQUIVADO: ele vendeu esse carro. Abrir o app no carro
+      // que ele não tem mais é a mesma tela vazia por outro caminho.
+      const garagem = veiculos.filter(function (v) { return !v.arquivado; });
+      const pool    = garagem.length ? garagem : veiculos;   // só arquivados? melhor um que nenhum
       const escolhido = (p && p.veiculo_ativo_id)
-                        ? veiculos.find(v => v.id === p.veiculo_ativo_id) : null;
-      const ativo = escolhido || veiculos.find(v => !v.ate) || veiculos[0];
+                        ? pool.find(v => v.id === p.veiculo_ativo_id) : null;
+      const ativo = escolhido || pool.find(v => !v.ate) || pool[0];
       if (ativo) localStorage.setItem('veiculoAtivo', ativo.id);   // mesma regra do script.js: string pura, sem JSON
     }
     // 3. FINANÇAS

@@ -278,11 +278,17 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .btn-secundario:active{ transform:scale(.99); }
 .fin-hist-titulo{ font-size:var(--f1); color:var(--dim); text-transform:uppercase; letter-spacing:.06em; font-weight:700; margin-bottom:10px; }
 .fin-hist-lista{ display:flex; flex-direction:column; gap:8px; }
-.fin-hist-item{ background:var(--elev); border:1px solid var(--line); border-radius:13px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; }
+/* ⚠️ v4.20 — o valor quebrava em duas linhas ("-R$" / "584,00") quando o dia
+   tinha despesa e a linha de detalhe ficava longa. E o detalhe quebrava
+   separando rótulo de número ("Desp R$" / "622"). */
+.fin-hist-item{ background:var(--elev); border:1px solid var(--line); border-radius:13px; padding:12px 14px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.fin-hist-item > :first-child{ min-width:0; }
+.fin-hist-item > :last-child{ flex:0 0 auto; }
 .fin-hist-data{ font-size:var(--f2); font-weight:700; color:var(--text); }
 .fin-hist-sub{ font-size:var(--f1); color:var(--faint); margin-top:2px; }
-.fin-hist-lucro{ font-family:'Sora'; font-size:var(--f4); font-weight:800; color:var(--money); text-align:right; }
-.fin-hist-receita{ font-size:var(--f1); color:var(--faint); margin-top:2px; text-align:right; }
+.fin-hist-sub i{ white-space:nowrap; font-style:normal; }
+.fin-hist-lucro{ font-family:'Sora'; font-size:var(--f4); font-weight:800; color:var(--money); text-align:right; white-space:nowrap; }
+.fin-hist-receita{ font-size:var(--f1); color:var(--faint); margin-top:2px; text-align:right; white-space:nowrap; }
 .fin-preview{ background:#0e1620; border-radius:11px; padding:12px 14px; margin-bottom:8px; display:flex; flex-direction:column; gap:8px; }
 .fin-preview-linha{ display:flex; justify-content:space-between; font-size:var(--f2); color:var(--dim); }
 .fin-preview-linha.destaque{ border-top:1px solid var(--line); padding-top:8px; font-size:var(--f3); color:var(--text); }
@@ -644,14 +650,28 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .nav-badge{ position:absolute; top:2px; right:12px; min-width:16px; height:16px; padding:0 4px; background:var(--danger); color:#fff; font-size:var(--f1); font-weight:800; border-radius:9px; display:flex; align-items:center; justify-content:center; box-shadow:0 0 0 2px #0E141B; }
 
 /* ── HERO DO LUCRO DO DIA (Finanças) ── */
-.fin-hero{ background:linear-gradient(160deg,#0e2618,#141b23 65%); border:1.5px solid rgba(0,224,138,.35); border-radius:18px; padding:20px 18px; margin-bottom:14px; box-shadow:0 8px 30px rgba(0,224,138,.08); }
+/* ⚠️ v4.20 — A MOLDURA SEGUE O NÚMERO.
+   O card era SEMPRE verde: borda verde, brilho verde, fundo esverdeado — e
+   exibia "−R$ 584,00" em vermelho dentro dele. Numa olhada de 2 segundos a
+   moldura vence o número, e o motorista lê "deu certo" num dia de prejuízo.
+   É a regra sagrada nº 4 pelo avesso: cor que não corresponde ao fato.
+   Três estados, os mesmos do banner do Início (v4.12/4.18). */
+.fin-hero{ background:linear-gradient(160deg,#0e2618,#141b23 65%); border:1.5px solid rgba(0,224,138,.35); border-radius:18px; padding:20px 18px; margin-bottom:14px; box-shadow:0 8px 30px rgba(0,224,138,.08); transition:border-color .25s ease, box-shadow .25s ease, background .25s ease; }
+.fin-hero.neg{ background:linear-gradient(160deg,#2a1317,#141b23 65%); border-color:rgba(255,90,95,.35); box-shadow:0 8px 30px rgba(255,90,95,.08); }
+/* dia de gasto grande (tanque/aluguel): nem verde nem vermelho — o vermelho
+   ali seria alarme falso, e alarme falso ensina a ignorar os de verdade. */
+.fin-hero.neutro{ background:linear-gradient(160deg,#1a2029,#141b23 65%); border-color:var(--line); box-shadow:none; }
 .fh-label{ font-size:var(--f1); font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); text-align:center; }
 .fh-valor{ font-family:'Sora'; font-size:44px; font-weight:800; color:var(--money); text-align:center; margin:6px 0 2px; line-height:1; letter-spacing:-.02em; }
+.fin-hero.neg    .fh-valor{ color:var(--danger); }
+.fin-hero.neutro .fh-valor{ color:var(--dim); }
 .fh-sub{ font-size:var(--f2); color:var(--dim); text-align:center; margin-bottom:14px; }
 .fh-detalhes{ display:grid; grid-template-columns:1fr 1fr; gap:6px 14px; padding-top:12px; border-top:1px solid rgba(255,255,255,.06); }
-.fh-det{ display:flex; justify-content:space-between; align-items:baseline; font-size:var(--f2); }
-.fh-det .k{ color:var(--faint); }
-.fh-det .v{ font-family:'Sora'; font-weight:700; color:var(--text); }
+/* ⚠️ `gap:8px` e `nowrap`: sem eles o rótulo encostava no valor e saía
+   "Taxa plataforma- R$ 43,00", sem espaço, parecendo um traço do texto. */
+.fh-det{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:var(--f2); min-width:0; }
+.fh-det .k{ color:var(--faint); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.fh-det .v{ font-family:'Sora'; font-weight:700; color:var(--text); white-space:nowrap; flex:0 0 auto; }
 
 /* ── BOTÃO PÍLULA REGISTRAR (Finanças) ── */
 .btn-registrar-pill{ margin-bottom:14px; }
@@ -1289,10 +1309,28 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
   padding:7px 11px; border-radius:9px; border:1px solid var(--line); background:var(--elev);
   margin-bottom:5px; cursor:pointer; transition:border-color .15s; }
 .aj-veic.ativo { border-color:var(--money); }
-.aj-veic-nome { font-weight:600; color:var(--text); font-size:var(--f3); }
+/* modelo em cima, placa embaixo: "voyage confortline 1.6 · QNJ0650" não cabe
+   numa linha só e quebrava, deixando a linha do ativo mais alta que a outra. */
+.aj-veic-txt { min-width:0; flex:1 1 auto; }
+.aj-veic-nome { font-weight:600; color:var(--text); font-size:var(--f3);
+  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.aj-veic-placa { font-size:var(--f1); color:var(--dim); margin-top:1px; letter-spacing:.04em; }
 .aj-veic-tag { font-size:var(--f1); padding:3px 9px; border-radius:20px; background:var(--money);
   color:#00160E; font-weight:700; white-space:nowrap; }
 .aj-veic-tag.trocar { background:transparent; border:1px solid var(--line); color:var(--dim); font-weight:600; }
+/* v4.19 — tirar da garagem (arquivar). O × fica discreto de propósito: é ação
+   rara, e botão vermelho gritando ao lado de cada carro faria o motorista achar
+   que vai apagar o histórico dele. */
+/* ⚠️ v4.21 — A BAIXA GANHOU PALAVRA. Era um × cinza, do mesmo tamanho e da
+   mesma cor do "trocar ›", colado nele. Um troca de veículo (reversível,
+   cotidiano); o outro dá baixa (definitiva). Ícone sem rótulo numa ação
+   definitiva é convite a errar — ninguém adivinha o que aquele × faz. */
+.aj-veic-arq { background:transparent; border:1px solid transparent; border-radius:20px;
+  padding:3px 9px; margin-left:2px; color:var(--faint); cursor:pointer; white-space:nowrap;
+  font-size:var(--f1); font-weight:600; font-family:'Inter',sans-serif; }
+.aj-veic-arq:hover, .aj-veic-arq:active { color:var(--danger); border-color:rgba(255,90,95,.35); }
+.aj-veic.arquivado { opacity:.55; border-style:dashed; }
+.aj-veic.arquivado .aj-veic-nome { font-weight:500; color:var(--dim); }
 
 /* botões moto/carro no + adicionar veículo (engrenagem) */
 .aj-tipo-btn { flex:1; padding:9px; border-radius:10px; border:1px solid var(--line);
@@ -1344,7 +1382,14 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .aj-fold[open] > summary::after{ transform:rotate(90deg); }
 .aj-fold > summary:active{ background:var(--elev2); border-radius:12px; }
 .aj-fold-corpo{ padding:2px 11px 11px; }
-.aj-fold-perigo > summary{ color:var(--danger); opacity:.85; }
+/* ⚠️ v4.21 — QUATRO SEÇÕES, QUATRO LINGUAGENS. Perfil e Veículos eram caixas
+   com ícone; "Apagar dados" era uma linha VERMELHA inteira; "Ferramentas do
+   dono", ROXA inteira. Cada seção parecia de um app diferente, e o vermelho
+   gritava num item que ele usa uma vez na vida.
+   Agora o cabeçalho é sempre igual — a cor mora no CONTEÚDO (o botão perigoso
+   continua vermelho) e no ÍCONE, que sinaliza sem gritar. */
+.aj-fold-perigo > summary{ color:var(--dim); }
+.aj-fold-perigo > summary .ico{ color:var(--danger); }
 
 /* ══════════ RELATÓRIO DO MÊS — a carta do Isaac ══════════
    Tipografia de CARTA, não de painel: linha alta, largura confortável,
@@ -1596,7 +1641,8 @@ body.com-tarja-demo .dashboard{ padding-top:calc(44px + env(safe-area-inset-top)
 .prem-pe b{ color:var(--money); }
 
 /* gaveta de ferramentas do dono — invisível pro motorista */
-.aj-fold-dono > summary{ color:var(--purple); }
+.aj-fold-dono > summary{ color:var(--dim); }
+.aj-fold-dono > summary .ico{ color:var(--purple); }
 .aj-dono-btn{ width:100%; margin-bottom:9px; color:var(--purple);
   border-color:rgba(155,107,255,.45); }
 

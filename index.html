@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=430">
+    <link rel="stylesheet" href="style.css?v=435">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=430"></script>
+    <script src="supabase-service.js?v=435"></script>
   </head>
   <body>
 
@@ -495,6 +495,10 @@
             <div class="fh-det"><span class="k">Combustível</span><span class="v num" style="color:var(--danger)" id="finCombustivel">—</span></div>
             <div class="fh-det"><span class="k">Lucro/km</span><span class="v num" style="color:var(--info)" id="finLucroKm">—</span></div>
           </div>
+          <!-- ⚠️ v4.20 — a MESMA explicação do Início. Antes, um dia de tanque
+               ou de aluguel aparecia cinza e explicado no Início e vermelho e
+               mudo aqui: duas telas, o mesmo dinheiro, dois veredictos. -->
+          <div class="aviso-tanque" id="finAvisoFora" style="display:none; margin-top:12px;"></div>
         </div>
 
         <!-- BOTÃO PÍLULA REGISTRAR -->
@@ -653,6 +657,12 @@
           <button type="button" class="desp-chip" data-cat="lavagem"><svg class="ico"><use href="#i-lavagem"></use></svg> Lavagem</button>
           <button type="button" class="desp-chip" data-cat="estacionamento"><svg class="ico"><use href="#i-estacionar"></use></svg> Estacionamento</button>
           <button type="button" class="desp-chip" data-cat="internet"><svg class="ico"><use href="#i-celular"></use></svg> Internet</button>
+          <!-- ⚠️ ALUGUEL (v4.18): o maior gasto de quem aluga o carro pra rodar.
+               Sem esta categoria ele lançava R$ 600 como "Outro", toda semana, e o
+               relatório do mês engolia isso dentro de "despesas", sem nome. Pior:
+               quem não lançava ficava com o custo por km baixo demais — e
+               subestimar custo é a direção perigosa deste app. -->
+          <button type="button" class="desp-chip" data-cat="aluguel"><svg class="ico"><use href="#i-chave-porta"></use></svg> Aluguel</button>
           <button type="button" class="desp-chip" data-cat="outro"><svg class="ico"><use href="#i-mais"></use></svg> Outro</button>
         </div>
         <div class="desp-input-row" id="despInputRow" style="display:none;">
@@ -1280,7 +1290,8 @@
                 <button class="modal-btn confirmar" id="ajAddVeicSalvar" style="flex:1;">Salvar</button>
               </div>
             </div>
-            <div class="aj-dica">Toque num veículo pra passar a rodar nele. Trocar e adicionar nunca apagam histórico.</div>
+            <!-- ⚠️ v4.21 — a dica agora é gerada pelo renderVeiculosAjustes(), que sabe
+                 se a garagem está cheia. Fixa aqui, ela empilhava com a outra. -->
           </div>
 
           <!-- ⚠️ Aqui era uma seção "Dados" com 4 botões grandes, 4 parágrafos de
@@ -1352,7 +1363,7 @@
                funcionam dentro do aplicativo: app não tem barra de endereço.
                Foram três chaves construídas que só abriam a porta do site. -->
           <details class="aj-fold aj-fold-dono" id="ajFoldDono" style="display:none;">
-            <summary>Ferramentas do dono</summary>
+            <summary><span><svg class="ico"><use href="#i-olho"></use></svg> Ferramentas do dono</span></summary>
             <div class="aj-fold-corpo">
               <button class="modal-btn cancelar aj-dono-btn" onclick="fecharAjustes(); abrirPainelErros();">Sentinela · ver erros</button>
               <button class="modal-btn cancelar aj-dono-btn" onclick="fecharAjustes(); entrarNaDemo();">Entrar no modo demonstração</button>
@@ -1381,7 +1392,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=430"></script>
+    <script src="script.js?v=435"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra

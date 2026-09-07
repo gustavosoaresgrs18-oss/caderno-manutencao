@@ -561,6 +561,51 @@ function setVidAtivo(id)    {
 }
 function veiculoPorId(id)   { return lerVeiculos().find(v => v.id === id) || null; }
 function veiculoAtivo()     { return veiculoPorId(vidAtivo()); }
+
+// ═══════════════════════════════════════════════════════════════
+//  QUANTOS VEÍCULOS CABEM (v4.19)
+//  ─────────────────────────────────────────────────────────────
+//  Decisão do dono: 2 inclusos; do 3º em diante ele compra por veículo.
+//
+//  ⚠️ NÃO é o plano. Um motorista 'gratis' pode ter comprado o 3º veículo,
+//  e um 'premium' pode seguir com 2. Se fossem a mesma coisa, quem quisesse
+//  o 3º carro seria obrigado a comprar a lupa junto — e aí a trava vira
+//  pedágio, não produto.
+//
+//  ⚠️ E conta a GARAGEM, não o histórico. Veículo arquivado (vendeu o carro)
+//  não ocupa vaga: senão quem troca de carro a cada dois anos vira refém do
+//  próprio passado — pagaria por um carro que não tem mais.
+const VEICULOS_INCLUSOS = 2;
+function limiteVeiculos() {
+  const c = lerLS('planoAssinatura', null);
+  const n = c ? Number(c.veiculosMax) : NaN;
+  return (n >= 1 && n <= 50) ? n : VEICULOS_INCLUSOS;
+}
+function veiculosNaGaragem()  { return lerVeiculos().filter(function (v) { return !v.arquivado; }); }
+function veiculosArquivados() { return lerVeiculos().filter(function (v) { return  v.arquivado; }); }
+function cabeMaisVeiculo()    { return veiculosNaGaragem().length < limiteVeiculos(); }
+
+// Arquivar NÃO é apagar: o histórico daquele carro é dinheiro que saiu do
+// bolso dele, e todo registro aponta pro veículo pelo `vid`. Some da garagem,
+// continua na conta.
+// Devolve null quando deu certo, ou o motivo (texto) quando não pode.
+function arquivarVeiculo(vid, arquivar) {
+  const vs = lerVeiculos();
+  const v  = vs.find(function (x) { return x.id === vid; });
+  if (!v) return 'Veículo não encontrado.';
+  if (arquivar) {
+    // ⚠️ Arquivar o ativo deixaria o app SEM veículo ativo — que é exatamente
+    // a tela vazia que a v4.17 acabou de fechar. Ele troca primeiro.
+    if (vid === vidAtivo()) return 'Esse é o veículo em que você está rodando. Toque em outro pra passar a rodar nele, e aí dê baixa neste.';
+    if (veiculosNaGaragem().length <= 1) return 'É o único veículo da sua garagem.';
+  } else if (!cabeMaisVeiculo()) {
+    return 'Sua garagem já está cheia (' + limiteVeiculos() + ' veículos).';
+  }
+  v.arquivado = !!arquivar;
+  salvarVeiculos(vs);
+  sincronizarVeiculo(v);
+  return null;
+}
 function tipoVeiculoAtivo() { const v = veiculoAtivo(); return (v && v.tipo) || getPerfil().veiculo || 'moto'; }
 function iconeDoTipo(t)     { return ico(t === 'carro' ? 'carro' : 'moto'); }
 function fmtKm(n)           { return Number(n || 0).toLocaleString('pt-BR'); }
@@ -659,7 +704,8 @@ function sincronizarVeiculo(v) {
     modelo: v.modelo || '', placa: v.placa || '',
     odo: (v.odo != null ? v.odo : null),
     reserva_manut_km: (v.reservaManutKm != null ? v.reservaManutKm : null),
-    desde: v.desde || null, ate: v.ate || null
+    desde: v.desde || null, ate: v.ate || null,
+    arquivado: !!v.arquivado          // vendeu o carro: sai da garagem, fica no histórico
   }, 'id').catch(function () {});
 }
 // procura, entre os OUTROS veículos, um cujo painel bate com o número digitado
@@ -699,7 +745,7 @@ function maiorKmDia()  {
 // Por isso esta roda ANTES dela.
 // Não inventa nada: só reaponta pra um veículo que já é dele.
 function consertarVeiculoAtivo() {
-  const vs = lerVeiculos();
+  const vs = veiculosNaGaragem();               // arquivado não vale como ativo
   if (!vs.length) return;                       // sem garagem, quem resolve é migrarVeiculos()
   if (vs.some(function (v) { return v.id === vidAtivo(); })) return;   // já aponta pra um que existe
   const bom = vs.find(function (v) { return !v.ate; }) || vs[0];
@@ -4033,7 +4079,45 @@ function ajustarValorDoArco(el) {
 // conta de consumo escondida no texto, e aí o app teria duas verdades de novo
 // (foi o bug da v3.97). Ele diz o que É fato: o dinheiro virou tanque, e o
 // tanque roda os próximos dias.
-function pintarAvisoTanque(mostrar, combHoje, semComb) {
+// ═══════════════════════════════════════════════════════════════
+//  GASTO QUE NÃO É DO DIA (v4.18 — generaliza o "dia de tanque" da v4.12)
+//  ─────────────────────────────────────────────────────────────
+//  Dois gastos derrubam o dia no vermelho sem que o dia tenha sido ruim:
+//    • o TANQUE  — o combustível roda os próximos dias
+//    • o ALUGUEL — cobre a semana inteira, não a segunda-feira
+//  A regra é a mesma, então ela mora num lugar só. Copiar a do tanque pro
+//  aluguel seria a 2ª cópia da mesma regra — e regra copiada é regra que vai
+//  divergir (Regra #11, a mesma lição das duas telas de abastecimento).
+function despesaHojeDaCategoria(cat) {
+  return lerDespesasDia(hojeISO())
+    .filter(function (d) { return d.cat === cat; })
+    .reduce(function (s, d) { return s + (d.valor || 0); }, 0);
+}
+// De quantos em quantos dias ele paga o aluguel — MEDIDO do histórico dele.
+// Com menos de dois pagamentos não dá pra saber, e aí o app não fala em prazo
+// nenhum: dizer "cobre 7 dias" sem ter medido seria inventar (Regra nº 2).
+function cicloDoAluguel() {
+  const todas = lerLS('despesasPorDia', {});
+  const dias = Object.keys(todas).filter(function (iso) {
+    return (todas[iso] || []).some(function (d) { return d.cat === 'aluguel'; });
+  }).sort();
+  if (dias.length < 2) return null;
+  const a = new Date(dias[dias.length - 2] + 'T12:00:00');
+  const b = new Date(dias[dias.length - 1] + 'T12:00:00');
+  const n = Math.round((b - a) / 86400000);
+  return (n >= 1 && n <= 45) ? n : null;
+}
+// Devolve os gastos de hoje que não são do dia, e quanto somam.
+function gastosQueNaoSaoDoDia() {
+  const itens = [];
+  const comb = combustívelHoje();
+  if (comb > 0) itens.push({ cat: 'tanque',  valor: comb });
+  const alug = despesaHojeDaCategoria('aluguel');
+  if (alug > 0) itens.push({ cat: 'aluguel', valor: alug });
+  return { itens: itens, soma: itens.reduce(function (s, i) { return s + i.valor; }, 0) };
+}
+
+function pintarAvisoTanque(mostrar, itens, semEles) {
   let cx = document.getElementById('avisoTanqueDia');
   if (!cx) {
     const bd = document.getElementById('gaugeBreakdown');
@@ -4045,24 +4129,45 @@ function pintarAvisoTanque(mostrar, combHoje, semComb) {
   }
   if (!mostrar) { cx.style.display = 'none'; cx.innerHTML = ''; return; }
 
-  // quantos dias esse tanque cobre, SE o app souber o custo por km dele.
-  // Sem esse número medido, não estima — só diz que o tanque continua lá.
-  const ckm = (typeof combustivelKmMes === 'function') ? combustivelKmMes() : 0;
+  const comb = (itens.find(function (i) { return i.cat === 'tanque';  }) || {}).valor || 0;
+  const alug = (itens.find(function (i) { return i.cat === 'aluguel'; }) || {}).valor || 0;
+
+  // POR QUANTO TEMPO cada um dura — sempre MEDIDO, nunca estimado.
+  // Sem base pra medir, o app cala sobre o prazo e diz só o fato.
+  let dTanque = '';
+  const ckm   = (typeof combustivelKmMes === 'function') ? combustivelKmMes() : 0;
   const kmDia = (typeof mediaKmPorDia === 'function') ? mediaKmPorDia() : null;
-  let quanto = '';
-  if (ckm > 0 && kmDia > 0) {
-    const dias = Math.round(combHoje / (ckm * kmDia));
-    if (dias >= 2 && dias <= 30) quanto = ' — dá pra uns <b>' + dias + ' dias</b> de rua';
+  if (comb > 0 && ckm > 0 && kmDia > 0) {
+    const d = Math.round(comb / (ckm * kmDia));
+    if (d >= 2 && d <= 30) dTanque = ' — dá pra uns <b>' + d + ' dias</b> de rua';
   }
+  let dAluguel = '';
+  const ciclo = cicloDoAluguel();
+  if (ciclo) dAluguel = ' — <b>' + ciclo + ' dias</b> de carro, pelo seu histórico';
+
   // ⚠️ A 1ª versão dizia "Dia de tanque, NÃO DIA RUIM" — e o teste pegou o app
   // afirmando isso num dia de R$ 29. O app não sabe se o dia foi bom; ele sabe
   // de onde veio o vermelho. Julgar é papel dele, não meu (Regra nº 2 no
   // espírito: não afirmar o que não dá pra medir).
+  let frase;
+  if (comb > 0 && alug > 0) {
+    frase = ico('chave-porta') + ' <b>' + fmtBRL(alug) + ' de aluguel</b> e '
+          + fmtBRL(comb) + ' de tanque sairam hoje. '
+          + 'Sem eles, o dia fechou em <b>' + fmtBRL(semEles) + '</b>. '
+          + 'Nenhum dos dois acaba hoje.';
+  } else if (alug > 0) {
+    frase = ico('chave-porta') + ' <b>' + fmtBRL(alug) + ' foi o aluguel.</b> '
+          + 'Sem ele, o dia fechou em <b>' + fmtBRL(semEles) + '</b>'
+          + dAluguel + '. Esse aluguel nao e so de hoje.';
+  } else {
+    frase = ico('bomba') + ' <b>' + fmtBRL(comb) + ' foi tanque.</b> '
+          + 'Sem ele, o dia fechou em <b>' + fmtBRL(semEles) + '</b>'
+          + dTanque + '. Esse combustivel nao acabou hoje.';
+  }
   cx.style.display = 'block';
-  cx.innerHTML = ico('bomba') + ' <b>' + fmtBRL(combHoje) + ' foi tanque.</b> '
-               + 'Sem ele, o dia fechou em <b>' + fmtBRL(semComb) + '</b>'
-               + quanto + '. Esse combustível não acabou hoje.';
+  cx.innerHTML = frase;
 }
+
 
 // média de km por dia dos últimos dias registrados — serve só pra dizer
 // "esse tanque dá uns X dias". Devolve null quando não há base.
@@ -4108,13 +4213,22 @@ function atualizarBannerLucro() {
   // Regra Sagrada nº 4: vermelho é alerta REAL, nunca convite. Vermelho num
   // dia bom é alarme falso — e alarme falso ensina o motorista a ignorar os
   // alertas de verdade, inclusive os que importam.
-  const _combHoje = combustívelHoje();
-  const _semComb  = receita - recs.reduce((s, r) => s + r.taxa + (r.desp || 0), 0);
-  // só é "dia de tanque" quando o abastecimento é o ÚNICO motivo do vermelho
-  const _diaDeTanque = lucro < 0 && _combHoje > 0 && _semComb > 0;
+  // ⚠️ POR QUE A CONTA MUDOU DE FORMA. Antes era
+  //     _semComb = receita − Σ(taxa + desp)
+  // que não usa o lucro — e por isso podia NÃO FECHAR com o número grande que
+  // está na tela, que é `lucro` (campo GUARDADO, que a restauração da nuvem às
+  // vezes recalcula). O motorista lê "−R$ 15" em cima e "sem ele, R$ 151"
+  // embaixo e soma de cabeça: 151 − 166 tem que dar −15. Se não der, ele não
+  // desconfia do campo guardado — desconfia do app inteiro. Mesma lição da
+  // v3.43/44 e da carta do mês: a conta precisa fechar NA TELA.
+  // Como lucro = receita − taxa − comb − desp, tirar um gasto é somá-lo de volta.
+  const _fora     = gastosQueNaoSaoDoDia();
+  const _semEles  = lucro + _fora.soma;
+  // só é "dia de gasto grande" quando esses gastos são o ÚNICO motivo do vermelho
+  const _diaDeTanque = lucro < 0 && _fora.soma > 0 && _semEles > 0;
   el.style.color = _diaDeTanque ? 'var(--dim)'
                  : (lucro >= 0 ? 'var(--money)' : 'var(--danger)');
-  pintarAvisoTanque(_diaDeTanque, _combHoje, _semComb);
+  pintarAvisoTanque(_diaDeTanque, _fora.itens, _semEles);
   // com dados: tira a linha de dentro do arco (o ponteiro varre ali) e mostra abaixo
   sub.style.display = 'none';
   if (bd) {
@@ -4508,11 +4622,17 @@ function renderExtratoFin() {
   const taxa    = dias.reduce((s,d)=>s+d.taxa,0);
   const desp    = dias.reduce((s,d)=>s+d.desp,0);
   const media   = dias.length ? lucro/dias.length : 0;
+  // ⚠️ v4.20 — UM FORMATO SÓ. Estes seis cartões misturavam "R$ 2.377" (sem
+  // centavos) com "- R$ 524,00" (com centavos), lado a lado na mesma fileira.
+  // O motorista não sabe nomear isso, mas sente como malfeito. Cartão de
+  // resumo é leitura de relance: sem centavos, sempre.
+  // E zero vira "—": "- R$ 0,00" é o app escrevendo "menos zero".
+  const _saida = v => (v > 0 ? '- ' + fmtBRL0(v) : '—');
   document.getElementById('extFinLucro').textContent   = fmtBRL0(lucro);
   document.getElementById('extFinReceita').textContent = fmtBRL0(receita);
-  document.getElementById('extFinTaxa').textContent    = '- ' + fmtBRL(taxa);
-  document.getElementById('extFinComb').textContent    = '- ' + fmtBRL(comb);
-  document.getElementById('extFinDesp').textContent    = '- ' + fmtBRL(desp);
+  document.getElementById('extFinTaxa').textContent    = _saida(taxa);
+  document.getElementById('extFinComb').textContent    = _saida(comb);
+  document.getElementById('extFinDesp').textContent    = _saida(desp);
   document.getElementById('extFinDias').textContent    = dias.length;
   document.getElementById('extFinMedia').textContent   = fmtBRL0(media);
   const lista = document.getElementById('extFinLista');
@@ -4520,8 +4640,8 @@ function renderExtratoFin() {
     ? '<div class="comb-vazio">Nenhuma receita neste período.</div>'
     : dias.map(r => `
       <div class="fin-hist-item">
-        <div><div class="fin-hist-data">${r.data}</div><div class="fin-hist-sub">Receita ${fmtBRL0(r.receita)} · Taxa ${fmtBRL0(r.taxa)} · Comb ${fmtBRL0(r.comb)}${(r.desp||0)>0?' · Desp ' + fmtBRL0(r.desp):''}</div></div>
-        <div><div class="fin-hist-lucro" style="color:${r.lucro>=0?'var(--money)':'var(--danger)'}">${fmtBRL(r.lucro)}</div><div class="fin-hist-receita">lucro líquido</div></div>
+        <div><div class="fin-hist-data">${r.data}</div><div class="fin-hist-sub"><i>Receita ${fmtBRL0(r.receita)}</i> · <i>Taxa ${fmtBRL0(r.taxa)}</i> · <i>Comb ${fmtBRL0(r.comb)}</i>${(r.desp||0)>0?' · <i>Desp ' + fmtBRL0(r.desp)+'</i>':''}</div></div>
+        <div><div class="fin-hist-lucro" style="color:${r.lucro>=0?'var(--money)':'var(--danger)'}">${fmtBRL0(r.lucro)}</div><div class="fin-hist-receita">lucro líquido</div></div>
       </div>`).join('');
   document.getElementById('extFinNext').disabled = extFinOffset >= 0;
   _dadosExtratoFin = { per, dias, lucro, receita, comb, taxa, desp, media };
@@ -6126,17 +6246,82 @@ function fecharAjustes() { document.getElementById('modalAjustes').style.display
 function renderVeiculosAjustes() {
   const box = document.getElementById('ajListaVeic');
   if (!box) return;
-  const vs = lerVeiculos();
-  const at = vidAtivo();
-  if (!vs.length) { box.innerHTML = '<div class="aj-dica">Nenhum veículo cadastrado ainda.</div>'; return; }
-  box.innerHTML = vs.map(function(v) {
-    const ativo = v.id === at;
-    const placa = v.placa ? ' · ' + esc(v.placa) : '';
-    const tag   = ativo ? '<span class="aj-veic-tag">ativo</span>'
-                        : '<span class="aj-veic-tag trocar">trocar ›</span>';
-    return '<div class="aj-veic ' + (ativo ? 'ativo' : '') + '" onclick="trocarVeicAjustes(\'' + v.id + '\')">'
-         + '<span class="aj-veic-nome">' + esc(nomeVeiculo(v)) + placa + '</span>' + tag + '</div>';
-  }).join('');
+  const at  = vidAtivo();
+  const gar = veiculosNaGaragem();
+  const arq = veiculosArquivados();
+  const lim = limiteVeiculos();
+  if (!gar.length && !arq.length) {
+    box.innerHTML = '<div class="aj-dica">Nenhum veículo cadastrado ainda.</div>';
+    pintarBotaoAddVeic(); return;
+  }
+  const linha = function (v, arquivado) {
+    const ativo = !arquivado && v.id === at;
+    // ⚠️ v4.21 — modelo e placa em LINHAS SEPARADAS. Juntos com ' · ' não
+    // cabiam, quebravam, e a linha do ativo ficava mais alta que as outras.
+    const nome = '<span class="aj-veic-txt">'
+               +   '<div class="aj-veic-nome">' + esc(nomeVeiculo(v)) + '</div>'
+               +   (v.placa ? '<div class="aj-veic-placa">' + esc(v.placa) + '</div>' : '')
+               + '</span>';
+    let acao;
+    if (arquivado) {
+      acao = '<button type="button" class="aj-veic-tag trocar" onclick="event.stopPropagation();desarquivarVeicAjustes(\'' + v.id + '\')">voltar a usar</button>';
+    } else if (ativo) {
+      acao = '<span class="aj-veic-tag">ativo</span>';
+    } else {
+      // a baixa vem com PALAVRA, não com ícone: é definitiva.
+      acao = '<span class="aj-veic-tag trocar">trocar ›</span>'
+           + '<button type="button" class="aj-veic-arq" '
+           +   'onclick="event.stopPropagation();arquivarVeicAjustes(\'' + v.id + '\')">dar baixa</button>';
+    }
+    const clique = arquivado ? '' : ' onclick="trocarVeicAjustes(\'' + v.id + '\')"';
+    return '<div class="aj-veic ' + (ativo ? 'ativo' : '') + (arquivado ? ' arquivado' : '') + '"' + clique + '>'
+         + nome + acao + '</div>';
+  };
+  let h = gar.map(function (v) { return linha(v, false); }).join('');
+  // ⚠️ A contagem só aparece quando encosta no limite. Antes disso é ruído:
+  // ninguém precisa saber que existe teto enquanto está longe dele.
+  // ⚠️ v4.21 — UMA DICA SÓ. Eram duas empilhadas (a da garagem cheia + a de
+  // "toque num veículo pra rodar nele") = 4 linhas de cinza embaixo de 2
+  // linhas de conteúdo. A dica ocupava mais tela que a coisa explicada.
+  h += '<div class="aj-dica">'
+     + (gar.length >= lim
+         ? 'Garagem cheia: <b>' + gar.length + ' de ' + lim + '</b>. Vendeu um? Dê baixa nele — o histórico não se perde.'
+         : 'Toque num veículo pra passar a rodar nele. Trocar e adicionar nunca apagam histórico.')
+     + '</div>';
+  if (arq.length) {
+    h += '<div class="aj-dica" style="margin-top:10px;">Com baixa — fora da garagem, mas ainda contando nos seus números:</div>'
+       + arq.map(function (v) { return linha(v, true); }).join('');
+  }
+  box.innerHTML = h;
+  pintarBotaoAddVeic();
+}
+// O botão some quando não cabe mais — botão que só serve pra dar erro é pior
+// que botão que não existe (a mesma regra dos botões de foto).
+function pintarBotaoAddVeic() {
+  const b = document.getElementById('ajBtnAddVeic');
+  if (!b) return;
+  b.style.display = cabeMaisVeiculo() ? '' : 'none';
+}
+function arquivarVeicAjustes(vid) {
+  const v = veiculoPorId(vid);
+  pedirConfirmacao(
+    ico('carro') + ' Dar baixa no veículo',
+    'O ' + (v ? nomeVeiculo(v) : 'veículo') + ' sai da sua garagem e libera uma vaga. '
+    + '<b>Você não vai mais conseguir lançar nada nele.</b><br><br>'
+    + 'O que ele já rodou e já gastou continua na sua conta — se isso sumisse, '
+    + 'os meses que você já fechou mudariam de número.',
+    function () {
+      const erro = arquivarVeiculo(vid, true);
+      if (erro) { toast(erro, 'erro'); return; }
+      renderVeiculosAjustes();
+      toast('Baixa dada. O histórico continua na sua conta.');
+    });
+}
+function desarquivarVeicAjustes(vid) {
+  const erro = arquivarVeiculo(vid, false);
+  if (erro) { toast(erro, 'erro'); return; }
+  renderVeiculosAjustes();
+  toast('De volta pra garagem');
 }
 function trocarVeicAjustes(vid) {
   if (vid === vidAtivo()) return;               // já é o ativo
@@ -6159,6 +6344,19 @@ function ajSelTipo(t) {
   const form = document.getElementById('ajAddVeicForm');
   const erro = document.getElementById('ajAddVeicErro');
   btnAbrir.addEventListener('click', function() {
+    // ⚠️ 2ª trava, e ela é a que vale. O botão some quando a garagem enche,
+    // mas some é aparência: quem chegar aqui por outro caminho tem que bater
+    // na regra, não na tela.
+    if (!cabeMaisVeiculo()) {
+      pedirConfirmacao(
+        ico('carro') + ' Sua garagem está cheia',
+        'Você já tem ' + limiteVeiculos() + ' veículos, que é o que vem incluso. '
+        + 'Se vendeu um deles, dê baixa nele pelo × ao lado — a vaga volta e o histórico '
+        + 'não se perde. Se você roda com mais que isso, dá pra somar veículos à sua conta: '
+        + 'me chama no suporte.',
+        function () { if (typeof abrirSuporte === 'function') abrirSuporte(); });
+      return;
+    }
     btnAbrir.style.display = 'none';
     form.style.display = 'block';
     document.getElementById('ajVeicModelo').value = '';
@@ -6329,6 +6527,7 @@ const CATS_DESPESA = {
   lavagem:        { icon:'lavagem',  label:'Lavagem' },
   estacionamento: { icon:'estacionar', label:'Estacionamento' },
   internet:       { icon:'celular',  label:'Internet/chip' },
+  aluguel:        { icon:'chave-porta', label:'Aluguel do carro' },
   outro:          { icon:'mais',     label:'Outro' },
 };
 let despCatSel = null;
@@ -6342,6 +6541,7 @@ function catPelaDescricao(texto) {
   if (/lavagem/.test(t))         return 'lavagem';
   if (/estacion/.test(t))        return 'estacionamento';
   if (/internet|chip/.test(t))   return 'internet';
+  if (/alugu|loca[çc]/.test(t))  return 'aluguel';
   return 'outro';
 }
 function lerDespesasDia(iso) {
@@ -6531,11 +6731,31 @@ function atualizarTelaFinancas() {
     ['finLucroValor','finReceita','finTaxa','finCombustivel','finLucroKm']
       .forEach(id => document.getElementById(id).textContent = '—');
     document.getElementById('finLucroValor').style.color = 'var(--text)';
+    // sem dia registrado o card volta pro estado neutro — senão fica com a
+    // moldura vermelha de ontem em cima de um traço
+    const _h0 = document.getElementById('tutFinHero');
+    if (_h0) { _h0.classList.remove('neg'); _h0.classList.add('neutro'); }
+    const _a0 = document.getElementById('finAvisoFora');
+    if (_a0) { _a0.style.display = 'none'; _a0.innerHTML = ''; }
     document.getElementById('finLucroSub').textContent = 'Registre sua receita do dia';
     mostrarDesempenho(desempenhoView); return;
   }
+  // ⚠️ v4.20 — O MESMO VEREDICTO DO INÍCIO, PELA MESMA FUNÇÃO.
+  // Antes esta tela só sabia dois estados (verde/vermelho) enquanto o Início
+  // sabia três — e num dia de aluguel ou de tanque as duas se contradiziam:
+  // lá cinza e explicado, aqui vermelho e mudo. Regra em dois lugares é regra
+  // que diverge; agora as duas chamam gastosQueNaoSaoDoDia().
+  const _fora    = (typeof gastosQueNaoSaoDoDia === 'function' && ultimo.dataISO === hojeISO())
+                   ? gastosQueNaoSaoDoDia() : { itens: [], soma: 0 };
+  const _semEles = ultimo.lucro + _fora.soma;
+  const _neutro  = ultimo.lucro < 0 && _fora.soma > 0 && _semEles > 0;
+  const hero = document.getElementById('tutFinHero');
+  if (hero) {
+    hero.classList.toggle('neg',    !_neutro && ultimo.lucro < 0);
+    hero.classList.toggle('neutro', _neutro);
+  }
   document.getElementById('finLucroValor').textContent  = fmtBRL(ultimo.lucro);
-  document.getElementById('finLucroValor').style.color  = ultimo.lucro >= 0 ? 'var(--money)' : 'var(--danger)';
+  document.getElementById('finLucroValor').style.color  = '';   // quem manda é a classe do card
   // mesma regra da tela Início: as parcelas têm que fechar com o total exibido
   document.getElementById('finLucroSub').textContent    = 'Receita ' + fmtBRL(ultimo.receita) + ' · Custos ' + fmtBRL(ultimo.taxa + ultimo.comb + (ultimo.desp || 0));
   document.getElementById('finReceita').textContent     = fmtBRL(ultimo.receita);
@@ -6543,7 +6763,27 @@ function atualizarTelaFinancas() {
   document.getElementById('finCombustivel').textContent = ultimo.comb > 0 ? '- ' + fmtBRL(ultimo.comb) : '—';
   // km do dia: fonte única (kmPorDia). Sem km conhecido, mostra '—' — não inventa.
   const kmCalc = kmDoDia(ultimo.dataISO);
-  document.getElementById('finLucroKm').textContent = (kmCalc && kmCalc > 0) ? fmtBRL((ultimo.lucro / kmCalc)) : '—';
+  // ⚠️ Azul (--info) num valor NEGATIVO de dinheiro contradiz a regra do app:
+  // verde é o que entrou, vermelho é alerta. Lucro/km negativo é alerta.
+  const _elKm = document.getElementById('finLucroKm');
+  const _lkm  = (kmCalc && kmCalc > 0) ? (ultimo.lucro / kmCalc) : null;
+  _elKm.textContent = (_lkm !== null) ? fmtBRL(_lkm) : '—';
+  _elKm.style.color = (_lkm === null) ? 'var(--faint)'
+                    : (_lkm < 0 ? 'var(--danger)' : 'var(--info)');
+  // a explicação, com o MESMO texto do Início (pintarAvisoTanque escreve nele)
+  const _av = document.getElementById('finAvisoFora');
+  if (_av) {
+    if (_neutro) {
+      const _guard = document.getElementById('avisoTanqueDia');
+      // pintarAvisoTanque escreve no elemento do Início; aqui só copiamos o
+      // texto que ela gerou, pra não existir uma 2ª redação da mesma frase.
+      if (typeof pintarAvisoTanque === 'function' && _guard) {
+        pintarAvisoTanque(true, _fora.itens, _semEles);
+        _av.innerHTML = _guard.innerHTML;
+      }
+      _av.style.display = _av.innerHTML ? 'block' : 'none';
+    } else { _av.style.display = 'none'; _av.innerHTML = ''; }
+  }
   mostrarDesempenho(desempenhoView);
 }
 
@@ -9283,12 +9523,21 @@ function gerarTextoCade() {
     // só julga se tiver a média DELE pra comparar
     if (intel.suficiente && intel.mediaGeral > 0 && intel.total >= 3) {
       const dif = ph - intel.mediaGeral;
-      const pct = Math.abs(dif / intel.mediaGeral * 100);
-      if (pct >= 10) {
-        const sinal = dif > 0 ? 'acima' : 'abaixo';
-        p.push(`${D(pct.toFixed(0) + '%', pct.toFixed(0) + ' por cento', dif > 0 ? 'v' : 'a')} ${sinal} da sua média de ${M(intel.mediaGeral)} por hora.`);
+      // ⚠️ v4.20 — PERCENTUAL SÓ VALE COM HORA POSITIVA.
+      // Com a hora negativa (−R$ 97 contra média de R$ 24) a conta cuspia
+      // "503% abaixo da sua média" — e não existe estar mais de 100% abaixo
+      // de nada. O motorista lê isso, sente que está errado, e passa a
+      // desconfiar de TODOS os outros números da tela.
+      if (ph < 0) {
+        p.push(`Sua hora costuma render ${M(intel.mediaGeral)} — hoje ela custou ${M(Math.abs(ph), 'r')} do seu bolso.`);
       } else {
-        p.push(`Dentro da sua média, que é ${M(intel.mediaGeral)} por hora.`);
+        const pct = Math.abs(dif / intel.mediaGeral * 100);
+        if (pct >= 10) {
+          const sinal = dif > 0 ? 'acima' : 'abaixo';
+          p.push(`${D(pct.toFixed(0) + '%', pct.toFixed(0) + ' por cento', dif > 0 ? 'v' : 'a')} ${sinal} da sua média de ${M(intel.mediaGeral)} por hora.`);
+        } else {
+          p.push(`Dentro da sua média, que é ${M(intel.mediaGeral)} por hora.`);
+        }
       }
     }
   }
