@@ -71,13 +71,25 @@
 }
 
 *{ margin:0; padding:0; box-sizing:border-box; }
-html{ overflow-x:hidden; }
+/* ⚠️ v4.26 — DUAS CAIXAS DE ROLAGEM ANINHADAS ERAM A TRAVA.
+   `overflow-x:hidden` estava no html E no body. Pelo CSS, quando overflow-x
+   é hidden o overflow-y computa `auto` — então o BODY virou uma segunda caixa
+   de rolagem dentro da primeira. Ele não tinha nada pra rolar (o conteúdo alto
+   está DENTRO dele, não sobrando dele), e o `overscroll-behavior-y:contain`
+   impedia a rolagem de passar pro html, que era quem tinha os 229px.
+   O medidor no A55 mostrou exatamente isso: 1358 eventos de toque chegando e
+   o topo parado em 0.
+   E explica por que funcionava com um modal aberto: o overlay é position:fixed,
+   fica fora da caixa do body, e aí o gesto vai direto pro viewport.
+
+   Agora existe UMA caixa só. O `overflow-x` do html já propaga pro viewport —
+   é justamente por isso que ele não precisa ser repetido no body. */
+html{ overflow-x:hidden; overscroll-behavior-y:contain; }
 body{
-  overflow-x:hidden; max-width:100vw; overscroll-behavior-x:none;
+  max-width:100vw; overscroll-behavior-x:none;
   background-color:var(--bg); color:var(--text);
   font-family:'Inter', Arial, sans-serif; min-height:100vh;
   -webkit-font-smoothing:antialiased;
-  overscroll-behavior-y:contain;
 }
 .dashboard{ max-width:390px; margin:0 auto; padding:calc(16px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom));
   /* coluna flex + min-height: é o que permite empurrar a assinatura pro pé da

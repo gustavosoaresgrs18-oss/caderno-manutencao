@@ -5342,9 +5342,15 @@ function pintarMedidorRolagem() {
     const sobra = d.scrollHeight - d.clientHeight;
     const el = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
     const ta = el ? getComputedStyle(el).touchAction : '?';
+    const bd = document.body;
+    // ⚠️ mostra as DUAS caixas: foi a segunda (body) que escondeu a trava.
+    const caixas = (getComputedStyle(document.documentElement).overflowY === 'auto' ? 1 : 0)
+                 + (getComputedStyle(bd).overflowY === 'auto' ? 1 : 0);
     cx.textContent =
         'tela   ' + window.innerHeight + '   conteudo ' + d.scrollHeight + '\n'
       + 'sobra  ' + sobra + '   topo ' + Math.round(d.scrollTop) + '\n'
+      + 'body   sobra ' + (bd.scrollHeight - bd.clientHeight) + '  topo ' + Math.round(bd.scrollTop) + '\n'
+      + 'caixas de rolagem: ' + caixas + (caixas > 1 ? '  <-- PROBLEMA' : '') + '\n'
       + 'toque  start ' + _mrStart + '  move ' + _mrMove + '\n'
       + 'meio   ' + (el ? (el.id || el.className || el.tagName).toString().slice(0, 22) : '?') + '\n'
       + 'touch-action ' + ta;
