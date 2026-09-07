@@ -3531,21 +3531,82 @@ function limparCamposAbast() {
 // pedir mais um campo (motorista abastecendo tem pressa), sugere os nomes que
 // ele ja usou: escolheu da lista, o nome sai identico ao anterior — dado
 // limpo sem esforco extra. Digitou um posto novo, funciona como sempre.
-function atualizarListaPostos() {
-  const dl = document.querySelector('#listaPostos');
-  if (!dl) return;
-  const vistos = new Set();
-  const nomes = [];
-  lerLS('historicoAbastecimentos', []).forEach(r => {
+// ⚠️ v4.27 — O DATALIST SOZINHO NÃO BASTA NO CELULAR.
+// A lista existe e funciona, mas o <datalist> do Android só aparece DEPOIS que
+// ele começa a digitar, e nada na tela diz que ela existe. Pro motorista com a
+// bomba ocupada e fila atrás, o problema nunca foi digitar — é não saber que dá
+// pra escolher. Agora os postos que ele mais usa viram CHIPS visíveis: um toque
+// preenche, e o nome sai idêntico ao anterior.
+// O datalist fica, pra quem tem muitos postos e prefere digitar.
+const POSTOS_CHIPS = 4;
+// tira acento e caixa: 'Tupi', 'TUPÍ' e 'tupi ' viram a mesma chave.
+// (a lupa já agrupava por toLowerCase; isto fecha o acento também)
+function chavePosto(nome) {
+  return String(nome || '').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+// os postos dele, do mais usado pro menos — empate desempata pelo mais recente
+function postosUsados() {
+  const mapa = {};
+  lerLS('historicoAbastecimentos', []).forEach(function (r, i) {
     const p = (r.posto || '').trim();
     if (!p) return;
-    const chave = p.toLowerCase();
-    if (vistos.has(chave)) return;   // so a grafia mais recente desse posto entra
-    vistos.add(chave);
-    nomes.push(p);
+    const k = chavePosto(p);
+    if (!mapa[k]) mapa[k] = { nome: p, n: 0, ordem: i };   // grafia MAIS RECENTE
+    mapa[k].n++;
   });
-  dl.innerHTML = nomes.map(n => '<option value="' + esc(n) + '">').join('');
+  return Object.keys(mapa).map(function (k) { return mapa[k]; })
+    .sort(function (a, b) { return b.n - a.n || a.ordem - b.ordem; });
 }
+// Digitou 'posto tupi' e já existe 'Posto Tupi'? Salva com a grafia que já
+// estava. Sem isto, a lista de chips e o extrato mostrariam duas escritas do
+// mesmo posto — a análise fecha certo, mas a TELA parece errada.
+function postoNaGrafiaConhecida(nome) {
+  const t = String(nome || '').trim();
+  if (!t) return null;
+  const k = chavePosto(t);
+  const achou = postosUsados().find(function (p) { return chavePosto(p.nome) === k; });
+  return achou ? achou.nome : t;
+}
+function atualizarListaPostos() {
+  const usados = postosUsados();
+  const dl = document.querySelector('#listaPostos');
+  if (dl) dl.innerHTML = usados.map(function (p) { return '<option value="' + esc(p.nome) + '">'; }).join('');
+  const cx = document.getElementById('postoChips');
+  if (!cx) return;
+  const top = usados.slice(0, POSTOS_CHIPS);
+  // sem posto nenhum ainda? não mostra fileira vazia nem explicação: o campo
+  // já diz o que fazer, e chip vazio é ruído no formulário mais apressado do app
+  cx.innerHTML = top.length
+    ? top.map(function (p) {
+        return '<button type="button" class="posto-chip" data-p="' + esc(p.nome) + '">'
+             + ico('pin') + ' ' + esc(p.nome) + '</button>';
+      }).join('')
+    : '';
+  cx.style.display = top.length ? 'flex' : 'none';
+  cx.querySelectorAll('.posto-chip').forEach(function (b) {
+    b.addEventListener('click', function () {
+      const inp = document.querySelector('#inputPostoTela');
+      // tocar de novo no mesmo chip limpa — senão ele erra e fica sem saída
+      const igual = chavePosto(inp.value) === chavePosto(b.dataset.p);
+      inp.value = igual ? '' : b.dataset.p;
+      pintarPostoChipAtivo();
+    });
+  });
+  pintarPostoChipAtivo();
+}
+function pintarPostoChipAtivo() {
+  const inp = document.querySelector('#inputPostoTela');
+  const k = inp ? chavePosto(inp.value) : '';
+  document.querySelectorAll('#postoChips .posto-chip').forEach(function (b) {
+    b.classList.toggle('ativo', !!k && chavePosto(b.dataset.p) === k);
+  });
+}
+// digitou na mão o nome de um posto que já é chip: o chip acende junto
+(function ligarPostoDigitado() {
+  const inp = document.querySelector('#inputPostoTela');
+  if (inp) inp.addEventListener('input', pintarPostoChipAtivo);
+})();
 let editandoAbastId = null;
 function editarAbastecimento(id) {
   migalha('editar-abastecimento');
@@ -3664,7 +3725,10 @@ document.querySelector('#btnSalvarTela').addEventListener('click', function() {
   const valor  = numBR(document.querySelector('#inputValorTela').value);
   const litros = numBR(document.querySelector('#inputLitrosTela').value) || null;
   const km     = numKm(document.querySelector('#inputKmTela').value) || null;
-  const posto  = document.querySelector('#inputPostoTela').value.trim() || null;
+  // ⚠️ Digitou 'posto tupi' com 'Posto Tupi' já no histórico? Salva na grafia
+  // que já existia. A análise sempre agrupou certo (chave em minúsculas), mas
+  // a TELA mostrava duas escritas do mesmo posto e parecia erro do app.
+  const posto  = postoNaGrafiaConhecida(document.querySelector('#inputPostoTela').value) || null;
   if (!valor || valor <= 0) { toast('Informe o valor gasto', 'erro'); return; }
   if (bloquearSemLogin()) return;   // sem entrar na conta, nao lanca
   if (_lockSalvar) return;
@@ -7790,6 +7854,24 @@ function blocoDaLupa(achados) {
   }).join('');
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  O PRIMEIRO MÊS SAI DE GRAÇA (v4.27)
+//  ─────────────────────────────────────────────────────────────
+//  DECISÃO DO DONO (set/2026). Ler UMA carta inteira converte muito mais que
+//  ler a descrição dela — e o custo é zero: quem não pagaria depois de ler
+//  também não pagaria depois do teaser.
+//
+//  ⚠️ É UM mês, marcado pelo ym, não um contador. Se fosse 'o primeiro que ele
+//  abrir', trocar de aparelho daria outro de brinde; se fosse 'sempre o mais
+//  recente', ele teria um grátis por mês pra sempre e o Premium não existiria.
+//  O mês escolhido é o PRIMEIRO que ele abrir, e fica sendo aquele.
+function mesDeCortesia(ym) {
+  if (!ym) return false;
+  let dado = lerLS('mesCortesia', null);
+  if (!dado) { dado = ym; salvarLS('mesCortesia', dado); }
+  return dado === ym;
+}
+
 function renderRelatorioMes() {
   const m = fecharMes(_mesAberto);
   document.getElementById('mesTitulo').textContent = nomeDoMes(_mesAberto);
@@ -7802,14 +7884,21 @@ function renderRelatorioMes() {
     carta.innerHTML = '<div class="mes-vazio">Não tenho nenhum dia registrado neste mês.</div>';
     lupa.style.display = 'none';
     share.style.display = 'none';
-  } else if (!premiumAtivo()) {
+  } else if (!premiumAtivo() && !mesDeCortesia(m.ym)) {
     // ⚠️ O MÊS INTEIRO é premium — carta E lupa. Não é só a análise: é a
     // leitura do conjunto. O dia continua livre na tela do Isaac.
     carta.innerHTML = blocoTrancadoMes(m, m.magro ? [] : acharNaLupa(_mesAberto));
     share.style.display = 'none';      // não se compartilha o que não se viu
     lupa.style.display = 'none';
   } else {
-    carta.innerHTML = cadeParaHTML(cartaDoMes(m));
+    // ⚠️ Se é o mês de cortesia, ele TEM que saber — senão abre o mês seguinte,
+    // encontra trancado, e sente que tiraram algo dele. Avisar antes é a
+    // diferença entre um presente e uma pegadinha.
+    const _cortesia = !premiumAtivo() && mesDeCortesia(m.ym);
+    carta.innerHTML = (_cortesia
+        ? '<div class="mes-cortesia">\uD83C\uDF81 <b>Este mês é por minha conta.</b> '
+          + 'Leia inteiro, compartilhe se quiser. Os outros meses ficam no Copiloto Premium.</div>'
+        : '') + cadeParaHTML(cartaDoMes(m));
     share.style.display = '';
     // ── A LUPA ──
     // ⚠️ Só aparece quando existe MESMO algo a analisar. Prometer análise num

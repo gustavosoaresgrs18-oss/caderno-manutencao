@@ -993,6 +993,16 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 .desp-chip{ background:var(--elev2); border:1px solid var(--line); color:var(--text); font-size:var(--f2); font-weight:600; padding:8px 12px; border-radius:11px; cursor:pointer; font-family:inherit; }
 .desp-chip.ativo{ border-color:var(--money); color:var(--money); background:rgba(0,224,138,0.08); }
 .desp-chip:active{ transform:scale(0.96); }
+/* v4.27 — chips do posto: mesma família dos chips de despesa, um degrau menor
+   porque ficam DENTRO de um campo de formulário, não são a ação da tela. */
+.posto-chips{ display:flex; flex-wrap:wrap; gap:6px; margin:0 0 6px; }
+.posto-chip{ background:var(--elev2); border:1px solid var(--line); color:var(--dim);
+  font-size:var(--f1); font-weight:600; padding:5px 9px; border-radius:9px; cursor:pointer;
+  font-family:inherit; display:inline-flex; align-items:center; gap:4px; max-width:100%;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.posto-chip .ico{ width:12px; height:12px; flex:0 0 auto; }
+.posto-chip.ativo{ border-color:var(--money); color:var(--money); background:rgba(0,224,138,.08); }
+.posto-chip:active{ transform:scale(.96); }
 .desp-input-row{ display:flex; align-items:center; gap:8px; margin-top:12px; }
 .desp-input-cat{ font-size:var(--f2); font-weight:700; color:var(--money); flex-shrink:0; }
 .desp-input{ flex:1; min-width:0; background:var(--bg); border:1px solid var(--line); border-radius:10px; color:var(--text); font-size:var(--f4); font-family:'Sora'; padding:9px 12px; }
@@ -1469,6 +1479,12 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
   background:var(--elev); border:1px solid var(--line); border-radius:14px;
   padding:16px 15px; }
 .mes-carta b{ color:var(--text); }
+/* v4.27 — o aviso do mês de cortesia. Discreto de propósito: é um presente,
+   não uma propaganda. Verde porque é boa notícia. */
+.mes-cortesia{ background:rgba(0,224,138,.08); border:1px solid rgba(0,224,138,.3);
+  border-radius:12px; padding:10px 12px; margin-bottom:14px;
+  font-size:var(--f2); color:var(--dim); line-height:1.45; }
+.mes-cortesia b{ color:var(--money); }
 .mes-vazio{ font-size:var(--f2); color:var(--faint); text-align:center;
   padding:26px 10px; line-height:1.6; }
 
