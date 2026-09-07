@@ -5285,9 +5285,72 @@ function renderBotaoPremiumDono() {
   if (b) b.textContent = 'Chave de teste: ' + (chaveDeTesteLigada() ? 'LIGADA' : 'desligada');
 }
 
+// o medidor volta a aparecer sozinho se ficou ligado (ele é do dono, e some
+// no logout junto com o resto)
+document.addEventListener('DOMContentLoaded', function () {
+  setTimeout(function () { try { pintarMedidorRolagem(); } catch (e) {} }, 2500);
+});
+
 // A janela do dono pro que o app está enxergando. Fica aqui, junto do botão,
 // porque os dois têm que contar a MESMA história — foi por estarem separados
 // que a linha dizia 'premium ligado' com o botão dizendo 'desligado'.
+// ═══════════════════════════════════════════════════════════════
+//  MEDIDOR DE ROLAGEM (v4.25) — ferramenta do dono, temporária
+//  ─────────────────────────────────────────────────────────────
+//  O motorista relata que a tela não rola com o dedo. No Chromium, com
+//  evento de TOQUE de verdade, ela rola os 172px inteiros — não dá pra
+//  reproduzir fora do aparelho. Então em vez de chutar, mede-se lá dentro.
+//
+//  O número que decide é `move`: se o contador de touchmove NÃO sobe quando
+//  ele arrasta o dedo, alguém está engolindo o evento. Se sobe e o `topo`
+//  fica parado, o evento chega mas a rolagem está travada. São causas
+//  diferentes e o conserto é outro.
+//  Mesma lição do diagnóstico do OCR (v4.08): sem janela pra dentro do
+//  aparelho, a gente fica adivinhando.
+function alternarMedidorRolagem() {
+  if (!souODono()) { toast('Isso não está disponível nesta conta', 'erro'); return; }
+  const ligado = !lerLS('medirRolagem', false);
+  salvarLS('medirRolagem', ligado);
+  pintarMedidorRolagem();
+  toast(ligado ? 'Medidor ligado — arrasta o dedo na tela' : 'Medidor desligado');
+}
+let _mrMove = 0, _mrStart = 0, _mrTimer = null;
+function pintarMedidorRolagem() {
+  const b = document.getElementById('ajBtnMedirRolagem');
+  const on = souODono() && lerLS('medirRolagem', false) === true;
+  if (b) b.textContent = 'Medir rolagem: ' + (on ? 'LIGADO' : 'desligado');
+  let cx = document.getElementById('medidorRolagem');
+  if (!on) {
+    if (cx) cx.remove();
+    clearInterval(_mrTimer); _mrTimer = null;
+    return;
+  }
+  if (!cx) {
+    cx = document.createElement('div');
+    cx.id = 'medidorRolagem';
+    cx.style.cssText = 'position:fixed; left:6px; top:6px; z-index:9999; pointer-events:none;'
+      + 'background:rgba(0,0,0,.82); color:#00E08A; font:600 10px/1.45 monospace;'
+      + 'padding:6px 8px; border-radius:8px; border:1px solid #26313D; white-space:pre;';
+    document.body.appendChild(cx);
+    // passive: só observa, não interfere no que está sendo investigado
+    document.addEventListener('touchstart', function () { _mrStart++; }, { passive: true });
+    document.addEventListener('touchmove',  function () { _mrMove++;  }, { passive: true });
+  }
+  clearInterval(_mrTimer);
+  _mrTimer = setInterval(function () {
+    const d = document.scrollingElement || document.documentElement;
+    const sobra = d.scrollHeight - d.clientHeight;
+    const el = document.elementFromPoint(window.innerWidth / 2, window.innerHeight / 2);
+    const ta = el ? getComputedStyle(el).touchAction : '?';
+    cx.textContent =
+        'tela   ' + window.innerHeight + '   conteudo ' + d.scrollHeight + '\n'
+      + 'sobra  ' + sobra + '   topo ' + Math.round(d.scrollTop) + '\n'
+      + 'toque  start ' + _mrStart + '  move ' + _mrMove + '\n'
+      + 'meio   ' + (el ? (el.id || el.className || el.tagName).toString().slice(0, 22) : '?') + '\n'
+      + 'touch-action ' + ta;
+  }, 250);
+}
+
 function renderInfoDono() {
   const fd = document.getElementById('ajFoldDono');
   if (!fd) return;
@@ -6089,6 +6152,7 @@ function abrirAjustes() {
   // barra de endereço pra digitar. Sem esta gaveta, o app nativo ficava cego
   // justamente pra quem precisa enxergar dentro dele.
   renderInfoDono();
+  pintarMedidorRolagem();   // deixa o botão com o estado certo
   // ⚠️ O "Salvar nome" ficava sempre ali, ocupando uma fileira inteira pra uma
   // ação que o motorista faz uma vez. Agora só aparece quando o nome MUDA —
   // e aí ele é óbvio, porque surgiu na hora em que fazia sentido.

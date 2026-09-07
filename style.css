@@ -185,7 +185,17 @@ body{
 
 /* ── SLIDER TURNO ── */
 .registro-rapido{ margin-bottom:9px; }
-.slider-container{ position:relative; width:100%; height:52px; background:var(--elev); border-radius:26px; border:1.5px solid rgba(0,224,138,.4); overflow:hidden; cursor:pointer; user-select:none; touch-action:none; }
+/* ⚠️ v4.25 — `touch-action:none` VIROU `pan-y`.
+   O `none` diz ao Android "nenhum gesto aqui é meu, não role nada" — o que
+   está certo pro arraste horizontal do slider, mas mata JUNTO o arraste
+   VERTICAL que começa em cima dele. E esta faixa atravessa a tela inteira,
+   exatamente onde o polegar cai: o motorista tentava rolar a tela Início e
+   nada acontecia. Com um modal aberto funcionava, porque aí o dedo tocava no
+   overlay e não no slider — foi assim que o Gustavo achou, e os vídeos do
+   A55 mostram o dedo em cima da faixa.
+   `pan-y` devolve a rolagem vertical ao navegador e mantém o arraste
+   horizontal com o app. */
+.slider-container{ position:relative; width:100%; height:52px; background:var(--elev); border-radius:26px; border:1.5px solid rgba(0,224,138,.4); overflow:hidden; cursor:pointer; user-select:none; touch-action:pan-y; }
 .slider-track{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
 .slider-texto{ font-size:var(--f4); font-weight:800; color:var(--money); pointer-events:none; }
 .slider-thumb{ position:absolute; left:4px; top:50%; transform:translateY(-50%); width:44px; height:44px; background:linear-gradient(135deg,var(--money),var(--money2)); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:var(--f6); color:#04120c; cursor:grab; z-index:2; pointer-events:none; box-shadow:0 6px 18px rgba(0,224,138,.35); }
