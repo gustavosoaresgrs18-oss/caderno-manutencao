@@ -13,16 +13,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Copiloto">
     <meta name="mobile-web-app-capable" content="yes">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- ⚠️ v4.22 — as fontes saíram do Google Fonts e foram pra pasta fontes/.
+         Vinham pela REDE: no APK sem sinal o app perdia a Sora dos números e o
+         alinhamento em coluna do extrato. O @font-face está no topo do style.css. -->
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=435">
+    <link rel="stylesheet" href="style.css?v=437">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=435"></script>
+    <script src="supabase-service.js?v=437"></script>
   </head>
   <body>
 
@@ -491,7 +491,7 @@
           <div class="fh-sub" id="finLucroSub">Registre sua receita do dia</div>
           <div class="fh-detalhes" id="finDetalhes">
             <div class="fh-det"><span class="k">Receita</span><span class="v num" id="finReceita">—</span></div>
-            <div class="fh-det"><span class="k">Taxa plataforma</span><span class="v num" style="color:var(--danger)" id="finTaxa">—</span></div>
+            <div class="fh-det"><span class="k">Taxa</span><span class="v num" style="color:var(--danger)" id="finTaxa">—</span></div>
             <div class="fh-det"><span class="k">Combustível</span><span class="v num" style="color:var(--danger)" id="finCombustivel">—</span></div>
             <div class="fh-det"><span class="k">Lucro/km</span><span class="v num" style="color:var(--info)" id="finLucroKm">—</span></div>
           </div>
@@ -1392,7 +1392,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=435"></script>
+    <script src="script.js?v=437"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra

@@ -1,3 +1,39 @@
+/* ══════════════════════════════════════════════════════════════
+   FONTES LOCAIS (v4.22)
+   ─────────────────────────────────────────────────────────────
+   ⚠️ Antes as duas fontes vinham do Google Fonts, pela REDE. No APK, sem
+   sinal — que é metade do dia do motorista — o app caía na fonte do sistema
+   e perdia duas coisas:
+     • a Sora de TODOS os números (velocímetro, banner, cartões)
+     • o `font-feature-settings:"tnum"` da classe .num — números TABULARES.
+       Sem eles os valores param de alinhar em coluna no extrato.
+   Um app cujo produto é número perdia a identidade numérica exatamente
+   quando o motorista mais usa.
+
+   São 9 arquivos, 188 kB, subset latin. De brinde somem duas conexões
+   externas do carregamento — o app abre mais rápido.
+   `swap`: se por algum motivo o arquivo faltar, o texto aparece na fonte do
+   sistema em vez de ficar invisível esperando.
+   ══════════════════════════════════════════════════════════════ */
+@font-face{ font-family:'Sora'; font-style:normal; font-weight:400; font-display:swap;
+  src:url('fontes/sora-400.woff2') format('woff2'); }
+@font-face{ font-family:'Sora'; font-style:normal; font-weight:600; font-display:swap;
+  src:url('fontes/sora-600.woff2') format('woff2'); }
+@font-face{ font-family:'Sora'; font-style:normal; font-weight:700; font-display:swap;
+  src:url('fontes/sora-700.woff2') format('woff2'); }
+@font-face{ font-family:'Sora'; font-style:normal; font-weight:800; font-display:swap;
+  src:url('fontes/sora-800.woff2') format('woff2'); }
+@font-face{ font-family:'Inter'; font-style:normal; font-weight:400; font-display:swap;
+  src:url('fontes/inter-400.woff2') format('woff2'); }
+@font-face{ font-family:'Inter'; font-style:normal; font-weight:500; font-display:swap;
+  src:url('fontes/inter-500.woff2') format('woff2'); }
+@font-face{ font-family:'Inter'; font-style:normal; font-weight:600; font-display:swap;
+  src:url('fontes/inter-600.woff2') format('woff2'); }
+@font-face{ font-family:'Inter'; font-style:normal; font-weight:700; font-display:swap;
+  src:url('fontes/inter-700.woff2') format('woff2'); }
+@font-face{ font-family:'Inter'; font-style:normal; font-weight:800; font-display:swap;
+  src:url('fontes/inter-800.woff2') format('woff2'); }
+
 /* ============================================================
    CADERNO DIGITAL — style.css  (redesign v2)
    Identidade: Midnight + Money-green + Signal-amber

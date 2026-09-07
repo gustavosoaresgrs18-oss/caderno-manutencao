@@ -33,6 +33,10 @@ const ARQUIVOS = [
   'excluir-conta.html'
 ];
 
+// ⚠️ v4.22 — a pasta das FONTES vai junto, senão o APK abre sem a Sora e os
+// números param de alinhar em coluna. São 9 arquivos woff2, 188 kB.
+const PASTAS = ['fontes'];
+
 // ⚠️ O service worker NÃO vai para o APK. Dentro do app os arquivos já
 // são locais — um SW só criaria uma segunda cópia dos mesmos arquivos e
 // poderia servir uma versão velha depois de uma atualização.
@@ -50,6 +54,13 @@ for (const nome of ARQUIVOS) {
   if (!fs.existsSync(origem)) { faltando.push(nome); continue; }
   fs.copyFileSync(origem, path.join(www, nome));
   copiados++;
+}
+
+for (const pasta of PASTAS) {
+  const origem = path.join(raiz, pasta);
+  if (!fs.existsSync(origem)) { faltando.push(pasta + '/'); continue; }
+  fs.cpSync(origem, path.join(www, pasta), { recursive: true });
+  copiados += fs.readdirSync(origem).length;
 }
 
 console.log(`www/ montada — ${copiados} arquivos.`);

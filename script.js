@@ -4152,17 +4152,17 @@ function pintarAvisoTanque(mostrar, itens, semEles) {
   let frase;
   if (comb > 0 && alug > 0) {
     frase = ico('chave-porta') + ' <b>' + fmtBRL(alug) + ' de aluguel</b> e '
-          + fmtBRL(comb) + ' de tanque sairam hoje. '
+          + fmtBRL(comb) + ' de tanque saíram hoje. '
           + 'Sem eles, o dia fechou em <b>' + fmtBRL(semEles) + '</b>. '
           + 'Nenhum dos dois acaba hoje.';
   } else if (alug > 0) {
     frase = ico('chave-porta') + ' <b>' + fmtBRL(alug) + ' foi o aluguel.</b> '
           + 'Sem ele, o dia fechou em <b>' + fmtBRL(semEles) + '</b>'
-          + dAluguel + '. Esse aluguel nao e so de hoje.';
+          + dAluguel + '. Esse aluguel não é só de hoje.';
   } else {
     frase = ico('bomba') + ' <b>' + fmtBRL(comb) + ' foi tanque.</b> '
           + 'Sem ele, o dia fechou em <b>' + fmtBRL(semEles) + '</b>'
-          + dTanque + '. Esse combustivel nao acabou hoje.';
+          + dTanque + '. Esse combustível não acabou hoje.';
   }
   cx.style.display = 'block';
   cx.innerHTML = frase;
