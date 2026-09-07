@@ -4239,6 +4239,12 @@ function atualizarBannerLucro() {
     // decimal do número grande: receita menos custos FECHA com ele, sempre.
     const _put = function (id, v) { const e = document.getElementById(id); if (e) e.textContent = fmtBRL(v); };
     _put('lucroEntrou', receita); _put('lucroSaiu', custos); _put('lucroSobrou', lucro);
+    // ⚠️ v4.23 — ZERO NÃO É ALERTA. A coluna "saiu" é vermelha por CSS fixo, e
+    // num dia sem gasto nenhum ela mostrava "R$ 0,00" em vermelho de perigo.
+    // Vermelho é alerta REAL (regra sagrada nº 4); não ter gasto é a melhor
+    // notícia do dia. Mesma correção do "− R$ 0,00" do extrato.
+    const _sai = document.getElementById('lucroSaiu');
+    if (_sai) _sai.style.color = custos > 0 ? '' : 'var(--faint)';
     // ⚠️ "sobrou" era verde SEMPRE — inclusive mostrando "−R$ 50,10" em verde
     // de dinheiro. Verde é a cor do que entrou no bolso; número negativo verde
     // é o app dizendo uma coisa com a cor e outra com o sinal.
@@ -4375,6 +4381,15 @@ const EXTRATO_VISIVEL = 5;
 let _extratoTodos = false;
 function alternarListaExtrato() { _extratoTodos = !_extratoTodos; renderExtrato(); }
 let extFinModo    = 'mes';   let extFinOffset  = 0;    // finanças
+// ⚠️ v4.24 — O EXTRATO DE GANHOS DESPEJAVA O MÊS INTEIRO.
+// O de combustível já cortava em 5 desde a v3.x; este nunca cortou, e num mês
+// de uso real são 25 a 30 cartões — o motorista rola, rola, e não acha nada.
+// USA A MESMA CONSTANTE de propósito: se um dia virar 6, vira nos dois. Dois
+// números soltos seriam duas telas do mesmo app cortando em lugar diferente.
+// A regra do que aparece SEMPRE é que muda entre os dois: lá é o km suspeito,
+// aqui é o dia no vermelho — o motorista precisa achar o dia que deu errado.
+let _extFinTodos = false;
+function alternarListaExtratoFin() { _extFinTodos = !_extFinTodos; renderExtratoFin(); }
 const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 let _dadosExtratoComb = null, _dadosExtratoFin = null;   // guardam o período atual pra exportar
 
@@ -4593,7 +4608,7 @@ function renderPorTipo(registros) {
 
 // ── EXTRATO FINANÇAS ──
 function abrirExtratoFin() {
-  extFinModo = 'mes'; extFinOffset = 0;
+  extFinModo = 'mes'; extFinOffset = 0; _extFinTodos = false;
   document.getElementById('extFinMes').classList.add('ativo');
   document.getElementById('extFinSemana').classList.remove('ativo');
   renderExtratoFin();
@@ -4636,13 +4651,26 @@ function renderExtratoFin() {
   document.getElementById('extFinDias').textContent    = dias.length;
   document.getElementById('extFinMedia').textContent   = fmtBRL0(media);
   const lista = document.getElementById('extFinLista');
+  // os 5 mais recentes + qualquer dia NO VERMELHO que tenha ficado pra trás:
+  // esconder o dia que deu errado é esconder justamente o que ele veio ver.
+  const naTela = _extFinTodos ? dias
+                              : dias.filter((r, i) => i < EXTRATO_VISIVEL || r.lucro < 0);
   lista.innerHTML = dias.length === 0
     ? '<div class="comb-vazio">Nenhuma receita neste período.</div>'
-    : dias.map(r => `
+    : naTela.map(r => `
       <div class="fin-hist-item">
         <div><div class="fin-hist-data">${r.data}</div><div class="fin-hist-sub"><i>Receita ${fmtBRL0(r.receita)}</i> · <i>Taxa ${fmtBRL0(r.taxa)}</i> · <i>Comb ${fmtBRL0(r.comb)}</i>${(r.desp||0)>0?' · <i>Desp ' + fmtBRL0(r.desp)+'</i>':''}</div></div>
         <div><div class="fin-hist-lucro" style="color:${r.lucro>=0?'var(--money)':'var(--danger)'}">${fmtBRL0(r.lucro)}</div><div class="fin-hist-receita">lucro líquido</div></div>
       </div>`).join('');
+  const escondidos = dias.length - naTela.length;
+  if (escondidos > 0) {
+    lista.insertAdjacentHTML('beforeend',
+      '<button class="comb-vermais" onclick="alternarListaExtratoFin()">Ver os outros ' +
+      escondidos + (escondidos === 1 ? ' dia' : ' dias') + '</button>');
+  } else if (_extFinTodos && dias.length > EXTRATO_VISIVEL) {
+    lista.insertAdjacentHTML('beforeend',
+      '<button class="comb-vermais" onclick="alternarListaExtratoFin()">Mostrar só os 5 últimos</button>');
+  }
   document.getElementById('extFinNext').disabled = extFinOffset >= 0;
   _dadosExtratoFin = { per, dias, lucro, receita, comb, taxa, desp, media };
 }
@@ -6306,8 +6334,14 @@ function arquivarVeicAjustes(vid) {
   const v = veiculoPorId(vid);
   pedirConfirmacao(
     ico('carro') + ' Dar baixa no veículo',
-    'O ' + (v ? nomeVeiculo(v) : 'veículo') + ' sai da sua garagem e libera uma vaga. '
-    + '<b>Você não vai mais conseguir lançar nada nele.</b><br><br>'
+    // ⚠️ SEM TAG HTML AQUI. `pedirConfirmacao` escreve o corpo com
+    // textContent de propósito — e está certo: esta frase inclui o nome do
+    // veículo, que é texto do MOTORISTA. Com innerHTML, um veículo chamado
+    // "<img onerror=...>" viraria código rodando. Eu botei <b> e <br> na v4.21
+    // e eles apareceram crus na tela do A55.
+    // A ênfase agora vem da ORDEM: o que é definitivo vem primeiro.
+    'Você não vai mais conseguir lançar nada n' + (v && v.tipo === 'moto' ? 'a ' : 'o ')
+    + (v ? nomeVeiculo(v) : 'veículo') + '. Ele sai da sua garagem e libera uma vaga. '
     + 'O que ele já rodou e já gastou continua na sua conta — se isso sumisse, '
     + 'os meses que você já fechou mudariam de número.',
     function () {
@@ -9057,17 +9091,19 @@ document.getElementById('despBack').addEventListener('click', () => { atualizarT
 document.getElementById('btnVerExtratoFin').addEventListener('click', abrirExtratoFin);
 document.getElementById('extFinBack').addEventListener('click', () => { atualizarTelaFinancas(); mostrarTela(telaFinancas); navFinancas.classList.add('ativo'); });
 document.getElementById('extFinMes').addEventListener('click', () => {
-  extFinModo = 'mes'; extFinOffset = 0;
+  extFinModo = 'mes'; extFinOffset = 0; _extFinTodos = false;
   document.getElementById('extFinMes').classList.add('ativo'); document.getElementById('extFinSemana').classList.remove('ativo');
   renderExtratoFin();
 });
 document.getElementById('extFinSemana').addEventListener('click', () => {
-  extFinModo = 'semana'; extFinOffset = 0;
+  extFinModo = 'semana'; extFinOffset = 0; _extFinTodos = false;
   document.getElementById('extFinSemana').classList.add('ativo'); document.getElementById('extFinMes').classList.remove('ativo');
   renderExtratoFin();
 });
-document.getElementById('extFinPrev').addEventListener('click', () => { extFinOffset--; renderExtratoFin(); });
-document.getElementById('extFinNext').addEventListener('click', () => { if (extFinOffset < 0) { extFinOffset++; renderExtratoFin(); } });
+// ⚠️ `_extFinTodos = false` ao trocar de mês: expandiu setembro e foi pra agosto,
+// agosto vinha expandido. Mesma linha que o extrato de combustível já tinha.
+document.getElementById('extFinPrev').addEventListener('click', () => { extFinOffset--; _extFinTodos = false; renderExtratoFin(); });
+document.getElementById('extFinNext').addEventListener('click', () => { if (extFinOffset < 0) { extFinOffset++; _extFinTodos = false; renderExtratoFin(); } });
 document.getElementById('extFinPDF').addEventListener('click', exportarFinPDF);
 document.getElementById('extFinCSV').addEventListener('click', exportarFinCSV);
 
