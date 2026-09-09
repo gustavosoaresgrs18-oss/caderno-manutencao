@@ -9293,7 +9293,16 @@ aplicarNomeAssistente();
 
 navCade.addEventListener('click', () => {
   const texto = gerarTextoCade();
-  document.getElementById('cadeBalao').innerHTML = cadeParaHTML(texto);
+  // o balão vira uma PILHA DE CARTÕES quando tem fechamento. Sem cartão
+  // (a frase de boas-vindas) ele continua sendo o balão de fala de sempre.
+  const _bal = document.getElementById('cadeBalao');
+  _bal.innerHTML = cadeParaHTML(texto);
+  _bal.classList.toggle('cartoes', !!_bal.querySelector('.isc-card'));
+  // ⚠️ o rodapé pedia a receita do dia com a receita do dia JÁ na tela, logo
+  // acima. Frase que contradiz o que o motorista está vendo custa confiança
+  // nos números de cima — e os números de cima são o produto.
+  const _dica = document.getElementById('cadeDica');
+  if (_dica) _dica.style.display = registrosHojeFin().length ? 'none' : '';
   renderCarameloCade();
   document.getElementById('cadeShareBtn').style.display = registrosHojeFin().length ? 'inline-flex' : 'none';
   pintarSeloMes();   // o botão do mês e o selo "novo" acendem aqui
@@ -9578,19 +9587,114 @@ function limparParaVoz(texto) {
 //     na tela lê "R$ 240", no ouvido fala "duzentos e quarenta reais".
 const _COR_MARC = { v:'var(--money)', r:'var(--danger)', a:'var(--signal)', n:'var(--text)' };
 
-// versão pra LER na tela
+// ── ESTRUTURA DO TEXTO: CARTÕES (v4.28) ──────────────────────
+//  O fechamento era UM parágrafo com dez frases e oito assuntos. Virou
+//  cartão: um assunto por moldura, na ordem da pergunta que o motorista
+//  faz — quanto sobrou → de onde saiu → o que isso quer dizer.
+//  ⚠️ O texto continua sendo UM SÓ. A tela lê estes marcadores, a voz
+//  joga fora. Dois geradores pro mesmo fechamento seria regra copiada,
+//  e regra copiada é regra que vai divergir.
+//  Os campos de cada marcador são separados por TAB, nunca por "|" —
+//  o "|" já é do [[m:cor|curto|falado]] e brigaria com ele.
+//    §                          separa um cartão do outro
+//    ##icone <tab> TÍTULO       cabeçalho do cartão
+//    @@cor <tab> valor <tab> legenda    o número grande
+//    >>rótulo <tab> valor <tab> classe  linha da conta
+//    ==                         a régua antes do total
+//    ??abrir <tab> fechar       daqui pra baixo fica dobrado
+//    !!texto                    o aviso de cadeado (o que é pago)
+//  Bloco SEM cabeçalho sai como antes, sem moldura: é assim que a carta
+//  do mês, que não usa marcador nenhum, continua saindo igual.
 function cadeParaHTML(t) {
-  return t
-    .replace(/\n/g, '<br>')                                              // parágrafo na tela
+  return String(t).split('\n§\n').map(_cadeBloco).join('');
+}
+// só os marcadores de cor — o que vale dentro de qualquer pedaço de texto
+function _cadeInline(s) {
+  return String(s)
     .replace(/\[\[m:([vran])\|(.+?)\|(.+?)\]\]/g,
              (_, c, curto) => `<b style="color:${_COR_MARC[c]}">${curto}</b>`)
     .replace(/\[\[v:(.+?)\]\]/g, '<b style="color:var(--money)">$1</b>')   // verde = bom
     .replace(/\[\[r:(.+?)\]\]/g, '<b style="color:var(--danger)">$1</b>')  // vermelho = alerta
     .replace(/\[\[a:(.+?)\]\]/g, '<b style="color:var(--signal)">$1</b>'); // âmbar = atenção
 }
+function _cadeBloco(b) {
+  // sem cabeçalho não é cartão: sai igualzinho ao que saía antes
+  if (!/(^|\n)##/.test(b)) return _cadeInline(b).replace(/\n/g, '<br>');
+
+  const fora = [], dobra = [];
+  let cab = '', botao = null, dentro = false;
+  const solto = [];
+  function despejar() {
+    if (!solto.length) return;
+    (dentro ? dobra : fora).push('<p class="isc-p">' + _cadeInline(solto.join(' ')) + '</p>');
+    solto.length = 0;
+  }
+  String(b).split('\n').forEach(function (l) {
+    const marca = l.slice(0, 2);
+    const pt    = l.slice(2).split('\t');
+    if (marca === '##') {
+      cab = '<div class="isc-cab">' + ico(pt[0]) + '<span>' + _cadeInline(pt[1] || '') + '</span></div>';
+    } else if (marca === '@@') {
+      despejar();
+      (dentro ? dobra : fora).push('<div class="isc-hero ' + (pt[0] || 'n') + '">'
+        + '<div class="isc-hero-v">' + _cadeInline(pt[1] || '') + '</div>'
+        + (pt[2] ? '<div class="isc-hero-l">' + _cadeInline(pt[2]) + '</div>' : '') + '</div>');
+    } else if (marca === '>>') {
+      despejar();
+      (dentro ? dobra : fora).push('<div class="isc-linha' + (pt[2] ? ' ' + pt[2] : '') + '">'
+        + '<span class="k">' + _cadeInline(pt[0] || '') + '</span>'
+        + '<span class="v">' + _cadeInline(pt[1] || '') + '</span></div>');
+    } else if (marca === '==') {
+      despejar();
+      (dentro ? dobra : fora).push('<div class="isc-regua"></div>');
+    } else if (marca === '!!') {
+      despejar();
+      (dentro ? dobra : fora).push('<div class="isc-lock">' + ico('cadeado')
+        + '<span>' + _cadeInline(l.slice(2)) + '</span></div>');
+    } else if (marca === '??') {
+      despejar();
+      dentro = true;
+      botao = { abrir: pt[0] || 'Ver o detalhe', fechar: pt[1] || 'Esconder o detalhe' };
+    } else if (l.trim() === '') {
+      despejar();
+    } else {
+      solto.push(l);
+    }
+  });
+  despejar();
+
+  let html = fora.join('');
+  if (botao) {
+    html += '<button type="button" class="isc-fold-btn" onclick="alternarDobra(this)"'
+          + ' data-abrir="' + esc(botao.abrir) + '" data-fechar="' + esc(botao.fechar) + '">'
+          + '<span>' + esc(botao.abrir) + '</span>'
+          + '<svg class="ico isc-chev"><use href="#i-seta-dir"></use></svg></button>'
+          + '<div class="isc-fold" hidden>' + dobra.join('') + '</div>';
+  }
+  return '<div class="isc-card">' + cab + html + '</div>';
+}
+// abre/fecha "a conta completa". O rótulo troca junto — botão que não muda
+// depois do toque faz o motorista achar que não funcionou.
+function alternarDobra(btn) {
+  const cx = btn.nextElementSibling;
+  if (!cx) return;
+  const vaiAbrir = cx.hidden;
+  cx.hidden = !vaiAbrir;
+  btn.classList.toggle('aberto', vaiAbrir);
+  const rot = btn.querySelector('span');
+  if (rot) rot.textContent = vaiAbrir ? btn.dataset.fechar : btn.dataset.abrir;
+}
 // versão pra FALAR (pega o "falado" do marcador duplo e joga o resto fora)
 function cadeParaVoz(t) {
-  return t
+  return String(t)
+    .replace(/\n§\n/g, '\n')
+    .replace(/(^|\n)##[^\t]*\t/g, '$1')
+    .replace(/(^|\n)@@[^\t]*\t/g, '$1')
+    .replace(/(^|\n)>>/g, '$1')
+    .replace(/(^|\n)==\n?/g, '$1')
+    .replace(/(^|\n)\?\?[^\n]*\n?/g, '$1')
+    .replace(/(^|\n)!!/g, '$1')
+    .replace(/\t/g, ': ')
     .replace(/\[\[m:([vran])\|(.+?)\|(.+?)\]\]/g, '$3')
     .replace(/\[\[[vra]:(.+?)\]\]/g, '$1');
 }
@@ -9608,6 +9712,22 @@ function _fmtReal(n) {
 // M(valor, cor) → marcador de dinheiro com as duas caras
 function M(valor, cor) {
   return `[[m:${cor || 'n'}|${_fmtReal(valor)}|${valorParaFala(Math.abs(numBR(valor)))}]]`;
+}
+// Msinal() = o MESMO dinheiro, mas com o sinal na frente quando é negativo.
+// ⚠️ _fmtReal() usa Math.abs de propósito (a prosa já dizia "no vermelho").
+// Como número solto isso mente: a coluna mostrava 210 − 46 − 280 = "R$ 116"
+// e a conta não fechava na tela. Onde o número aparece SOZINHO, usa este.
+// Mpreco() = preço de UNIDADE (o litro, o km). Sempre com os centavos.
+// ⚠️ _fmtReal() corta os centavos no valor redondo — certo pra R$ 328,
+// errado pro litro: a tela mostrava "último litro R$ 6,22" e logo abaixo
+// "sua média R$ 6", e as duas linhas pareciam de grandezas diferentes.
+function Mpreco(valor, cor) {
+  const v = Math.abs(numBR(valor));
+  return `[[m:${cor || 'n'}|R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}|${valorParaFala(v)}]]`;
+}
+function Msinal(valor, cor) {
+  const v = numBR(valor), neg = v < 0;
+  return `[[m:${cor || 'n'}|${neg ? '\u2212\u00a0' : ''}${_fmtReal(v)}|${neg ? 'menos ' : ''}${valorParaFala(Math.abs(v))}]]`;
 }
 // D(curto, falado, cor) → mesma ideia, pra km/horas/porcentagem
 function D(curto, falado, cor) { return `[[m:${cor || 'n'}|${curto}|${falado}]]`; }
@@ -9677,143 +9797,176 @@ function gerarTextoCade() {
   const ehDomingo = new Date().getDay() === 0;
   const retro = ehDomingo ? textoRetrospectoSemana() : '';
 
-  // apresentação: nas 3 primeiras aberturas da aba, em parágrafo próprio
+  // apresentação: nas 3 primeiras aberturas da aba, em cartão próprio
   //   quer que apareça mais/menos vezes? troque o 3 aqui embaixo.
   let abertura = '';
   const jaViu = Number(lerLS('isacApresentacoes', 0)) || 0;
   if (jaViu < 3) {
     salvarLS('isacApresentacoes', jaViu + 1);
-    abertura = `Prazer, ${nome}. Eu sou ${ARTIGO_ASSISTENTE} ${A(NOME_ASSISTENTE)}, seu analista de números de bolso. Meu trabalho é fechar sua conta todo dia e te mostrar a verdade dela, sem enfeite.\n\n`;
+    abertura = `##balao\tPRAZER, ${nome.toUpperCase()}\n`
+             + `Eu sou ${ARTIGO_ASSISTENTE} ${A(NOME_ASSISTENTE)}, seu analista de números de bolso. `
+             + `Meu trabalho é fechar sua conta todo dia e te mostrar a verdade dela, sem enfeite.\n§\n`;
   }
 
   // ── sem receita registrada: não tem o que analisar, e ele diz isso ──
   if (regs.length === 0) {
-    const corpo = `O dia ainda tá zerado aqui. Registra quanto entrou que eu fecho a conta contigo.`;
-    if (retro) return abertura + retro + corpo;
-    return abertura ? abertura + corpo : `${saud}, ${nome}. ` + corpo;
+    return abertura + retro
+      + `##balao\t${saud.toUpperCase()}, ${nome.toUpperCase()}\n`
+      + `O dia ainda tá zerado aqui. Registra quanto entrou que eu fecho a conta contigo.`;
   }
 
-  const p = [];
+  const cartoes = [];
   const dataHoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' });
-  p.push(`\uD83D\uDCCA FECHAMENTO DE HOJE \u00B7 ${dataHoje}\n`);
 
-  // ── 1. o número que importa, em destaque (recorde toma o lugar quando bate) ──
+  // ═══ CARTÃO 1 · O VEREDICTO ═══
+  // Uma pergunta por cartão. Esta é "quanto sobrou pra mim hoje?" — e ela
+  // merece a tela inteira, não a primeira linha de um parágrafo de dez.
   const _rec = recordeHoje();
-  if (_rec)                p.push(`\uD83C\uDFC6 ${M(lucroHoje, 'v')} \u2014 o seu melhor dia até agora! Superou o recorde anterior de ${M(_rec.melhorAnt)}.\n`);
-  else if (lucroHoje >= 0) p.push(`Voc\u00ea fechou com ${M(lucroHoje, 'v')} l\u00edquido no bolso.\n`);
-  else                     p.push(`Hoje fechou ${R('no vermelho')}: ${M(lucroHoje, 'r')} a menos do que entrou.\n`);
+  let c1 = `##grafico\tFECHAMENTO DE HOJE · ${dataHoje}\n`;
+  if (lucroHoje >= 0) {
+    c1 += `@@v\t${Msinal(lucroHoje, 'v')}\t${_rec ? '🏆 seu melhor dia até agora' : 'líquido no seu bolso'}\n`;
+    if (_rec) c1 += `O recorde anterior era ${M(_rec.melhorAnt)} — você passou por cima dele hoje.`;
+  } else {
+    c1 += `@@r\t${Msinal(lucroHoje, 'r')}\tno vermelho: saiu mais do que entrou\n`;
+  }
+  cartoes.push(c1);
 
-  // ── 2. a conta aberta, sem mistério ──
-  if (taxaHoje > 0 && combHoje > 0)  p.push(`Entrou ${M(receitaHoje)}. Saiu ${M(taxaHoje)} de taxa e ${M(combHoje)} de combustível.`);
-  else if (taxaHoje > 0)             p.push(`Entrou ${M(receitaHoje)}, menos ${M(taxaHoje)} de taxa.`);
-  else if (combHoje > 0)             p.push(`Entrou ${M(receitaHoje)}, menos ${M(combHoje)} de combustível.`);
-  else                               p.push(`Entrou ${M(receitaHoje)}, sem desconto nenhum.`);
+  // ═══ CARTÃO 2 · A CONTA (e o resto dela, dobrado) ═══
+  // ⚠️ A CONTA PRECISA FECHAR NA TELA. Era prosa ("Entrou X. Saiu Y de taxa e
+  // Z de combustível.") e o motorista tinha que somar de cabeça pra conferir.
+  // Agora são linhas alinhadas, e "Outras despesas" NÃO é um número guardado:
+  // sai da própria identidade (entrou − taxa − combustível − sobrou). Assim a
+  // coluna sempre fecha exatamente no número grande do cartão de cima.
+  const _r2  = x => Math.round(x * 100) / 100;
+  const rec2 = _r2(receitaHoje), tax2 = _r2(taxaHoje), com2 = _r2(combHoje), luc2 = _r2(lucroHoje);
+  const out2 = _r2(rec2 - tax2 - com2 - luc2);
+  let c2 = `##calc\tA CONTA DE HOJE\n`;
+  c2 += `>>Entrou\t${M(rec2)}\n`;
+  if (tax2 > 0)    c2 += `>>Taxa das plataformas\t− ${M(tax2)}\tneg\n`;
+  if (com2 > 0)    c2 += `>>Combustível\t− ${M(com2)}\tneg\n`;
+  if (out2 >= 0.01) c2 += `>>Outras despesas\t− ${M(out2)}\tneg\n`;
+  c2 += `==\n`;
+  c2 += `>>Sobrou\t${Msinal(luc2, luc2 >= 0 ? 'v' : 'r')}\ttotal\n`;
 
-  // ── 3. o preço do seu tempo ──
   const intel = inteligenciaDoDia();
-  if (horas >= 0.5) {
-    const ph = lucroHoje / horas;
-    if (ph >= 0) p.push(`${M(ph, 'v')} por hora, em ${_horasDuplo(horas)} rodando.`);
-    else         p.push(`Deu ${M(ph, 'r')} de prejuízo por hora, em ${_horasDuplo(horas)} rodando.`);
-    // só julga se tiver a média DELE pra comparar
-    if (intel.suficiente && intel.mediaGeral > 0 && intel.total >= 3) {
-      const dif = ph - intel.mediaGeral;
-      // ⚠️ v4.20 — PERCENTUAL SÓ VALE COM HORA POSITIVA.
-      // Com a hora negativa (−R$ 97 contra média de R$ 24) a conta cuspia
-      // "503% abaixo da sua média" — e não existe estar mais de 100% abaixo
-      // de nada. O motorista lê isso, sente que está errado, e passa a
-      // desconfiar de TODOS os outros números da tela.
-      if (ph < 0) {
-        p.push(`Sua hora costuma render ${M(intel.mediaGeral)} — hoje ela custou ${M(Math.abs(ph), 'r')} do seu bolso.`);
-      } else {
-        const pct = Math.abs(dif / intel.mediaGeral * 100);
-        if (pct >= 10) {
-          const sinal = dif > 0 ? 'acima' : 'abaixo';
-          p.push(`${D(pct.toFixed(0) + '%', pct.toFixed(0) + ' por cento', dif > 0 ? 'v' : 'a')} ${sinal} da sua média de ${M(intel.mediaGeral)} por hora.`);
-        } else {
-          p.push(`Dentro da sua média, que é ${M(intel.mediaGeral)} por hora.`);
-        }
-      }
-    }
-  }
+  const pc    = precoContraSuaMedia();
+  const proj  = projecaoMensal();
+  const cmp   = compHojeVsNormal();
+  const ph    = horas >= 0.5 ? lucroHoje / horas : null;
+  const temMedia = intel.suficiente && intel.mediaGeral > 0 && intel.total >= 3;
 
-  // ── 4. o carro/moto: quanto custou cada km ──
-  // ⚠️ AQUI ELE DIVIDIA O ABASTECIMENTO DO DIA PELO KM DO DIA. Abastecer é
-  // pontual (R$ 200 de uma vez), rodar é diário — as duas contas não vivem na
-  // mesma escala. Num dia de tanque cheio o Isaac afirmava "R$ 6,67 de
-  // combustível por km" com a maior confiança; num dia de R$ 22 pra 20 km,
-  // "R$ 1,13" — quando o custo medido do motorista era R$ 0,43. E a tela
-  // Início mostrava o valor CERTO ao mesmo tempo, na mesma sessão: o app se
-  // contradizendo em duas telas sobre o mesmo número (Regra Sagrada #2).
-  // Agora o Isaac lê a MESMA fonte da Início — combustivelKmMes(), que vem do
-  // tanque medido e já exclui os abastecimentos com km furado.
-  if (kmHoje > 0) {
-    const ndTurno = diasDoRegistro(diaDoTurno());
-    let f = `${D(kmHoje + ' km', kmHoje + ' quilômetros')} rodados`;
-    if (ndTurno > 1) f += ` (esse km cobre ${ndTurno} dias)`;
-    const ckm = combustivelKmMes();
-    if (ckm > 0) f += `, a ${M(ckm)} de combustível por km`;
-    p.push(f + '.');
-    // o dinheiro que saiu no posto continua sendo dito — só não vira mais
-    // "custo por km", porque o tanque de hoje roda a semana inteira
-    if (combHoje > 0) p.push(`Você deixou ${M(combHoje)} no posto hoje — esse tanque roda os próximos dias, não só este.`);
-  }
+  // ═══ A ESCOLHA · o que ele vai LER hoje (uma coisa só) ═══
+  // ⚠️ AQUI ESTAVA O PROBLEMA. O Isaac dizia oito coisas de uma vez porque ele
+  // SABE oito coisas — não porque o motorista precisa de oito. Dez linhas
+  // corridas, quatro cores brigando no mesmo parágrafo: o cara lê e não
+  // entende nada. Agora ele ESCOLHE uma — a que mais muda a leitura do dia —
+  // e o resto continua existindo, dobrado na conta completa.
+  // A ordem abaixo é a régua editorial. Mexeu aqui, mexeu no que ele diz.
+  const fora = (typeof gastosQueNaoSaoDoDia === 'function') ? gastosQueNaoSaoDoDia() : { itens: [], soma: 0 };
+  const semEles = lucroHoje + fora.soma;
+  let dica = null, usou = '';
 
-  // ── 5. o posto: contra o preço que ELE costuma pagar ──
-  const pc = precoContraSuaMedia();
-  if (pc) {
-    p.push(`Último litro de ${String(pc.tipo || '').toLowerCase() || 'combustível'}: ${M(pc.ppl)}.`);
-    if (pc.media) {
-      const dif = pc.ppl - pc.media;
-      const pct = Math.abs(dif / pc.media * 100);
-      if (pct >= 4) {
-        const sinal = dif > 0 ? 'acima' : 'abaixo';
-        p.push(`${D(pct.toFixed(0) + '%', pct.toFixed(0) + ' por cento', dif > 0 ? 'a' : 'v')} ${sinal} da sua média de ${M(pc.media)}${pc.posto ? ' — esse foi no ' + esc(pc.posto) : ''}.`);
-      }
-    }
-  }
-
-  // ── 6. o mês, se der pra dizer sem chutar ──
-  const proj = projecaoMensal();
-  if (proj && proj.suficiente) p.push(`No ritmo do mês, fecha em ${M(proj.projecao, 'v')}.`);
-
-  // ── 7. a última frase: o detalhe específico que prova atenção ──
-  const cmp = compHojeVsNormal();
-  if (intel.suficiente && intel.mediaDia !== null && intel.nDia >= 2 && intel.mediaGeral > 0) {
+  if (lucroHoje < 0 && fora.soma > 0 && semEles > 0) {
+    // 1º — o vermelho que NÃO é prejuízo. É a leitura mais errada que existe:
+    // ele encheu o tanque hoje e acha que trabalhou de graça.
+    const quais = fora.itens.map(i => i.cat === 'tanque' ? 'o tanque' : 'o aluguel').join(' e ');
+    dica = { i: 'bomba', t: 'ISSO AQUI NÃO É PREJUÍZO', x:
+      `Entrou dinheiro hoje. O que puxou pro vermelho foi ${quais}: ${M(fora.soma, 'a')} de uma vez só. ` +
+      `Tirando isso, o seu dia fecharia em ${M(semEles, 'v')} — e esse gasto roda os próximos dias, não só hoje.` };
+  } else if (ph !== null && ph < 0 && temMedia) {
+    // 2º — a hora negativa. O número mais duro que ele pode ver.
+    usou = 'hora';
+    dica = { i: 'relogio', t: 'O PREÇO DA SUA HORA', x:
+      `Sua hora costuma render ${M(intel.mediaGeral, 'v')}. Hoje ela custou ${M(Math.abs(ph), 'r')} do seu bolso, ` +
+      `em ${_horasDuplo(horas)} rodando.` };
+  } else if (!_rec && cmp && Math.abs(cmp.diff) >= cmp.media * 0.08 && cmp.media > 0) {
+    // 3º — hoje contra o normal DELE. Nunca contra média de internet.
+    usou = 'normal';
+    const acima = cmp.diff > 0;
+    dica = { i: acima ? 'sobe' : 'desce', t: acima ? 'HOJE RENDEU MAIS QUE O SEU NORMAL' : 'HOJE RENDEU MENOS QUE O SEU NORMAL', x:
+      `${M(Math.abs(cmp.diff), acima ? 'v' : 'a')} ${acima ? 'acima' : 'abaixo'} do seu normal, que é ${M(cmp.media)} por dia ` +
+      `nos últimos ${D(cmp.n + ' dias', cmp.n + ' dias')} que você rodou.` };
+  } else if (intel.suficiente && intel.mediaDia !== null && intel.nDia >= 2 && intel.mediaGeral > 0) {
+    // 4º — o dia da semana, que é o padrão que ele não enxerga sozinho.
+    usou = 'dow';
     const d = intel.hojeDow;
     const dif = intel.mediaDia - intel.mediaGeral;
     const rel = Math.abs(dif / intel.mediaGeral) < 0.1
-      ? `rendem o mesmo que os outros dias`
+      ? `rendem o mesmo que os seus outros dias: ${M(intel.mediaDia)} por hora`
       : `rendem ${M(intel.mediaDia, dif > 0 ? 'v' : 'a')} por hora, ${dif > 0 ? 'acima' : 'abaixo'} da sua média de ${M(intel.mediaGeral)}`;
-    p.push(`${_DIA_ARTIGO[d]} ${_DIA_PLURAL[d]} ${rel}.`);
-  } else if (cmp && Math.abs(cmp.diff) >= cmp.media * 0.08) {
-    p.push(`${M(Math.abs(cmp.diff), cmp.diff > 0 ? 'v' : 'a')} ${cmp.diff > 0 ? 'acima' : 'abaixo'} do seu normal, que é ${M(cmp.media)} por dia nos últimos ${D(cmp.n + ' dias', cmp.n + ' dias')} que você rodou.`);
+    dica = { i: 'calendario', t: 'O SEU DIA DA SEMANA', x: `${_DIA_ARTIGO[d]} ${_DIA_PLURAL[d]} ${rel}.` };
+  } else if (pc && pc.media && Math.abs(pc.ppl - pc.media) / pc.media >= 0.04) {
+    // 5º — o litro fora do normal dele, com o nome do posto.
+    usou = 'litro';
+    const caro = pc.ppl > pc.media;
+    const pct  = Math.abs((pc.ppl - pc.media) / pc.media * 100);
+    dica = { i: 'bomba', t: caro ? 'ESSE LITRO SAIU CARO PRA VOCÊ' : 'ESSE LITRO SAIU BARATO PRA VOCÊ', x:
+      `${Mpreco(pc.ppl)} o litro, ${D(pct.toFixed(0) + '%', pct.toFixed(0) + ' por cento', caro ? 'a' : 'v')} ${caro ? 'acima' : 'abaixo'} ` +
+      `da sua média de ${Mpreco(pc.media)}${pc.posto ? ' — esse foi no ' + esc(pc.posto) : ''}.` };
+  } else if (proj && proj.suficiente) {
+    // 6º — o mês, quando dá pra dizer sem chutar.
+    usou = 'mes';
+    dica = { i: 'alvo', t: 'O SEU MÊS NO RITMO DE HOJE', x:
+      `Mantendo esse ritmo, o mês fecha em ${M(proj.projecao, 'v')}.` };
+  } else if (cmp && !_rec) {
+    usou = 'normal';
+    dica = { i: 'igual', t: 'DIA DENTRO DO SEU NORMAL', x:
+      `Hoje você ficou dentro do seu normal de ${M(cmp.media)} por dia.` };
   } else {
+    // 7º — ainda não dá pra dizer nada. Então ele diz QUANTO falta, não "use o app".
     const _histF = lerLS('historicoFinancas', []);
     const _diasReceita = new Set(_histF.filter(r => r.dataISO).map(r => r.dataISO)).size;
     const _horasMap = lerLS('horasPorDia', {});
     const _diasComHora = Object.keys(_horasMap).filter(k => (_horasMap[k] || 0) >= 0.5).length;
-    if (cmp) {
-      // já tem base, mas hoje ficou perto da média — diz isso, não "ainda tô juntando"
-      p.push(`Hoje você ficou dentro do seu normal de ${M(cmp.media)} por dia.`);
-    } else {
-      const _faltam = Math.max(1, 6 - _diasReceita);
-      const _dTxt = _faltam === 1 ? 'Falta 1 dia' : 'Faltam ' + _faltam + ' dias';
-      if (_diasComHora < 2) {
-        p.push(`${_dTxt} para eu saber o seu normal. Marque o início e o fim do seu dia e eu já mostro quanto vale a sua hora.`);
-      } else {
-        p.push(`${_dTxt} para eu saber o que é normal para você.`);
-      }
-    }
+    const _faltam = Math.max(1, 6 - _diasReceita);
+    const _dTxt = _faltam === 1 ? 'Falta 1 dia' : 'Faltam ' + _faltam + ' dias';
+    dica = { i: 'lampada', t: 'AINDA ESTOU TE CONHECENDO', x: (_diasComHora < 2
+      ? `${_dTxt} para eu saber o seu normal. Marque o início e o fim do seu dia e eu já mostro quanto vale a sua hora.`
+      : `${_dTxt} para eu saber o que é normal para você. Até lá eu fecho a conta, mas não julgo o dia.`) };
   }
 
+  // ═══ O DETALHE (dobrado dentro do cartão da conta) ═══
+  // ⚠️ O que a dica JÁ disse não se repete aqui. Ler a mesma comparação duas
+  // vezes na mesma tela é a própria bagunça que estamos desfazendo: o
+  // motorista fica procurando a diferença entre as duas e não existe nenhuma.
+  const det = [];
+  if (ph !== null) {
+    det.push(`>>Sua hora valeu\t${Msinal(ph, ph >= 0 ? 'v' : 'r')}`);
+    det.push(`>>Tempo rodando\t${_horasDuplo(horas)}`);
+    if (temMedia && usou !== 'hora') det.push(`>>Sua média por hora\t${M(intel.mediaGeral)}`);
+  }
+  if (kmHoje > 0) {
+    const ndTurno = diasDoRegistro(diaDoTurno());
+    det.push(`>>Km rodados${ndTurno > 1 ? ' (' + ndTurno + ' dias)' : ''}\t${D(fmtKm(kmHoje) + ' km', kmHoje + ' quilômetros')}`);
+    // ⚠️ NÃO divide o abastecimento do dia pelo km do dia (v4.06). Vem da
+    // mesma fonte da tela Início — tanque medido, sem os km furados.
+    const ckm = combustivelKmMes();
+    if (ckm > 0) det.push(`>>Combustível por km\t${Mpreco(ckm)}`);
+  }
+  if (com2 > 0) det.push(`>>Deixou no posto hoje\t${M(com2)}`);
+  if (pc) {
+    det.push(`>>Último litro de ${String(pc.tipo || '').toLowerCase() || 'combustível'}\t${Mpreco(pc.ppl)}`);
+    if (pc.media && usou !== 'litro') det.push(`>>Sua média do litro\t${Mpreco(pc.media)}`);
+  }
+  if (proj && proj.suficiente && usou !== 'mes') det.push(`>>No ritmo do mês, fecha em\t${M(proj.projecao, 'v')}`);
+  if (cmp && usou !== 'normal') det.push(`>>Seu normal por dia\t${M(cmp.media)}`);
+  if (intel.suficiente && intel.mediaDia !== null && intel.nDia >= 2 && usou !== 'dow')
+    det.push(`>>${_DIA_ARTIGO[intel.hojeDow]} ${_DIA_PLURAL[intel.hojeDow]} rendem\t${M(intel.mediaDia)} por hora`);
+
+  if (det.length) c2 += `??Ver a conta completa\tEsconder o detalhe\n` + det.join('\n');
+  cartoes.push(c2);
+
+  cartoes.push(`##${dica.i}\t${dica.t}\n${dica.x}`);
+
+  // ═══ CARTÃO 4 · A LUPA (o que é pago) ═══
   if (intel.suficiente && intel.total >= 3) {
-    p.push(`\n\uD83D\uDD0D AN\u00c1LISE COPILOTO \u00B7 a lupa no seu m\u00eas\n` +
-           `Cruzei seus \u00faltimos dias e achei ${A('padr\u00f5es')} que o fechamento de hoje n\u00e3o mostra \u2014 tipo qual dia da semana te paga melhor e quanto o posto errado te custa no m\u00eas.\n` +
-           `\uD83D\uDD12 ${A('Isso \u00e9 da vers\u00e3o Copiloto.')} Destrava e eu te mostro onde tem dinheiro escondido no seu pr\u00f3prio hist\u00f3rico.`);
+    cartoes.push(`##lupa\tANÁLISE COPILOTO\n`
+      + `Cruzei seus últimos dias e achei ${A('padrões')} que o fechamento de hoje não mostra — `
+      + `qual dia da semana te paga melhor, e quanto o posto errado te custa no mês.\n`
+      + `!!${A('Isso é da versão Copiloto.')} Destrava e eu te mostro onde tem dinheiro escondido no seu próprio histórico.`);
   }
 
-  return abertura + retro + p.join(' ');
+  return abertura + retro + cartoes.join('\n§\n');
 }
 
 
@@ -10230,5 +10383,5 @@ function textoRetrospectoSemana() {
     else if (dif > 0) body.push(`${M(absd, 'v')} a mais que a semana passada (${M(r.totalPassada)}).`);
     else              body.push(`${M(absd, 'a')} abaixo da semana passada (${M(r.totalPassada)}) — semana mais devagar.`);
   }
-  return '\uD83D\uDCC5 BALANÇO DA SEMANA\n' + body.join(' ') + '\n\n';
+  return '##calendario\tBALANÇO DA SEMANA\n' + body.join(' ') + '\n§\n';
 }

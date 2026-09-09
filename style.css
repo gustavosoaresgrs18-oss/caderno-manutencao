@@ -477,6 +477,62 @@ h2.tela-h{ font-size:var(--f5); font-weight:800; margin-bottom:16px; }
 @keyframes pulse{ 0%,100%{ opacity:.3; transform:scale(.8);} 50%{ opacity:1; transform:scale(1.2);} }
 .cade-btn-falar{ width:100%; background:linear-gradient(135deg,var(--purple),var(--info)); border:none; border-radius:14px; padding:16px; font-size:var(--f4); font-weight:800; color:#fff; cursor:pointer; font-family:'Inter'; margin-bottom:14px; box-shadow:0 8px 22px rgba(120,110,255,.3); }
 .cade-dica{ font-size:var(--f1); color:var(--dim); text-align:center; line-height:1.6; padding:0 8px; }
+/* ═══ v4.28 · O FECHAMENTO EM CARTÕES ═══
+   Era um balão com dez frases seguidas e quatro cores brigando no mesmo
+   parágrafo — o motorista lia e não entendia nada. Agora cada assunto tem
+   a sua moldura, e o balão vira só a pilha. O biquinho passa pro primeiro
+   cartão: sem ele o Isaac deixaria de estar falando e viraria relatório. */
+.cade-balao.cartoes{ background:transparent; border:none; padding:0; min-height:0; }
+.cade-balao.cartoes::before, .cade-balao.cartoes::after{ display:none; }
+.cade-balao.cartoes .isc-card:first-child::before,
+.cade-balao.cartoes .isc-card:first-child::after{ content:''; position:absolute; left:50%; width:0; height:0;
+  border-left:9px solid transparent; border-right:9px solid transparent; }
+.cade-balao.cartoes .isc-card:first-child::before{ top:-9px;   margin-left:-9px; border-bottom:9px solid var(--line); }
+.cade-balao.cartoes .isc-card:first-child::after { top:-7.5px; margin-left:-9px; border-bottom:9px solid var(--elev); }
+
+.isc-card{ position:relative; background:var(--elev); border:1px solid var(--line);
+  border-radius:16px; padding:14px 16px 16px; margin-bottom:10px; }
+.isc-card:last-child{ margin-bottom:0; }
+/* o cabeçalho é etiqueta, não título: pequeno, espaçado, sem gritar */
+.isc-cab{ display:flex; align-items:center; gap:7px; margin-bottom:10px;
+  font-family:'Sora'; font-size:10.5px; font-weight:700; letter-spacing:.11em;
+  text-transform:uppercase; color:var(--dim); }
+.isc-cab .ico{ width:14px; height:14px; opacity:.8; flex:0 0 auto; }
+.isc-cab span{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.isc-p{ margin:0 0 8px; font-size:var(--f3); line-height:1.65; color:#d7dee6; }
+.isc-p:last-child{ margin-bottom:0; }
+
+/* o número que ele veio buscar. Um por tela — se tiver dois, não tem nenhum. */
+.isc-hero{ margin:2px 0 2px; }
+.isc-hero-v{ font-family:'Sora'; font-size:38px; font-weight:800; letter-spacing:-1.4px; line-height:1.05; }
+.isc-hero-v b{ font-weight:800; }
+.isc-hero-l{ margin-top:6px; font-size:var(--f2); color:var(--dim); line-height:1.5; }
+
+/* a conta fecha na COLUNA: ele confere com o olho, não com a calculadora */
+.isc-linha{ display:flex; align-items:baseline; justify-content:space-between; gap:12px; padding:5px 0; font-size:var(--f2); }
+.isc-linha .k{ color:var(--dim); min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.isc-linha .v{ color:var(--text); font-weight:700; white-space:nowrap; flex:0 0 auto; font-variant-numeric:tabular-nums; }
+.isc-linha.neg .v b{ color:var(--dim) !important; }
+.isc-linha.total{ padding-top:8px; padding-bottom:0; }
+.isc-linha.total .k{ color:var(--text); font-weight:700; }
+.isc-linha.total .v{ font-family:'Sora'; font-size:var(--f4); font-weight:800; }
+.isc-regua{ height:1px; background:var(--line); margin:6px 0 0; }
+
+/* o resto da conta fica dobrado: existe pra quem quiser, não na cara de quem não quer */
+.isc-fold-btn{ display:flex; align-items:center; justify-content:center; gap:7px; width:100%;
+  margin-top:12px; padding:9px; background:transparent; border:1px dashed var(--line);
+  border-radius:11px; color:var(--dim); font-family:'Inter'; font-size:var(--f1);
+  font-weight:700; cursor:pointer; }
+.isc-fold-btn:active{ transform:scale(.985); }
+.isc-chev{ width:13px; height:13px; transform:rotate(90deg); transition:transform .18s ease; }
+.isc-fold-btn.aberto .isc-chev{ transform:rotate(-90deg); }
+.isc-fold{ margin-top:6px; padding-top:4px; border-top:1px solid var(--line); }
+
+/* o cadeado: âmbar é ATENÇÃO no app inteiro, e aqui ele é o convite */
+.isc-lock{ display:flex; align-items:flex-start; gap:9px; margin-top:12px; padding:11px 12px;
+  background:rgba(255,176,32,.07); border:1px solid rgba(255,176,32,.26); border-radius:12px;
+  font-size:var(--f2); line-height:1.55; color:var(--dim); }
+.isc-lock .ico{ width:15px; height:15px; color:var(--signal); flex:0 0 auto; margin-top:2px; }
 
 /* ═══ v2.3 · compartilhar fechamento ═══ */
 .cade-share{ display:inline-flex; align-items:center; gap:8px; margin:2px 0 14px; padding:9px 16px; background:transparent; border:1px solid var(--line); border-radius:12px; color:var(--money); font-family:'Inter'; font-size:var(--f2); font-weight:700; cursor:pointer; }
