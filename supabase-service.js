@@ -564,8 +564,15 @@ async function migrarMotoristaAntigo(userId, forcar) {
         receita:      f.receita   || 0,
         liquido:      f.lucro     || 0,
         taxa_real:    (f.taxa != null) ? f.taxa : null,
-        hora_inicio:  null,   // o app não guarda horário de início/fim por dia, só o total (horasPorDia)
+        hora_inicio:  null,   // o app não guarda horário de início/fim por dia, só o total
         hora_fim:     null,
+        // ⚠️ v4.29 — `horas` é o TOTAL do dia, e por isso precisou de coluna
+        // própria: script.js faz `hp[hoje] = (hp[hoje] || 0) + horas`, ou seja,
+        // dois turnos no mesmo dia viram um total. Um par início/fim não
+        // representa isso — foi por isso que as horas nunca subiram.
+        horas:        (lerLS('horasPorDia', {})[f.dataISO] != null)
+                        ? lerLS('horasPorDia', {})[f.dataISO] : null,
+        veiculo_id:   f.vid || null,   // sem dono conhecido sobe null: nunca chuta
         km_dia:       f.kmDia     || null,
         despesas:     f.desp      || 0
       }, { onConflict: 'usuario_id,data_iso' });
@@ -755,7 +762,11 @@ async function restaurarDoSupabase(userId) {
         desde: v.desde || null, ate: v.ate || null,
         arquivado: v.arquivado === true
       }));
-      salvarLS('veiculos', veiculos);
+      // ⚠️ passa por salvarVeiculos() de propósito: é ele que zera o cache do
+      // vidUnicoDaConta(). Escrever direto no localStorage aqui deixaria o app
+      // achando que a conta tem 1 veículo depois de restaurar 2.
+      if (typeof salvarVeiculos === 'function') salvarVeiculos(veiculos);
+      else salvarLS('veiculos', veiculos);
       // ⚠️ A ORDEM DAS TENTATIVAS É O CONSERTO.
       // 1ª  o que o motorista ESCOLHEU (fato, gravado no perfil)
       // 2ª  só então o palpite antigo, pra conta velha que nunca gravou isso
@@ -788,7 +799,11 @@ async function restaurarDoSupabase(userId) {
       // RECALCULADO (não somado) a partir dos abastecimentos daquela data, que
       // já foram restaurados logo acima. `data` também volta no formato de
       // exibição, e o vid entra pra não deixar o dia órfão de veículo.
-      const vidFin = (typeof vidAtivo === 'function' ? vidAtivo() : null);
+      // ⚠️ v4.29 — AQUI FICAVA `const vidFin = vidAtivo()`, E TODO DIA
+      // RESTAURADO ERA CARIMBADO COM ELE. Motorista de carro E moto trocava de
+      // aparelho e seis meses de dias da moto viravam dias do carro, em
+      // silêncio e pra sempre. Agora o dono vem da coluna; quem não tem, fica
+      // sem — e as métricas de veículo dizem que não sabem, em vez de mentir.
       const diaLongo = iso => {
         if (!iso) return '';
         const d = new Date(String(iso).slice(0, 10) + 'T12:00:00');
@@ -804,7 +819,7 @@ async function restaurarDoSupabase(userId) {
         const iso     = f.data_iso;
         return {
           data: diaLongo(iso), dataISO: iso,
-          vid: vidFin || null,
+          vid: f.veiculo_id || null,
           receita, taxa: Math.max(0, receita - liquido),
           comb: 0, desp: f.despesas || 0,
           lucro: liquido, odo: null, kmDia: f.km_dia != null ? f.km_dia : null
@@ -821,11 +836,24 @@ async function restaurarDoSupabase(userId) {
           // `dias` não existe na nuvem (financas.km_dia é só o número). Assumir
           // 1 é o certo: quem cobre vários dias é a exceção, e marcar tudo como
           // multi-dia tiraria o mês inteiro das médias.
-          mapaKm[f.data_iso] = { km: f.km_dia, vid: vidFin || null, dias: 1 };
+          mapaKm[f.data_iso] = { km: f.km_dia, vid: f.veiculo_id || null, dias: 1 };
           mexeuKm = true;
         }
       });
       if (mexeuKm) salvarLS('kmPorDia', mapaKm);
+
+      // 3c. AS HORAS — MERGE, NUNCA SUBSTITUIÇÃO.
+      // Quem já rodou no aparelho novo ANTES de restaurar não pode perder o
+      // turno de hoje. Vence o maior: a nuvem completa o que falta, não apaga.
+      const horasLocal = lerLS('horasPorDia', {});
+      let mexeuH = false;
+      fins.forEach(f => {
+        if (!f.data_iso || f.horas == null) return;
+        const h = Number(f.horas);
+        if (!isFinite(h) || h <= 0) return;
+        if (h > (horasLocal[f.data_iso] || 0)) { horasLocal[f.data_iso] = h; mexeuH = true; }
+      });
+      if (mexeuH) salvarLS('horasPorDia', horasLocal);
     }
 
     // 4. ABASTECIMENTOS
@@ -841,8 +869,7 @@ async function restaurarDoSupabase(userId) {
       // motorista via 6 abastecimentos no extrato e "aprendendo · 0
       // abastecimentos" no Início, com o detector de erro desligado.
       // ppl e data são recalculados aqui; o vid vem da coluna veiculo_id, e
-      // quem for antigo (NULL) é carimbado com o veículo ativo.
-      const vidFallback = (typeof vidAtivo === 'function' ? vidAtivo() : null);
+      // quem for antigo (NULL) fica SEM dono — ver a nota na linha do vid.
       const paraExibicao = (typeof isoParaExibicao === 'function')
         ? isoParaExibicao
         : function (iso) { return iso; };
@@ -851,7 +878,11 @@ async function restaurarDoSupabase(userId) {
         const litros = a.litros != null ? a.litros : null;
         return {
           id: a.id, data: paraExibicao(a.data_iso), dataISO: a.data_iso,
-          vid: a.veiculo_id || vidFallback || null,
+          // ⚠️ v4.29 — ERA `a.veiculo_id || vidFallback`: abastecimento antigo
+          // sem dono era CARIMBADO com o veiculo ativo do momento. Chutar o dono
+          // e pior do que nao saber: contamina o custo/km, que e o numero que ele
+          // usa pra aceitar corrida. Sem dono, fica sem dono.
+          vid: a.veiculo_id || null,
           tipo: a.tipo || 'Gasolina', valor: valor,
           litros: litros,
           km: a.km != null ? a.km : null,
@@ -917,6 +948,28 @@ async function restaurarDoSupabase(userId) {
       salvarLS('despesasPorDia', porDia);
     }
 
+    // 7b. EXTRATOS DA PLATAFORMA
+    // ⚠️ ISTO NUNCA EXISTIU. O app GRAVAVA extratos_plataforma desde a v4.14 e
+    // NUNCA lia de volta: quem trocava de aparelho perdia o dado mais caro de
+    // conseguir — o print de ganhos, que é o único documento de TERCEIRO que o
+    // app tem. Nada tinha sido perdido de verdade: estava tudo na nuvem,
+    // intacto, e o app é que não pedia.
+    const { data: exts } = await sb.from('extratos_plataforma').select('*')
+      .eq('usuario_id', userId);
+    if (exts && exts.length) {
+      achouAlgo = true;
+      const daNuvem = exts.map(x => ({
+        id: x.id, plataforma: x.plataforma, ym: x.ym,
+        periodo: x.periodo || null,
+        // as datas são a IDENTIDADE do extrato (v4.29); o texto é só exibição
+        ini: x.periodo_inicio || null, fim: x.periodo_fim || null,
+        bruto: x.bruto, taxa: x.taxa, liquido: x.liquido, pct: x.pct,
+        dataISO: String(x.criado_em || '').slice(0, 10) || null,
+        dataChutada: !(x.periodo_inicio && x.periodo_fim)
+      }));
+      salvarLS('extratosPlataforma', mesclarExtratos(daNuvem, lerLS('extratosPlataforma', [])));
+    }
+
     // 8. RECONCILIAÇÃO FINAL — agora que abastecimentos E despesas já estão no
     // lugar, o combustível e as despesas de cada dia podem ser recalculados.
     // Tem que ser aqui no fim: no passo 3 os abastecimentos ainda não existiam.
@@ -929,6 +982,26 @@ async function restaurarDoSupabase(userId) {
     console.error('[Copiloto] Erro ao restaurar do Supabase:', e);
     return { ok: false, erro: e.message };
   }
+}
+
+// ⚠️ MERGE, NÃO SUBSTITUIÇÃO — e é função própria de propósito, pra poder ser
+// testada. Extrato lançado offline ainda não subiu: trocar a lista pela da
+// nuvem apagaria ele. E dois registros do MESMO período (um local, um da
+// nuvem) recriariam justamente a duplicidade que a v4.29 acabou de consertar.
+// Por isso: mesma chave → vence o mais recente. Sem datas, o id é a chave.
+function mesclarExtratos(daNuvem, locais) {
+  const chaveDe = function (x) {
+    return (x && x.ini && x.fim) ? (x.plataforma + '|' + x.ini + '|' + x.fim)
+                                 : ('id:' + (x && x.id));
+  };
+  const porChave = {};
+  (daNuvem || []).concat(locais || []).forEach(function (x) {
+    if (!x) return;
+    const k = chaveDe(x);
+    const atual = porChave[k];
+    if (!atual || String(x.dataISO || '') > String(atual.dataISO || '')) porChave[k] = x;
+  });
+  return Object.keys(porChave).map(function (k) { return porChave[k]; });
 }
 
 // Preenche o combustível (e as despesas) de cada dia do histórico de finanças a

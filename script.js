@@ -121,10 +121,20 @@ function esc(s) {
 }
 // confirmação bonita (substitui o confirm() cinza do navegador)
 let _confirmCb = null;
-function pedirConfirmacao(titulo, texto, aoConfirmar) {
+let _confirmCbN = null;   // ação do 2º botão, quando ele não é só "cancelar"
+// ⚠️ v4.29 — OS RÓTULOS VIRARAM OPCIONAIS. Nem toda pergunta é "sim/cancelar":
+// quando o app precisa que ele ESCOLHA entre dois caminhos (substituir o
+// extrato ou guardar os dois), o botão escrito "Cancelar" mente sobre o que
+// ele faz. `opcoes.aoRecusar` dá ação ao segundo botão; sem ele, o
+// comportamento é o de sempre — fecha e não faz nada.
+function pedirConfirmacao(titulo, texto, aoConfirmar, opcoes) {
+  const o = opcoes || {};
   document.getElementById('confirmTitulo').innerHTML = titulo;   // só constantes do app; o texto abaixo segue textContent
   document.getElementById('confirmTexto').textContent  = texto;
-  _confirmCb = aoConfirmar;
+  document.getElementById('btnConfirmSim').textContent = o.sim || 'Sim, confirmar';
+  document.getElementById('btnConfirmNao').textContent = o.nao || 'Cancelar';
+  _confirmCb  = aoConfirmar;
+  _confirmCbN = o.aoRecusar || null;
   document.getElementById('modalConfirm').style.display = 'flex';
 }
 
@@ -543,7 +553,47 @@ const KM_SALTO_SUSPEITO = 800;
 
 function novoVid() { return 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function lerVeiculos()      { const v = lerLS('veiculos', []); return Array.isArray(v) ? v : []; }
-function salvarVeiculos(vs) { salvarLS('veiculos', vs); }
+function salvarVeiculos(vs) { esquecerCacheVeiculos(); salvarLS('veiculos', vs); }
+
+// ═══════════════════════════════════════════════════════════════
+//  DE QUEM É ESTE REGISTRO? (v4.29)
+//  Registro antigo pode não ter veículo: `financas.veiculo_id` existia na
+//  nuvem e NUNCA era gravado, então todo dia restaurado voltava sem dono — e
+//  o app carimbava com o veículo ativo do momento, misturando carro e moto
+//  em silêncio. Isso acabou. Agora quem não tem dono CONTINUA sem dono.
+//
+//  A regra (decisão do dono do produto):
+//   · no total financeiro, registro sem veículo ENTRA — o dinheiro é dele
+//   · em métrica DE VEÍCULO (piso, km/h, custo/km, simulador), FICA DE FORA
+//   · exceção honesta: se a conta teve UM veículo só na vida inteira, o
+//     registro só pode ser dele. Isso não é palpite, é a única possibilidade.
+//  ⚠️ A inferência é SÓ DE LEITURA. Nada é gravado, nem aqui nem na nuvem:
+//  no dia em que ele cadastrar o 2º veículo, os registros antigos voltam a
+//  ser desconhecidos — que é a verdade.
+// ═══════════════════════════════════════════════════════════════
+// ⚠️ CACHE OBRIGATÓRIO: os chamadores rodam DENTRO de laços sobre 14 a 60
+// dias, várias vezes por tela. Sem isto seria um JSON.parse por dia, por laço.
+let _vidUnicoCache;   // undefined = ainda não calculado · null = 0 ou 2+ veículos
+function esquecerCacheVeiculos() { _vidUnicoCache = undefined; }
+function vidUnicoDaConta() {
+  if (_vidUnicoCache !== undefined) return _vidUnicoCache;
+  const vs = lerVeiculos();   // inclui os ARQUIVADOS de propósito: "na vida inteira"
+  _vidUnicoCache = (vs.length === 1 && vs[0]) ? (vs[0].id || null) : null;
+  return _vidUnicoCache;
+}
+// o dono do registro, ou null quando o app não sabe. NUNCA chuta.
+function vidEfetivo(reg) {
+  if (!reg) return null;
+  if (reg.vid) return reg.vid;
+  return vidUnicoDaConta();
+}
+// a pergunta que os chamadores realmente fazem. Desconhecido → false: fora da
+// métrica de veículo. (Regra #11: a comparação mora aqui, não em 6 lugares.)
+function ehDoVeiculoAtivo(reg) {
+  const ativo = vidAtivo();
+  if (!ativo) return true;   // sem veículo cadastrado não há métrica de veículo a proteger
+  return vidEfetivo(reg) === ativo;
+}
 // ATENÇÃO: veiculoAtivo é uma string pura. Não usar lerLS/salvarLS aqui —
 // salvarLS grava string sem aspas e lerLS faz JSON.parse, que engasga e
 // devolve null. Guardamos e lemos direto, como o streak já faz.
@@ -1665,6 +1715,9 @@ function atualizarResumoDia() {
   const temReceita = registrosHojeFin().length > 0;
 
   // ganho/hora só aparece se o turno durou pelo menos meia hora
+  // ⚠️ 0,5 aqui é DE PROPÓSITO e não é o HORAS_MIN_AMOSTRA. Este número é um
+  // FATO DE HOJE (o que ele fez dividido pelo tempo que rodou), não uma
+  // amostra de aprendizado. Turno curto continua contando no dinheiro dele.
   if (temReceita && horas >= 0.5) ganhoHoraValor.textContent = 'R$ ' + Math.round(lucro / horas);
   else                            ganhoHoraValor.textContent = '—';
 
@@ -1699,13 +1752,15 @@ function renderPisoLinha() {
   const elL = document.getElementById('pisoLink');
   const d = (typeof pisoPorKm === 'function') ? pisoPorKm() : null;
 
-  if (!d || d.falta === 'combustivel') {
+  if (!d || d.falta === 'combustivel' || d.falta === 'veiculo') {
     // sem combustível medido não existe piso — e chutar aqui é o pior erro
     // possível: ele aceitaria corrida ruim achando que o app aprovou.
     box.className = 'piso-linha aprendendo';
     elT.textContent = 'Seu piso por km';
     elV.textContent = '—';
-    elF.textContent = 'registre um abastecimento com o km e eu calculo';
+    elF.textContent = (d && d.falta === 'veiculo')
+      ? 'ainda não sei quais registros antigos são deste veículo'
+      : 'registre um abastecimento com o km e eu calculo';
     elL.style.display = 'none';
     box.style.display = '';
     return;
@@ -1735,9 +1790,8 @@ function renderPisoLinha() {
 
 // abastecimentos DO VEÍCULO ATIVO (a média de um carro não descreve uma moto)
 function abastDoVeiculoAtivo() {
-  const vid = vidAtivo();
-  if (!vid) return lerLS('historicoAbastecimentos', []);
-  return lerLS('historicoAbastecimentos', []).filter(r => r.vid === vid);
+  // ehDoVeiculoAtivo() ja devolve true quando nao ha veiculo cadastrado
+  return lerLS('historicoAbastecimentos', []).filter(r => ehDoVeiculoAtivo(r));
 }
 // base do R$/km: só registros com km E valor (um abastecimento sem km
 // informado inflava a média — entrava no gasto e não entrava no km)
@@ -1904,8 +1958,8 @@ function kmPorHoraReal() {
     const r = mapaKm[iso], h = horas[iso];
     // registro que cobre vários dias não entra: dividir seria inventar
     if (!r || !(r.km > 0) || (r.dias || 1) !== 1) return;
-    if (vidS && r.vid && r.vid !== vidS) return;
-    if (!(h >= 1)) return;                       // menos de 1h distorce demais
+    if (!ehDoVeiculoAtivo(r)) return;            // sem dono conhecido, fora da conta DESTE veiculo
+    if (!(h >= HORAS_MIN_AMOSTRA)) return;       // menos de 1h distorce demais
     const v = r.km / h;
     if (v >= 5 && v <= 70) amostras.push(v);     // fora disso é dado furado
   });
@@ -1927,8 +1981,8 @@ function amostrasDoPiso() {
   Object.keys(mapaKm).sort().reverse().slice(0, 14).forEach(function (iso) {
     const r = mapaKm[iso], h = horas[iso];
     if (!r || !(r.km > 0) || (r.dias || 1) !== 1) return;
-    if (vidS && r.vid && r.vid !== vidS) return;
-    if (!(h >= 1)) return;
+    if (!ehDoVeiculoAtivo(r)) return;            // mesma peneira do kmPorHoraReal()
+    if (!(h >= HORAS_MIN_AMOSTRA)) return;
     const v = r.km / h;
     if (v >= 5 && v <= 70) n++;
   });
@@ -1945,6 +1999,17 @@ function faltamDiasPiso(comHtml) {
   if (n === 0) return pedido + '. Você ainda não tem nenhum.';
   return pedido + ' — você já tem ' + d(n) + ', ' + (falta === 1 ? 'falta ' : 'faltam ') + d(falta) + '.';
 }
+// ⚠️ v4.29 — "NÃO TENHO DADO" É DIFERENTE DE "NÃO SEI DE QUEM É O DADO".
+// Com 2 veículos e histórico antigo sem dono, o app mandava REGISTRAR UM
+// ABASTECIMENTO — e ele tinha seis. Frase que ignora o esforço do motorista
+// queima a confiança dele no app inteiro (mesma lição da inteligenciaDoDia).
+function temHistoricoSemDono() {
+  if (vidUnicoDaConta()) return false;   // conta de um veículo só: nada fica órfão
+  const orfao = function (r) { return r && !r.vid; };
+  if (lerLS('historicoAbastecimentos', []).some(orfao)) return true;
+  const km = lerLS('kmPorDia', {});
+  return Object.keys(km).some(function (k) { return orfao(km[k]); });
+}
 function pisoPorKm() {
   // ⚠️ AQUI ESTAVA O PIOR DELES. `custo` era combustível + reserva, e a reserva
   // NUNCA é zero (tem valor padrão). Resultado: um motorista recém-cadastrado,
@@ -1955,7 +2020,7 @@ function pisoPorKm() {
   const combKm = combustivelKmMes();
   if (!(combKm > 0)) {
     return { custo: null, piso: null, kmh: null, horasTipicas: null,
-             ganhoHora: null, falta: 'combustivel' };
+             ganhoHora: null, falta: temHistoricoSemDono() ? 'veiculo' : 'combustivel' };
   }
   const custo = combKm + reservaKmAtual();   // o que sai do bolso por km
   if (!(custo > 0)) return null;
@@ -1968,7 +2033,7 @@ function pisoPorKm() {
   // "quanto quero por dia" em "quanto preciso por hora".
   const horas = lerLS('horasPorDia', {});
   const hs = Object.keys(horas).sort().reverse().slice(0, 14)
-               .map(function (k) { return horas[k]; }).filter(function (h) { return h >= 1; });
+               .map(function (k) { return horas[k]; }).filter(function (h) { return h >= HORAS_MIN_AMOSTRA; });
   const horasTipicas = hs.length >= 2
     ? hs.reduce(function (a, b) { return a + b; }, 0) / hs.length : null;
 
@@ -1979,7 +2044,9 @@ function pisoPorKm() {
              ganhoHora: null,
              // ⚠️ meta zerada caía em 'horas' e o app mandava marcar turno —
              // ele marcaria a semana inteira e o piso não nasceria nunca.
-             falta: (meta <= 0 ? 'meta' : (kmh === null ? 'km' : 'horas')) };
+             falta: (meta <= 0 ? 'meta'
+                     : (kmh === null ? (temHistoricoSemDono() ? 'veiculo' : 'km')
+                                     : 'horas')) };
   }
 
   const ganhoHora = meta / horasTipicas;        // quanto a meta dele exige por hora
@@ -2037,6 +2104,20 @@ function cardDoPiso() {
   const d = pisoPorKm();
   if (!d) return null;
 
+  // ⚠️ v4.29 — ele TEM histórico, o app é que não sabe de qual veículo. Mandar
+  // "registre um abastecimento" pra quem já registrou seis é o pior tipo de
+  // aviso: o que ignora o que o motorista já fez.
+  if (d.falta === 'veiculo') {
+    return {
+      ic: ico('alvo'), cor: 'var(--dim)', tit: 'Seu piso por km', hero: '—',
+      isaac: 'Você tem histórico, mas ele é de antes de eu separar as contas por veículo — '
+           + 'então eu não sei quais desses dias e tanques foram deste aqui. Misturar dois '
+           + 'veículos daria um piso que não é de nenhum dos dois, e você aceitaria corrida '
+           + 'com um número errado. A partir do próximo tanque e do próximo dia fechado neste '
+           + 'veículo, eu já monto o piso dele.',
+      fonte: 'medido do seu tanque, não de média de mercado'
+    };
+  }
   // sem combustível medido não existe piso — e dizer isso é melhor que chutar
   if (d.falta === 'combustivel') {
     return {
@@ -2055,6 +2136,8 @@ function cardDoPiso() {
            + 'Pra eu calcular o piso da sua meta (o valor abaixo do qual você não bate o dia) '
            + (d.falta === 'meta'
                ? 'eu preciso saber qual é a sua meta do dia: toque na meta, ali no velocímetro do Início.'
+               : d.falta === 'veiculo'
+               ? 'eu preciso saber quais dias antigos foram deste veículo — e isso o histórico antigo não guardava. Feche um dia neste veículo que eu começo a contar.'
                : 'eu preciso saber quantos km você faz por hora. ' + faltamDiasPiso(false) + ' Aí o número aparece sozinho aqui.'),
       fonte: 'medido do seu tanque, não de média de mercado'
     };
@@ -2265,11 +2348,13 @@ function editarReserva() {
 // modal de confirmação (Sim/Cancelar)
 document.getElementById('btnConfirmSim').addEventListener('click', () => {
   document.getElementById('modalConfirm').style.display = 'none';
+  _confirmCbN = null;
   if (_confirmCb) { const cb = _confirmCb; _confirmCb = null; cb(); }
 });
 document.getElementById('btnConfirmNao').addEventListener('click', () => {
-  _confirmCb = null;
   document.getElementById('modalConfirm').style.display = 'none';
+  _confirmCb = null;
+  if (_confirmCbN) { const cb = _confirmCbN; _confirmCbN = null; cb(); }
 });
 document.querySelector('#btnFecharReserva').addEventListener('click', () => { document.getElementById('modalReserva').style.display = 'none'; });
 // GUARDAR um valor avulso agora
@@ -2414,6 +2499,8 @@ function abrirAjuda(qual, ev) {
             + 'e abaixo disso é prejuízo puro, sem discussão. Pro piso da sua meta '
             + (d.falta === 'meta'
                 ? 'eu preciso saber quanto você quer fazer por dia: toque na <b>meta</b>, ali no velocímetro do Início.'
+                : d.falta === 'veiculo'
+                ? 'eu preciso saber quais dias antigos foram <b>deste veículo</b> — o histórico de antes não guardava isso, e misturar dois veículos daria um piso que não é de nenhum. Feche um dia neste veículo que eu começo a montar o dele.'
                 : 'eu preciso saber quantos km você faz por hora. ' + faltamDiasPiso(true)
                   + ' Aí o número aparece sozinho aqui — não precisa fazer mais nada.');
     }
@@ -3965,11 +4052,18 @@ function reconciliarFinancas() {
     // restaura o lucro inflado de volta
     if (typeof salvarRegistroHibrido === 'function') {
       fin.slice(0, 62).forEach(function (r) {          // ~2 meses: o resto é histórico frio
+          // ⚠️ v4.29 — `veiculo_id` e `horas` SOBEM AGORA. A coluna de veículo
+          // existia na nuvem desde sempre e NUNCA era gravada: todo dia voltava
+          // sem dono e o restore carimbava com o veículo ativo do momento.
+          // E as horas nunca tiveram coluna — quem trocava de aparelho perdia
+          // R$/hora, "seu normal" e o piso por km inteiro.
         salvarRegistroHibrido('financas', {
           data_iso: r.dataISO, receita: r.receita || 0, liquido: r.lucro || 0,
           taxa_real: (r.taxa != null) ? r.taxa : null,
           km_dia: (lerLS('kmPorDia', {})[r.dataISO] || {}).km || null,
-          despesas: r.desp || 0
+          despesas: r.desp || 0,
+          veiculo_id: r.vid || null,                      // sem dono conhecido? sobe null
+          horas: lerLS('horasPorDia', {})[r.dataISO] || null
         }, 'usuario_id,data_iso').catch(function () {});
       });
     }
@@ -4119,7 +4213,9 @@ function ressincronizarReceitaHoje() {
       liquido:   rHoje.lucro   || 0,
       taxa_real: (rHoje.taxa != null) ? rHoje.taxa : null,
       km_dia:    kmRodadoHoje(),
-      despesas:  rHoje.desp    || 0
+      despesas:  rHoje.desp    || 0,
+      veiculo_id: rHoje.vid || vidAtivo() || null,
+      horas:      horasHojeVal() || null
     }, 'usuario_id,data_iso').catch(function () {});
   }
 }
@@ -4589,7 +4685,7 @@ function renderPorTipo(registros) {
   const verBox = document.getElementById('tiposVeredict');
   // gasolina no carro vs gasolina na moto não se comparam: só o veículo ativo
   const vidS = vidAtivo();
-  if (vidS && registros) registros = registros.filter(r => r.vid === vidS);
+  if (vidS && registros) registros = registros.filter(r => ehDoVeiculoAtivo(r));
   if (!registros || registros.length === 0) { bloco.style.display = 'none'; return; }
 
   // ⚠️ Registro com km furado fica de fora do COMPARATIVO. Sem isto o app
@@ -5219,7 +5315,8 @@ btnConfirmarReceita.addEventListener('click', function() {
   if (typeof salvarRegistroHibrido === 'function') {
     salvarRegistroHibrido('financas', {
       data_iso: hojeISO(), receita: c.bruto, liquido: lucro,
-      taxa_real: c.taxa, km_dia: kmRodadoHoje(), despesas: desp
+      taxa_real: c.taxa, km_dia: kmRodadoHoje(), despesas: desp,
+      veiculo_id: vidAtivo() || null, horas: horasHojeVal() || null
     }, 'usuario_id,data_iso').catch(function () {});
   }
   atualizarBannerLucro();
@@ -5774,42 +5871,203 @@ function acharExtratoNaFoto(res) {
   };
 }
 
-// ── período: o print quase sempre traz as datas ─────────────────
-// Não é obrigatório — sem período, o extrato entra com a data de hoje e o
-// app AVISA que foi ele quem chutou a data, nunca finge que veio do print.
+// ── período do extrato: o print quase sempre traz as datas ──────
+// ⚠️ v4.29 — ANTES ISTO DEVOLVIA SÓ TEXTO, E O TEXTO NÃO SERVE DE IDENTIDADE.
+// Sem as datas, a deduplicação caía em "plataforma + mês" e o segundo extrato
+// do mesmo mês APAGAVA o primeiro em silêncio (a Uber paga por semana). Agora
+// devolve início e fim em ISO, e quem não conseguir ler as duas datas sai com
+// `confiavel: false` — aí quem guarda PERGUNTA em vez de sobrescrever.
+//
+// ⚠️ E o regex antigo prometia três formatos e cobria UM. Provado:
+//     "24 de ago. - 31 de ago."   MATCH
+//     "01-30 junho 2026"          FALHA
+//     "01/09 a 30/09/2026"        FALHA
+// Por isso agora são três padrões tentados em ordem, e vence o primeiro que
+// produzir um par de datas que EXISTE no calendário e passa na sanidade.
 const _MESES_PT = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const _PERIODO_MAX_DIAS = 62;   // extrato de plataforma é semanal ou mensal
+
+function _iMesPT(nome) {
+  const n = String(nome || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').slice(0, 3);
+  return _MESES_PT.indexOf(n);   // -1 = não é mês
+}
+// devolve 'AAAA-MM-DD' ou null. Null aqui é resposta, não erro: 31/02 não existe.
+function _isoSeExistir(ano, mes, dia) {
+  if (!(ano >= 2000 && ano <= 2099) || !(mes >= 1 && mes <= 12) || !(dia >= 1 && dia <= 31)) return null;
+  const d = new Date(ano, mes - 1, dia);
+  if (d.getFullYear() !== ano || d.getMonth() !== mes - 1 || d.getDate() !== dia) return null;
+  return ano + '-' + String(mes).padStart(2, '0') + '-' + String(dia).padStart(2, '0');
+}
+function _diasEntreISO(a, b) {
+  return Math.round((new Date(b + 'T12:00:00') - new Date(a + 'T12:00:00')) / 86400000);
+}
+// O ANO SAI DO TRECHO RECONHECIDO, não do print inteiro.
+// ⚠️ O código antigo fazia txt.match(/20\d{2}/) no texto TODO: em
+// "corridas: 2025 · periodo 01 de set - 07 de set 2026" ele pegava 2025.
+// Ordem: (1) ano dentro do trecho · (2) ano colado ao trecho (12 chars de
+// cada lado) · (3) derivado de hoje, assumindo extrato dos últimos 12 meses.
+function _anoDoPeriodo(txt, trecho, idx, mesFim) {
+  const noTrecho = String(trecho).match(/20\d{2}/);
+  if (noTrecho) return { ano: Number(noTrecho[0]), explicito: true };
+  const depois = txt.slice(idx + trecho.length, idx + trecho.length + 12).match(/20\d{2}/);
+  if (depois) return { ano: Number(depois[0]), explicito: true };
+  const antes = txt.slice(Math.max(0, idx - 12), idx).match(/20\d{2}/);
+  if (antes) return { ano: Number(antes[0]), explicito: true };
+  // Sem ano escrito: o extrato é do passado recente. O mês do FIM decide —
+  // mês que ainda não chegou este ano só pode ser do ano passado.
+  const hoje = new Date();
+  const ano = (mesFim <= (hoje.getMonth() + 1)) ? hoje.getFullYear() : hoje.getFullYear() - 1;
+  return { ano: ano, explicito: false };
+}
+
 function acharPeriodoNaFoto(res) {
   const txt = String((res && res.text) || '').toLowerCase();
-  // "24 de ago. - 31 de ago." | "01-30 Junho 2026" | "01/09 a 30/09/2026"
-  const mes = txt.match(/(\d{1,2})\s*(?:de\s+)?([a-zç]{3,10})\.?\s*(?:-|a|até)\s*(\d{1,2})\s*(?:de\s+)?([a-zç]{3,10})?/);
-  if (mes) {
-    const nome = (mes[4] || mes[2] || '').slice(0, 3);
-    const iMes = _MESES_PT.indexOf(nome);
-    if (iMes >= 0) {
-      const ano = (txt.match(/20\d{2}/) || [String(new Date().getFullYear())])[0];
-      return { texto: mes[0].trim(), ym: ano + '-' + String(iMes + 1).padStart(2, '0') };
+  if (!txt) return null;
+  const SEP = '(?:-|–|—|a|até)';
+
+  // Os três formatos, do mais explícito pro menos. Cada um devolve dia/mês dos
+  // dois extremos; o ano vem depois, por _anoDoPeriodo.
+  const padroes = [
+    // C: "01/09 a 30/09/2026" · "01/09/2026 - 30/09/2026" · "24/08 - 31/08"
+    { re: new RegExp('(\\d{1,2})/(\\d{1,2})(?:/(20\\d{2}))?\\s*' + SEP + '\\s*(\\d{1,2})/(\\d{1,2})(?:/(20\\d{2}))?'),
+      pega: function (m) {
+        return { d1: +m[1], m1: +m[2], a1: m[3] ? +m[3] : null,
+                 d2: +m[4], m2: +m[5], a2: m[6] ? +m[6] : null };
+      } },
+    // A: "24 de ago. - 31 de ago." · "28 de ago - 03 de set" · "1 de dez - 5 de jan"
+    { re: new RegExp('(\\d{1,2})\\s*(?:de\\s+)?([a-zç]{3,10})\\.?\\s*' + SEP +
+                     '\\s*(\\d{1,2})\\s*(?:de\\s+)?([a-zç]{3,10})\\.?'),
+      pega: function (m) {
+        const i1 = _iMesPT(m[2]), i2 = _iMesPT(m[4]);
+        if (i1 < 0 || i2 < 0) return null;
+        return { d1: +m[1], m1: i1 + 1, a1: null, d2: +m[3], m2: i2 + 1, a2: null };
+      } },
+    // B: "01-30 junho 2026" — um mês só, vale pros dois dias
+    { re: new RegExp('(\\d{1,2})\\s*' + SEP + '\\s*(\\d{1,2})\\s+(?:de\\s+)?([a-zç]{3,10})'),
+      pega: function (m) {
+        const i = _iMesPT(m[3]);
+        if (i < 0) return null;
+        return { d1: +m[1], m1: i + 1, a1: null, d2: +m[2], m2: i + 1, a2: null };
+      } }
+  ];
+
+  for (let p = 0; p < padroes.length; p++) {
+    const m = txt.match(padroes[p].re);
+    if (!m) continue;
+    const cru = padroes[p].pega(m);
+    if (!cru) continue;
+
+    const anoInfo = _anoDoPeriodo(txt, m[0], m.index, cru.m2);
+    // ⚠️ VIRADA DE ANO. "1 de dez. - 5 de jan.": o ano encontrado é o do FIM,
+    // e o início está no ano anterior. Sem isto o período sai invertido e a
+    // sanidade o joga fora — o extrato de virada de ano nunca deduplicaria.
+    const anoFim = (cru.a2 != null) ? cru.a2 : anoInfo.ano;
+    const anoIni = (cru.a1 != null) ? cru.a1
+                 : (cru.m2 < cru.m1 ? anoFim - 1 : anoFim);
+
+    const ini = _isoSeExistir(anoIni, cru.m1, cru.d1);
+    const fim = _isoSeExistir(anoFim, cru.m2, cru.d2);
+    const texto = m[0].trim().replace(/\s+/g, ' ');
+
+    // ── sanidade: melhor sair sem data do que com data errada ──
+    let ok = !!(ini && fim);
+    if (ok && _diasEntreISO(ini, fim) < 0) ok = false;                       // invertido
+    if (ok && _diasEntreISO(ini, fim) > _PERIODO_MAX_DIAS) ok = false;       // janela absurda
+    if (ok) {
+      const amanha = new Date(); amanha.setDate(amanha.getDate() + 1);
+      if (new Date(fim + 'T12:00:00') > amanha) ok = false;                  // extrato do futuro
     }
+
+    if (!ok) {
+      // Achou algo com cara de período mas não fecha: devolve o texto pra
+      // exibição e marca como NÃO confiável. Quem guarda vai perguntar.
+      return { texto: texto, ini: null, fim: null,
+               ym: hojeISO().slice(0, 7), confiavel: false, anoExplicito: false };
+    }
+    return {
+      texto: texto, ini: ini, fim: fim,
+      ym: fim.slice(0, 7),          // o mês do FIM manda, como já era antes
+      confiavel: true,
+      anoExplicito: anoInfo.explicito && cru.a2 == null ? true : (cru.a2 != null)
+    };
   }
   return null;
 }
 
 // ── guardar ─────────────────────────────────────────────────────
-// Um extrato por plataforma por período: reenviar o mesmo print corrige em
-// vez de duplicar. Duplicata aqui viraria "a Uber levou o dobro" no relatório.
-function salvarExtratoPlataforma(e) {
+// ⚠️ v4.29 — A CHAVE ERA "PLATAFORMA + MÊS", E A UBER PAGA POR SEMANA.
+// Quem mandava o print de 1-7/set e depois o de 8-14/set via o SEGUNDO
+// APAGAR O PRIMEIRO, calado. A carta então dizia que a Uber pagou R$ 1.100
+// no mês, quando pagou R$ 2.300 — e o motorista não tinha como perceber.
+// Agora a identidade são as DATAS (plataforma + início + fim). O texto do
+// período continua existindo, mas só pra ele ler na tela: texto de OCR muda
+// de grafia entre dois prints do mesmo período e não serve de identidade.
+// Sem datas confiáveis o app NÃO ESCOLHE: quem chama pergunta antes.
+function chaveExtrato(e) {
+  return (e && e.ini && e.fim) ? (e.plataforma + '|' + e.ini + '|' + e.fim) : null;
+}
+// O que já existe que briga com este? Devolve null quando pode entrar direto.
+//   'mesmo'      = reenvio do mesmo período → corrige em silêncio (era o que
+//                  o código velho queria fazer, e fazia pro mês inteiro)
+//   'sobreposto' = mesma plataforma, período que cruza mas não é igual → PERGUNTA
+//   'semData'    = sem datas confiáveis e já existe algo daquela plataforma
+//                  naquele mês → PERGUNTA (nunca sobrescreve no escuro)
+function conflitoExtrato(e) {
   const lista = lerLS('extratosPlataforma', []);
-  const chave = e.plataforma + '|' + e.ym;
-  const i = lista.findIndex(function (x) { return (x.plataforma + '|' + x.ym) === chave; });
+  const ch = chaveExtrato(e);
+  if (ch) {
+    const igual = lista.filter(function (x) { return chaveExtrato(x) === ch; });
+    if (igual.length) return { tipo: 'mesmo', regs: igual };
+    // sobreposição: dois intervalos se cruzam quando cada um começa antes de
+    // o outro terminar. Registro sem data não entra aqui — não dá pra cruzar
+    // o que não tem data.
+    const cruza = lista.filter(function (x) {
+      return x.plataforma === e.plataforma && x.ini && x.fim
+          && x.ini <= e.fim && e.ini <= x.fim;
+    });
+    return cruza.length ? { tipo: 'sobreposto', regs: cruza } : null;
+  }
+  const mesmoMes = lista.filter(function (x) {
+    return x.plataforma === e.plataforma && x.ym === e.ym;
+  });
+  return mesmoMes.length ? { tipo: 'semData', regs: mesmoMes } : null;
+}
+// modo: 'auto' (só substitui o período IDÊNTICO) · 'substituir' (tira os que
+// conflitam) · 'adicionar' (entra do lado, sem tirar nada)
+function salvarExtratoPlataforma(e, modo) {
+  let lista = lerLS('extratosPlataforma', []);
   const reg = {
-    id: 'ext' + Date.now(), plataforma: e.plataforma, ym: e.ym,
-    periodo: e.periodo || null, bruto: e.bruto, taxa: e.taxa,
-    liquido: e.liquido, pct: e.pct, dataISO: hojeISO(), dataChutada: !e.periodo
+    // ⚠️ Date.now() sozinho NÃO É ÚNICO: dois extratos salvos no mesmo
+    // milissegundo ganhavam o mesmo id, e o filtro de substituição
+    // apagava os DOIS. Pego pelo teste do C4b, antes de subir.
+    id: 'ext' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    plataforma: e.plataforma, ym: e.ym,
+    periodo: e.periodo || null,
+    ini: e.ini || null, fim: e.fim || null,
+    bruto: e.bruto, taxa: e.taxa,
+    liquido: e.liquido, pct: e.pct, dataISO: hojeISO(),
+    // dataChutada = o app não leu o período do print. Continua sendo o aviso
+    // que aparece pro motorista; agora o critério é a DATA, não o texto.
+    dataChutada: !(e.ini && e.fim)
   };
-  if (i >= 0) { reg.id = lista[i].id; lista[i] = reg; } else { lista.unshift(reg); }
+  const c = conflitoExtrato(e);
+  const tirar = (modo === 'substituir' && c) ? c.regs
+              : (c && c.tipo === 'mesmo')    ? c.regs
+              : [];
+  if (tirar.length) {
+    reg.id = tirar[0].id;   // reaproveita o id: a nuvem corrige em vez de empilhar
+    const fora = tirar.map(function (x) { return x.id; });
+    lista = lista.filter(function (x) { return fora.indexOf(x.id) < 0; });
+    // ⚠️ o que sai daqui some do aparelho mas CONTINUA na nuvem. Apagar de
+    // verdade é outra conversa (e o botão X da lista já tem o mesmo buraco).
+  }
+  lista.unshift(reg);
   salvarLS('extratosPlataforma', lista);
   if (typeof salvarRegistroHibrido === 'function') {
     salvarRegistroHibrido('extratos_plataforma', {
       id: reg.id, plataforma: reg.plataforma, ym: reg.ym, periodo: reg.periodo,
+      periodo_inicio: reg.ini, periodo_fim: reg.fim,
       bruto: reg.bruto, taxa: reg.taxa, liquido: reg.liquido, pct: reg.pct
     }, 'id').catch(function () {});
   }
@@ -6014,7 +6272,12 @@ async function lerExtratoPlataforma() {
   const per = acharPeriodoNaFoto(res);
   _extPlatLido = {
     bruto: r.bruto, taxa: r.taxa, liquido: r.liquido, pct: r.pct,
-    periodo: per ? per.texto : null,
+    periodo: per ? per.texto : null,           // texto: so pra ELE ler na tela
+    // ⚠️ v4.29 — a IDENTIDADE do extrato sao as datas, nao o texto. Elas
+    // seguem daqui ate o salvamento; `confiavel:false` (ou parser mudo) faz
+    // quem guarda PERGUNTAR em vez de sobrescrever o que ja existe no mes.
+    ini: (per && per.confiavel) ? per.ini : null,
+    fim: (per && per.confiavel) ? per.fim : null,
     ym: per ? per.ym : hojeISO().slice(0, 7),
     plataforma: lerLS('ultimaPlataformaExtrato', 'Uber')
   };
@@ -6051,11 +6314,51 @@ async function lerExtratoPlataforma() {
 
 function salvarExtratoDaTela() {
   if (!_extPlatLido) return;
-  salvarLS('ultimaPlataformaExtrato', _extPlatLido.plataforma);
-  salvarExtratoPlataforma(_extPlatLido);
+  // ⚠️ guarda numa const: o modal de conflito é assíncrono e `_extPlatLido`
+  // pode ser trocado por outra leitura antes de ele responder.
+  const lido = _extPlatLido;
+  salvarLS('ultimaPlataformaExtrato', lido.plataforma);
+  const c = conflitoExtrato(lido);
+
+  // sem conflito, ou reenvio do mesmo período: guarda sem incomodar
+  if (!c || c.tipo === 'mesmo') { _guardarExtrato(lido, 'auto'); return; }
+
+  // ⚠️ NUNCA SOBRESCREVER NO ESCURO. Fecha o modal do extrato ANTES de
+  // perguntar — modal em cima de modal já custou uma rodada neste app.
+  fecharExtratoPlat();
+  pedirConfirmacao(
+    ico('alerta') + ' Isso pode ser o mesmo dinheiro duas vezes',
+    _textoConflitoExtrato(c, lido),
+    function () { _guardarExtrato(lido, 'substituir'); },
+    { sim: 'Substituir o antigo', nao: 'Guardar os dois',
+      aoRecusar: function () { _guardarExtrato(lido, 'adicionar'); } }
+  );
+}
+function _guardarExtrato(lido, modo) {
+  salvarExtratoPlataforma(lido, modo);
   fecharExtratoPlat();
   renderExtratosPlat();
   toast('Extrato guardado — vai aparecer no relatório do mês');
+}
+// O texto da pergunta MOSTRA os dois lados. Comparar é o que ele precisa pra
+// decidir, e é o que o app tem na mão. (textContent: nada de HTML aqui.)
+function _textoConflitoExtrato(c, novo) {
+  const qDoNovo = (novo.periodo || 'sem período lido');
+  const velhos  = c.regs.map(function (x) {
+    return '· ' + (x.periodo || 'sem período lido') + ' — ' + fmtBRL(x.taxa) + ' de taxa';
+  }).join('\n');
+  if (c.tipo === 'semData') {
+    return 'Eu não consegui ler o período neste print, e você já tem extrato d'
+         + (/^[aeiou]/i.test(novo.plataforma) ? 'a ' : 'a ') + novo.plataforma
+         + ' neste mês:\n' + velhos
+         + '\n\nO novo diz ' + fmtBRL(novo.taxa) + ' de taxa. Se for o mesmo print, '
+         + 'substitua. Se for outra semana, guarde os dois — se eu escolher '
+         + 'sozinho, um dos dois some e a sua conta do mês fica menor do que foi.';
+  }
+  return 'Você já tem extrato de ' + novo.plataforma + ' cobrindo esses dias:\n' + velhos
+       + '\n\nO novo é ' + qDoNovo + ' — ' + fmtBRL(novo.taxa) + ' de taxa. '
+       + 'Se for a mesma semana corrigida, substitua. Se forem semanas '
+       + 'diferentes, guarde os dois: no mês, eles somam.';
 }
 
 // lista discreta dos extratos guardados, na tela Finanças
@@ -6894,7 +7197,22 @@ function atualizarTelaFinancas() {
   // tela Início, ali do lado, dizia corretamente "Registre sua receita do dia".
   // Duas telas do mesmo app se contradizendo, e a que mentia era a que ele
   // abre pra decidir se para ou continua rodando.
-  const ultimo = historico.find(r => r.dataISO === hojeISO());
+  // ⚠️ v4.29 — ERA `find`, OU SEJA, UM REGISTRO SÓ. Início, Isaac e o card de
+  // compartilhar somam TODOS os registros de hoje (registrosHojeFin + reduce).
+  // Hoje os números batem porque a gravação garante um por dia — mas o próprio
+  // código já prevê dois (o `jaAlocou` da ressincronização e o `jaUsou` da
+  // reconciliação existem pra isso). No dia em que a fila offline ou uma
+  // restauração produzirem dois, esta tela mostraria um número e a Início
+  // outro, e ninguém saberia por quê. Some, como as outras três.
+  const _doDia = historico.filter(r => r.dataISO === hojeISO());
+  const ultimo = _doDia.length ? {
+    dataISO: hojeISO(),
+    receita: _doDia.reduce((t, r) => t + (r.receita || 0), 0),
+    taxa:    _doDia.reduce((t, r) => t + (r.taxa    || 0), 0),
+    comb:    _doDia.reduce((t, r) => t + (r.comb    || 0), 0),
+    desp:    _doDia.reduce((t, r) => t + (r.desp    || 0), 0),
+    lucro:   _doDia.reduce((t, r) => t + (r.lucro   || 0), 0)
+  } : null;
   if (!ultimo) {
     ['finLucroValor','finReceita','finTaxa','finCombustivel','finLucroKm']
       .forEach(id => document.getElementById(id).textContent = '—');
@@ -7123,10 +7441,11 @@ function fecharMes(ym) {
   // ⚠️ só dias com hora marcada entram no R$/hora — senão a conta divide o
   // lucro do mês inteiro por meia dúzia de horas e inventa um número lindo
   // ⚠️ O denominador era `horasTotal` (TODOS os dias) e o numerador só os dias
-  // com >= 0,5h. Um dia em que ele ligou o "Bora rodar" e desistiu em 20 min
+  // com >= HORAS_MIN_AMOSTRA. Um dia em que ligou o "Bora rodar" e desistiu em 20 min
   // entrava nas horas e não no lucro — a hora dele saía menor do que foi.
   // Numerador e denominador agora vêm do mesmo conjunto de dias.
-  const diasDoRitmo  = fin.filter(r => (horas[r.dataISO] || 0) >= 0.5);
+  // ⚠️ v4.29 — mesmo gate do resto do app (era 0,5 aqui e 1 na lupa).
+  const diasDoRitmo  = fin.filter(r => (horas[r.dataISO] || 0) >= HORAS_MIN_AMOSTRA);
   const diasComHora  = diasDoRitmo.length;
   const lucroComHora = diasDoRitmo.reduce((t, r) => t + (r.lucro || 0), 0);
   const horasDoRitmo = diasDoRitmo.reduce((t, r) => t + (horas[r.dataISO] || 0), 0);
@@ -7315,17 +7634,37 @@ function cartaDoMes(m) {
   if (typeof extratosDoMes === 'function') {
     const exs = extratosDoMes(m.ym);
     if (exs.length) {
-      const porPlat = exs.map(function (x) {
-        return `${A(fmtBRL0(x.taxa))} pra ${x.plataforma} (${String(x.pct).replace('.', ',')}%)`;
+      // ⚠️ v4.29 — AGORA PODE HAVER MAIS DE UM EXTRATO DA MESMA PLATAFORMA
+      // no mesmo mês (a Uber paga por semana). Duas linhas "Uber (2,8%)" e
+      // "Uber (3,1%)" na mesma frase não querem dizer nada, e o percentual
+      // de UMA semana lido como o do mês é número inventado. Junta por
+      // plataforma e RECALCULA o percentual sobre a soma — a conta tem que
+      // fechar com os números que estão na própria frase.
+      const agrup = {};
+      exs.forEach(function (x) {
+        const k = x.plataforma || '—';
+        if (!agrup[k]) agrup[k] = { plataforma: k, bruto: 0, taxa: 0 };
+        agrup[k].bruto += (x.bruto || 0);
+        agrup[k].taxa  += (x.taxa  || 0);
       });
-      const somaTaxa = exs.reduce(function (s, x) { return s + x.taxa; }, 0);
-      let linha = exs.length === 1
+      const plats = Object.keys(agrup).map(function (k) { return agrup[k]; });
+      const porPlat = plats.map(function (g) {
+        const pct = g.bruto > 0 ? (g.taxa / g.bruto * 100) : null;
+        return `${A(fmtBRL0(g.taxa))} pra ${g.plataforma}`
+             + (pct !== null ? ` (${String(Math.round(pct * 10) / 10).replace('.', ',')}%)` : '');
+      });
+      const somaTaxa = exs.reduce(function (s, x) { return s + (x.taxa || 0); }, 0);
+      let linha = plats.length === 1
         ? `Do que os passageiros pagaram, ${porPlat[0]} ficaram com a plataforma.`
         : `As plataformas ficaram com ${A(fmtBRL0(somaTaxa))}: ` + porPlat.join(' e ') + '.';
       // ⚠️ O extrato quase nunca cobre o mês inteiro (o da Uber é semanal).
       // Dizer "a Uber levou X no mês" a partir de uma semana seria inventar.
-      const per = exs.map(function (x) { return x.periodo; }).filter(Boolean);
-      if (per.length) linha += ` Isso é o que estava no extrato que você mandou (${esc(per.join(' · '))}) — não o mês fechado.`;
+      // os períodos, sem repetir e em ordem — com 4 semanas a frase fica longa,
+      // mas dizer QUAIS dias entraram é o que impede ele de ler isso como o mês
+      const per = exs.slice().sort(function (x, y) { return (x.ini || '') < (y.ini || '') ? -1 : 1; })
+                     .map(function (x) { return x.periodo; }).filter(Boolean)
+                     .filter(function (t, i, arr) { return arr.indexOf(t) === i; });
+      if (per.length) linha += ` Isso é o que estava n${per.length === 1 ? 'o extrato' : 'os extratos'} que você mandou (${esc(per.join(' · '))}) — não o mês fechado.`;
       p.push(linha + '\n');
     }
   }
@@ -7547,7 +7886,7 @@ function lupaDiaDaSemana(fin) {
 
   // ── caminho bom: por hora ──
   const porHora = porDia.map(function (arr, i) {
-    const comH = arr.filter(function (x) { return x.h >= 1; });
+    const comH = arr.filter(function (x) { return x.h >= HORAS_MIN_AMOSTRA; });
     if (comH.length < LUPA_MIN_AMOSTRA) return null;
     const somaL = comH.reduce(function (t, x) { return t + x.lucro; }, 0);
     const somaH = comH.reduce(function (t, x) { return t + x.h; }, 0);
@@ -8229,7 +8568,7 @@ function entrarNaDemo() {
   // ⚠️ o odômetro é propriedade DO VEÍCULO (`v.odo`) — não uma chave à parte.
   // Sem isto o kmAtual nasce 0, o painel de manutenção acha que nunca foi
   // registrado e a demo abre com tudo zerado.
-  salvarLS('veiculos', [{ id: D.VID, nome: 'Onix 1.0', tipo: 'carro', placa: 'DEM0S01',
+  salvarVeiculos([{ id: D.VID, nome: 'Onix 1.0', tipo: 'carro', placa: 'DEM0S01',
                           odo: D.odo, reservaManutKm: 0.15 }]);
   localStorage.setItem('veiculoAtivo', D.VID);
   salvarLS('historicoFinancas', D.fin);
@@ -8355,7 +8694,10 @@ function semearNaConta() {
         novosFin.forEach(function (r) {
           salvarRegistroHibrido('financas', {
             data_iso: r.dataISO, receita: r.receita, liquido: r.lucro,
-            taxa_real: r.taxa, km_dia: (km[r.dataISO] || {}).km || null, despesas: r.desp
+            taxa_real: r.taxa, km_dia: (km[r.dataISO] || {}).km || null, despesas: r.desp,
+            // a semeadura tem que subir o dado COMPLETO: senão a lupa do dono
+            // é testada com metade do que o motorista de verdade vai ter
+            veiculo_id: r.vid || null, horas: (lerLS('horasPorDia', {})[r.dataISO] || null)
           }, 'usuario_id,data_iso').catch(function () {});
         });
         novosAb.forEach(function (a) {
@@ -9348,6 +9690,29 @@ function atualizarTurnoLive() {
 const DIAS_NOME = ['domingo','segunda','terça','quarta','quinta','sexta','sábado'];
 const DIA_MASC  = [true,false,false,false,false,false,true];   // domingo e sábado são masculinos
 function plDia(dow, nome) { return DIA_MASC[dow] ? 'Seus ' + nome + 's' : 'Suas ' + nome + 's'; }
+// ═══════════════════════════════════════════════════════════════
+//  QUANTO VALE A SUA HORA — UMA FÓRMULA SÓ (v4.29)
+//  Existiam DUAS, e as duas apareciam pro mesmo motorista na mesma semana:
+//   · média das RAZÕES diárias  → Isaac e simulador
+//   · soma ÷ soma (ponderada)   → carta do mês e lupa
+//  Com dias de tamanhos diferentes — que é a vida de motorista — elas NÃO
+//  batem: o Isaac dizia "sua média é R$ 26/hora" e a carta "sua hora valeu
+//  R$ 23". Ficou a ponderada, que é o dinheiro real dividido pelo tempo real;
+//  a média de razões dá o mesmo peso a um dia de 2h e a um de 12h.
+//
+//  E o GATE virou 1 hora em todo lugar. Era 1h em 4 funções e 0,5h em 3 —
+//  um dia de 40 minutos entrava na conta do Isaac (grátis) e ficava fora da
+//  lupa (paga), pra dizer a MESMA frase sobre o mesmo dia da semana.
+//  Turno curto continua contando no DINHEIRO; só não vira amostra de
+//  aprendizado, porque em 40 minutos o valor da hora sai distorcido.
+// ═══════════════════════════════════════════════════════════════
+const HORAS_MIN_AMOSTRA = 1;
+function porHoraPonderado(amostras) {
+  if (!amostras || !amostras.length) return null;
+  const l = amostras.reduce(function (s, a) { return s + a.lucro; }, 0);
+  const h = amostras.reduce(function (s, a) { return s + a.horas; }, 0);
+  return h > 0 ? l / h : null;
+}
 function inteligenciaDoDia() {
   const hist  = lerLS('historicoFinancas', []);
   const horas = lerLS('horasPorDia', {});
@@ -9356,9 +9721,9 @@ function inteligenciaDoDia() {
   const amostras = [];
   Object.keys(porDia).forEach(iso => {
     const hrs = horas[iso];
-    if (hrs && hrs >= 0.5) {
+    if (hrs && hrs >= HORAS_MIN_AMOSTRA) {
       const dow = new Date(iso + 'T12:00:00').getDay();
-      amostras.push({ dow, ph: porDia[iso] / hrs });
+      amostras.push({ dow: dow, lucro: porDia[iso], horas: hrs });
     }
   });
   if (amostras.length < 2) {
@@ -9371,15 +9736,15 @@ function inteligenciaDoDia() {
     Object.keys(porDia).forEach(iso => {
       comReceita++;
       const h = horas[iso];
-      if (h != null && h > 0 && h < 0.5) curtos++;
+      if (h != null && h > 0 && h < HORAS_MIN_AMOSTRA) curtos++;
     });
-    Object.keys(horas).forEach(iso => { if (horas[iso] >= 0.5) comHoras++; });
+    Object.keys(horas).forEach(iso => { if (horas[iso] >= HORAS_MIN_AMOSTRA) comHoras++; });
     return { suficiente: false, amostras: amostras.length, comReceita, comHoras, curtos };
   }
   const hojeDow  = new Date().getDay();
   const doDia    = amostras.filter(a => a.dow === hojeDow);
-  const mediaGeral = amostras.reduce((s, a) => s + a.ph, 0) / amostras.length;
-  const mediaDia   = doDia.length ? doDia.reduce((s, a) => s + a.ph, 0) / doDia.length : null;
+  const mediaGeral = porHoraPonderado(amostras);
+  const mediaDia   = doDia.length ? porHoraPonderado(doDia) : null;
   return { suficiente: true, hojeDow, mediaGeral, mediaDia, nDia: doDia.length, total: amostras.length };
 }
 function renderInteligenciaSim() {
@@ -9462,50 +9827,42 @@ function calcSimulador() {
   const taxa    = ((perfil.taxa != null && perfil.taxa > 0) ? perfil.taxa : 0) / 100;   // sem taxa configurada = não inventa
   const veiculo = tipoVeiculoAtivo();
   const consumo = veiculo === 'carro' ? 12 : 35;
-  // Preço por litro é do POSTO, não do veículo: gasolina custa o mesmo pra
-  // moto e pra carro. Filtrar por veículo aqui fazia o app CHUTAR um preço
-  // tendo o preço real dele guardado no histórico. Lê tudo, de propósito.
-  const histComb  = lerLS('historicoAbastecimentos', []);
-  const comLitros = histComb.filter(r => r.ppl);
-  const precoComb = comLitros.length > 0 ? numBR(comLitros[0].ppl) : 6.50;
-  const histFin   = lerLS('historicoFinancas', []);
-  let kmPorHora = veiculo === 'carro' ? 20 : 25;
-  // km/dia REAIS deste veículo (antes isso lia o odômetro achando que era km do dia)
-  const mapaKm = lerLS('kmPorDia', {});
-  const vidS   = vidAtivo();
-  // ⚠️ `(r.dias || 1) === 1`: registro que cobre vários dias (o motorista ficou
-  // sem fechar) não entra em média POR DIA — dividir seria inventar como aquele
-  // km se reparte entre os dias, e o app não sabe.
-  const diasKm = Object.keys(mapaKm).sort().reverse().slice(0, 5)
-                   .map(k => mapaKm[k])
-                   .filter(r => r && r.km > 0 && (r.dias || 1) === 1 && (!vidS || r.vid === vidS));
-  if (diasKm.length > 0) {
-    const media = diasKm.reduce((s, r) => s + r.km, 0) / diasKm.length;
-    kmPorHora = Math.max(10, Math.min(50, Math.round(media / 8)));
-  }
-  const kmEst    = kmPorHora * horas;
-  const litros   = kmEst / consumo;
-  const combEst  = litros * precoComb;
-  const receita  = (meta + combEst) / (1 - taxa);
+  // ⚠️ v4.29 — O SIMULADOR INVENTAVA TRÊS NÚMEROS, na tela em que ele decide
+  // se sai pra rodar. Eram eles:
+  //   · `: 6.50`                        preço de litro de lugar nenhum
+  //   · `veiculo === 'carro' ? 20 : 25` km/h de média de internet
+  //   · `Math.round(media / 8)`         supunha que TODO dia dele tem 8 horas
+  // O app tem as duas contas certas no mesmo arquivo: kmPorHoraReal(), que
+  // divide pelas horas que ele MARCOU, e precoContraSuaMedia(), que é a fonte
+  // única do preço do litro. Regra Sagrada nº 2: faltou dado, o app avisa.
+  const pc        = precoContraSuaMedia();          // preço + comparação, um lugar só
+  const precoComb = pc ? pc.ppl : null;
+  const kmPorHora = kmPorHoraReal();                // null = sem base pra estimar
+  const podeEstimar = (kmPorHora !== null && precoComb !== null && precoComb > 0);
+
+  const kmEst    = podeEstimar ? Math.round(kmPorHora * horas) : null;
+  const litros   = podeEstimar ? (kmEst / consumo) : null;
+  const combEst  = podeEstimar ? (litros * precoComb) : null;
+  const receita  = podeEstimar ? ((meta + combEst) / (1 - taxa)) : null;
   const phNecessario = meta / horas;   // quanto precisa render por hora pra bater a meta
 
-  // ── R$/h REAL do histórico (lucro ÷ horas dos dias com turno marcado) ──
-  const horasReg = lerLS('horasPorDia', {});
-  const porDiaSim = {};
-  histFin.forEach(r => { if (r.dataISO) porDiaSim[r.dataISO] = (porDiaSim[r.dataISO] || 0) + r.lucro; });
-  const phAmostras = [];
-  Object.keys(porDiaSim).forEach(iso => {
-    const h = horasReg[iso];
-    if (h && h >= 0.5) phAmostras.push(porDiaSim[iso] / h);
-  });
-  const temRitmo = phAmostras.length >= 2;
-  const phReal   = temRitmo ? phAmostras.reduce((s, v) => s + v, 0) / phAmostras.length : null;
+  // ── R$/h REAL do histórico ──
+  // ⚠️ v4.29 — ISTO ERA UMA CÓPIA da inteligenciaDoDia(), com gate próprio
+  // (0,5h) e média de razões. Duas contas pro mesmo número, e o simulador
+  // discordava do Isaac na mesma tela. Regra copiada é regra que vai divergir.
+  const _intel   = inteligenciaDoDia();
+  const temRitmo = _intel.suficiente;
+  const phReal   = temRitmo ? _intel.mediaGeral : null;
 
+  // ⚠️ v4.29 — ISTO COMPARAVA ETANOL COM GASOLINA. `comLitros` não filtrava o
+  // tipo: quem abastecia etanol depois de quatro tanques de gasolina lia
+  // "R$ 2,50/L abaixo da média" como se fosse economia. É o mesmo bug que a
+  // v3.42 tirou do comparador de combustível. Agora usa a MESMA função dos
+  // outros três lugares — que compara com os 4 anteriores DO MESMO TIPO.
   let aviso = '';
-  if (comLitros.length > 1) {
-    const media = comLitros.slice(1,5).reduce((s,x)=>s+numBR(x.ppl),0) / Math.min(comLitros.length-1,4);
-    const diff  = precoComb - media;
-    if (diff > 0.1) aviso = `${ico('alerta')} Combustível ${fmtBRL(diff)}/L acima da média. Impacto: ${fmtBRL((diff*litros))} no lucro.`;
+  if (pc && pc.media && podeEstimar) {
+    const diff = pc.ppl - pc.media;
+    if (diff > 0.1) aviso = `${ico('alerta')} Combustível ${fmtBRL(diff)}/L acima da sua média de ${String(pc.tipo || '').toLowerCase()}. Impacto: ${fmtBRL((diff * litros))} no lucro.`;
   }
 
   // ── VEREDITO: compara a meta com o SEU ritmo real (nada de régua inventada) ──
@@ -9518,7 +9875,7 @@ function calcSimulador() {
     else                   { vd.innerHTML = dot('vermelho') + ' Meta pesada pra esse tempo';    vd.style.color = 'var(--danger)'; }
     const rende = phReal * horas;
     linhaRitmo = `
-    <div class="sim-linha"><span class="ajuda-clic" onclick="abrirAjudaCard('ritmo')">${ico('grafico')} Seu ritmo real <span class="int">ⓘ</span></span><span>${fmtBRL0(phReal)}/h (${phAmostras.length} dias)</span></div>
+    <div class="sim-linha"><span class="ajuda-clic" onclick="abrirAjudaCard('ritmo')">${ico('grafico')} Seu ritmo real <span class="int">ⓘ</span></span><span>${fmtBRL0(phReal)}/h (${_intel.total} dias)</span></div>
     <div class="sim-linha"><span>${ico('alvo')} No seu ritmo, ${horas}h rendem</span><span style="color:${rende >= meta ? 'var(--money)' : 'var(--signal)'}">~${fmtBRL0(rende)}</span></div>`;
   } else {
     // ⚠️ Aqui saía um SEGUNDO aviso amarelo ("Ainda aprendendo seu ritmo") logo
@@ -9537,9 +9894,10 @@ function calcSimulador() {
     <div class="sim-linha sim-linha-forte"><span>${ico('relogio')} Precisa render</span><span>${fmtBRL(phNecessario)}/h</span></div>${linhaRitmo}
     <details class="sim-detalhes">
       <summary>ver a conta completa ›</summary>
-      <div class="sim-linha"><span>${ico('dinheiro')} Receita bruta necessária</span><span>${fmtBRL(receita)}</span></div>
-      <div class="sim-linha"><span>${ico('bomba')} Combustível estimado</span><span>~${fmtBRL0(combEst)} · ${kmEst} km</span></div>
-      <div class="sim-linha"><span>${ico('bomba')} Litro a</span><span>${fmtBRL(precoComb)}${comLitros.length > 0 ? ' · seu último posto' : ' · média (registre um abastecimento)'}</span></div>
+      <div class="sim-linha"><span>${ico('dinheiro')} Receita bruta necessária</span><span>${podeEstimar ? fmtBRL(receita) : '—'}</span></div>
+      <div class="sim-linha"><span>${ico('bomba')} Combustível estimado</span><span>${podeEstimar ? '~' + fmtBRL0(combEst) + ' · ' + kmEst + ' km' : '—'}</span></div>
+      <div class="sim-linha"><span>${ico('bomba')} Litro a</span><span>${precoComb ? fmtBRL(precoComb) + ' · seu último posto' : '— · registre um abastecimento'}</span></div>
+      ${podeEstimar ? '' : `<div class="sim-linha" style="color:var(--dim)"><span>${ico('lampada')} Por que o "—"?</span><span>${precoComb === null ? 'falta um abastecimento seu' : 'falta o seu km por hora'}</span></div>`}
     </details>`;
   const avisoEl = document.getElementById('simAviso');
   if (aviso) { avisoEl.textContent = aviso; avisoEl.style.display = 'block'; } else { avisoEl.style.display = 'none'; }
@@ -9917,7 +10275,9 @@ function gerarTextoCade() {
     const _histF = lerLS('historicoFinancas', []);
     const _diasReceita = new Set(_histF.filter(r => r.dataISO).map(r => r.dataISO)).size;
     const _horasMap = lerLS('horasPorDia', {});
-    const _diasComHora = Object.keys(_horasMap).filter(k => (_horasMap[k] || 0) >= 0.5).length;
+    // mesma régua que vira amostra: prometer "marque o turno" contando dias de
+    // 40 min seria prometer um número que não vai nascer
+    const _diasComHora = Object.keys(_horasMap).filter(k => (_horasMap[k] || 0) >= HORAS_MIN_AMOSTRA).length;
     const _faltam = Math.max(1, 6 - _diasReceita);
     const _dTxt = _faltam === 1 ? 'Falta 1 dia' : 'Faltam ' + _faltam + ' dias';
     dica = { i: 'lampada', t: 'AINDA ESTOU TE CONHECENDO', x: (_diasComHora < 2
