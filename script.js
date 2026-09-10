@@ -589,6 +589,54 @@ function vidEfetivo(reg) {
 }
 // a pergunta que os chamadores realmente fazem. Desconhecido → false: fora da
 // métrica de veículo. (Regra #11: a comparação mora aqui, não em 6 lugares.)
+// ═══════════════════════════════════════════════════════════════
+//  DE QUEM SÃO OS DADOS DESTE APARELHO? (v4.30)
+//  O app não guardava isso — e dessa falta saíam quatro coisas:
+//   · entrar noutra conta mantinha o veículo ativo da conta anterior
+//   · o login MANDAVA o localStorage inteiro pra conta que entrou
+//     (script.js, caminho "temDadosAqui" → migrarMotoristaAntigo)
+//   · o botão "Enviar tudo pra nuvem" força isso, passando por cima da
+//     trava `supaMigradoV1` que — por acaso, não por regra — vinha segurando
+//   · e o motorista não tinha como saber em qual conta estava
+//
+//  ⚠️ O QUE SEGURAVA ERA UMA FLAG, NÃO UMA REGRA. `migrarMotoristaAntigo`
+//  só pula se `supaMigradoV1` já estiver ligada. Num aparelho que usou o app
+//  ANTES de ter conta (que o Copiloto permite de propósito — Regra nº 10), a
+//  flag está desligada e o histórico sobe inteiro pra conta que entrar.
+//
+//  Guarda o usuario_id, não o e-mail: e-mail muda, id não.
+//  NÃO se apaga ao sair da conta — os dados continuam no aparelho, então o
+//  dono continua sendo quem era.
+// ═══════════════════════════════════════════════════════════════
+// ⚠️ TRÊS ESTADOS, NÃO DOIS. A primeira versão disto tinha só "tem dono" e
+// "não tem", e adotava a conta logada sempre que não tinha. Isso desarmava a
+// trava no exato caso que ela existe pra pegar: aparelho com dados do A, sessão
+// do B, atualiza — e o app carimbava "estes dados são do B", sem perguntar.
+// A proteção nasceria legitimando a mistura.
+//   · um usuario_id  → o app sabe de quem é
+//   · DONO_LEGADO    → tem dado de antes desta versão e o app NÃO sabe de quem
+//   · null           → aparelho sem dado nenhum, ainda não tem dono
+const DONO_LEGADO = 'legado';
+function donoDosDados()        { try { return localStorage.getItem('donoDosDados') || null; } catch (e) { return null; } }
+function donoDesconhecido()    { return donoDosDados() === DONO_LEGADO; }
+function marcarDonoDosDados(id) {
+  if (!id) return;
+  try { localStorage.setItem('donoDosDados', id); } catch (e) {}
+}
+// A MESMA régua que o login usa pra decidir se sobe o aparelho ou puxa a nuvem.
+// Escrita uma vez: se divergir, o app decide "tem dados" num lugar e "não tem"
+// no outro, e a proteção vira loteria.
+function aparelhoTemDados() {
+  const p = lerLS('perfilUsuario', null);
+  return !!(p && p.nome);
+}
+// Pergunta sempre que o app não puder AFIRMAR que os dados são de quem entrou:
+// dono diferente, ou dono desconhecido. Aparelho sem dado nenhum passa direto.
+function dadosSaoDeOutraConta(idQueEntrou) {
+  const dono = donoDosDados();
+  return !!(dono && idQueEntrou && dono !== idQueEntrou);
+}
+
 function ehDoVeiculoAtivo(reg) {
   const ativo = vidAtivo();
   if (!ativo) return true;   // sem veículo cadastrado não há métrica de veículo a proteger
@@ -955,6 +1003,8 @@ function finalizarCadastro() {
   salvarLS('contaCriada', true);   // marca que este motorista TEM conta (usado pra exigir login depois)
   if (typeof sbCadastrar === 'function' && perfil.email && perfil.senha) {
     sbCadastrar(perfil.email, perfil.senha).then(function (r) {
+      // o aparelho passa a TER dono no instante em que a conta nasce
+      if (r.ok && r.usuario && typeof marcarDonoDosDados === 'function') marcarDonoDosDados(r.usuario.id);
       if (r.ok && r.usuario && typeof migrarMotoristaAntigo === 'function') {
         migrarMotoristaAntigo(r.usuario.id);
       } else if (r.jaExiste) {
@@ -1096,20 +1146,37 @@ document.getElementById('btnConfirmarLogin').addEventListener('click', async fun
   }
   btn.textContent = 'Puxando seus dados...';
   salvarLS('contaCriada', true);   // entrou: daqui pra frente o app sabe que existe conta
-  const perfilLocal = lerLS('perfilUsuario', null);
-  const temDadosAqui = !!(perfilLocal && perfilLocal.nome);
+  const temDadosAqui = aparelhoTemDados();
 
   if (temDadosAqui) {
     // ⚠️ Caso do motorista que JÁ usa o app e só agora conectou a conta.
     // Aqui NÃO se puxa nada da nuvem: o aparelho é a fonte da verdade, e
     // sobrescrever apagaria o que ele registrou hoje. Sobe o que está aqui
     // e destrava a fila que ficou esperando sessão.
+    //
+    // ⚠️ v4.30 — MAS ISSO SÓ VALE SE OS DADOS FOREM DELE. Antes, o app subia
+    // o localStorage inteiro pra QUALQUER conta que entrasse, sem conferir de
+    // quem era — porque essa informação não existia. Duas contas no mesmo
+    // aparelho misturavam o dinheiro de duas pessoas, em silêncio, e o
+    // motorista não tinha como perceber. Agora ele escolhe, e o app não
+    // decide nada sozinho.
+    if (dadosSaoDeOutraConta(r.usuario.id)) {
+      btn.disabled = false; btn.textContent = 'Entrar';
+      document.getElementById('modalLogin').style.display = 'none';
+      perguntarDeQuemSaoOsDados(r.usuario.id, email);
+      return;
+    }
     if (typeof migrarMotoristaAntigo === 'function') await migrarMotoristaAntigo(r.usuario.id);
     if (typeof sincronizarFilaOffline === 'function') await sincronizarFilaOffline();
+    marcarDonoDosDados(r.usuario.id);
+    // o veículo ativo é estado LOCAL e ninguém o revalidava por aqui:
+    // consertarVeiculoAtivo() só roda em iniciarApp(), e este caminho não passa lá
+    if (typeof consertarVeiculoAtivo === 'function') consertarVeiculoAtivo();
     btn.disabled = false; btn.textContent = 'Entrar';
     document.getElementById('modalLogin').style.display = 'none';
     localStorage.removeItem('saiuDaConta');
     destravarDaTelaDeLogin();          // devolve o app se ele tinha saído da conta
+    if (typeof renderContaAjustes === 'function') renderContaAjustes();
     toast('✅ Pronto! Suas alterações estão sendo salvas.');
     return;
   }
@@ -1123,6 +1190,7 @@ document.getElementById('btnConfirmarLogin').addEventListener('click', async fun
   document.getElementById('modalLogin').style.display = 'none';
   const perfil = lerLS('perfilUsuario', null);
   if (restaurou.ok && perfil && perfil.nome) {
+    marcarDonoDosDados(r.usuario.id);   // os dados vieram da nuvem DESTA conta
     toast('✅ Tudo certo! Seus dados voltaram.');
     document.getElementById('telaCadastro').style.display = 'none';
     iniciarApp(perfil);
@@ -6514,6 +6582,7 @@ function abrirAjustes() {
   // Botão "Sair" só aparece pra quem está logado — quem não está não tem
   // de onde sair, e o botão só confundiria.
   const logado = (typeof usuarioLogado === 'function') && !!usuarioLogado();
+  renderContaAjustes();
   document.getElementById('ajBtnSair').style.display  = logado ? 'block' : 'none';
   document.getElementById('ajSairDica').style.display = logado ? 'block' : 'none';
   document.getElementById('ajBtnEnviarTudo').style.display = logado ? 'block' : 'none';
@@ -6579,14 +6648,115 @@ document.getElementById('ajBtnExcluirConta').addEventListener('click', function 
         });
     });
 });
+// ═══════════════════════════════════════════════════════════════
+//  A PERGUNTA: "estes dados são de outra conta"
+//  Único lugar do app em que isso é decidido — login e "Enviar tudo" passam
+//  os dois por aqui (Regra #11: a mesma pergunta escrita duas vezes ia
+//  divergir, e divergir aqui é misturar o dinheiro de duas pessoas).
+//  ⚠️ NÃO EXISTE CAMINHO SILENCIOSO. Fechar sem escolher = não faz nada.
+// ═══════════════════════════════════════════════════════════════
+function perguntarDeQuemSaoOsDados(idQueEntrou, emailQueEntrou, aoManter) {
+  // ⚠️ O TEXTO TEM QUE DIZER A VERDADE DO QUE O APP SABE. Com dono conhecido e
+  // diferente, ele SABE que são de outra conta. Com dono legado, ele só sabe
+  // que NÃO sabe — e afirmar "são de outra conta" ali seria inventar.
+  const legado = (typeof donoDesconhecido === 'function') && donoDesconhecido();
+  const quem   = emailQueEntrou || 'esta conta';
+  const titulo = legado
+    ? ico('alerta') + ' Não sei de quem são os dados deste aparelho'
+    : ico('alerta') + ' Este aparelho tem dados de outra conta';
+  const abre = legado
+    ? 'Encontrei dados guardados aqui de antes de eu passar a anotar de qual conta '
+      + 'eles são. Podem ser seus, podem ser de outra conta que usou este aparelho.'
+    : 'O que está guardado aqui foi registrado por outra conta.';
+  pedirConfirmacao(
+    titulo,
+    abre + ' Se eu enviar pra ' + quem + ', os números se misturam — e depois não '
+    + 'tem como separar de quem era cada dia.\n\n'
+    + 'Começar limpo apaga o que está neste aparelho e traz o que já existe na '
+    + 'conta em que você entrou. Antes de apagar eu te ofereço a cópia de segurança.',
+    function () { _comecarLimpoNestaConta(idQueEntrou); },
+    { sim: 'Começar limpo', nao: 'Usar estes dados nesta conta',
+      aoRecusar: function () { _confirmarAssociacao(idQueEntrou, emailQueEntrou, aoManter); } }
+  );
+}
+// ⚠️ SEGUNDA CONFIRMAÇÃO, e ela não é preciosismo. Associar é IRREVERSÍVEL na
+// prática: depois de misturado, o app não tem como saber quais dias eram de
+// quem — essa informação não existe em lugar nenhum. É a mesma régua do
+// "Excluir minha conta", que também pergunta duas vezes por ser sem volta.
+// A primeira tela explica; esta aqui é o compromisso.
+function _confirmarAssociacao(idQueEntrou, emailQueEntrou, aoManter) {
+  pedirConfirmacao(
+    ico('alerta') + ' Isso não tem como desfazer',
+    'Vou associar tudo que está neste aparelho à conta ' + (emailQueEntrou || 'em que você entrou')
+    + '. A partir daí eles são dessa conta, e eu não consigo mais separar o que '
+    + 'era de antes — nem eu, nem você.\n\n'
+    + 'Se ficou em dúvida de quem são esses dados, é melhor voltar e começar limpo.',
+    function () { _manterEEnviarPara(idQueEntrou, aoManter); },
+    { sim: 'Sim, associar a esta conta', nao: 'Voltar',
+      aoRecusar: function () { perguntarDeQuemSaoOsDados(idQueEntrou, emailQueEntrou, aoManter); } }
+  );
+}
+// "manter e enviar": é o comportamento que já existia, agora com o dono
+// regravado — o aparelho passa a ser desta conta de verdade.
+async function _manterEEnviarPara(idQueEntrou, depois) {
+  try {
+    if (typeof migrarMotoristaAntigo === 'function') await migrarMotoristaAntigo(idQueEntrou, true);
+    if (typeof sincronizarFilaOffline === 'function') await sincronizarFilaOffline();
+  } catch (e) {}
+  marcarDonoDosDados(idQueEntrou);
+  if (typeof consertarVeiculoAtivo === 'function') consertarVeiculoAtivo();
+  localStorage.removeItem('saiuDaConta');
+  if (typeof destravarDaTelaDeLogin === 'function') destravarDaTelaDeLogin();
+  if (typeof renderContaAjustes === 'function') renderContaAjustes();
+  if (typeof depois === 'function') depois();
+  toast('Tudo deste aparelho foi pra esta conta');
+}
+// ⚠️ A ÚNICA AÇÃO DESTRUTIVA DESTA CIRURGIA. Por isso ela oferece o backup
+// ANTES, e diz o que some. Regra Sagrada nº 10: o registro do motorista não
+// se sacrifica por causa de login — se ele vai perder algo, ele leva a cópia.
+function _comecarLimpoNestaConta(idQueEntrou) {
+  pedirConfirmacao(
+    ico('salvar') + ' Quer baixar uma cópia antes?',
+    'Vou apagar o que está neste aparelho e trazer os dados da conta em que você '
+    + 'entrou. O que está aqui pertence à outra conta e continua salvo nela — mas '
+    + 'se alguma coisa nunca chegou a subir, some agora.',
+    function () {
+      const b = document.getElementById('ajBtnBackup');
+      if (b) b.click();                       // mesma função do botão dos Ajustes
+      setTimeout(function () { _limparEEntrar(idQueEntrou); }, 1200);
+    },
+    { sim: 'Baixar a cópia e continuar', nao: 'Continuar sem cópia',
+      aoRecusar: function () { _limparEEntrar(idQueEntrou); } }
+  );
+}
+function _limparEEntrar(idQueEntrou) {
+  try { localStorage.clear(); } catch (e) {}
+  marcarDonoDosDados(idQueEntrou);
+  salvarLS('contaCriada', true);
+  // recarrega: o app inteiro precisa nascer de novo com os dados da conta certa,
+  // e a restauração acontece no fluxo normal de abertura
+  location.reload();
+}
+
 document.getElementById('ajBtnEnviarTudo').addEventListener('click', function () {
   const btn = document.getElementById('ajBtnEnviarTudo');
   if (btn.disabled) return;
   if (typeof usuarioLogado !== 'function' || !usuarioLogado()) { toast('Entre na sua conta primeiro', 'erro'); return; }
   if (!navigator.onLine) { toast('Sem internet agora. Tente de novo depois.', 'erro'); return; }
+  // ⚠️ v4.30 — ESTE É O CAMINHO COM O MAIOR ESTRAGO POSSÍVEL. Ele chama com
+  // `forcar: true`, ou seja, passa por cima da trava `supaMigradoV1` — a mesma
+  // que, por acaso, vinha impedindo a mistura entre contas. Apertado logado na
+  // conta errada, sobe o histórico inteiro de uma pessoa pra conta de outra.
+  // Passa pela mesma porta do login.
+  const _u = usuarioLogado();
+  if (dadosSaoDeOutraConta(_u.id)) {
+    fecharAjustes();
+    perguntarDeQuemSaoOsDados(_u.id, _u.email);
+    return;
+  }
   const textoOriginal = btn.textContent;
   btn.disabled = true; btn.textContent = 'Enviando...';
-  migrarMotoristaAntigo(usuarioLogado().id, true).then(function (r) {
+  migrarMotoristaAntigo(_u.id, true).then(function (r) {
     btn.disabled = false; btn.textContent = textoOriginal;
     if (r && r.ok) toast('Tudo deste aparelho foi pra sua conta');
     else           toast('Parte não subiu. Tente de novo mais tarde.', 'erro');
@@ -6595,6 +6765,20 @@ document.getElementById('ajBtnEnviarTudo').addEventListener('click', function ()
     toast('Não consegui enviar agora', 'erro');
   });
 });
+// ⚠️ v4.30 — "EM QUAL CONTA EU ESTOU?" O app nunca respondeu isso, em lugar
+// nenhum. Está aberto no RETOMADA_7 desde setembro, e custou DUAS caçadas: a
+// de 05/09 (tela vazia no iPhone) e a de 09/09 (o veículo de outra conta).
+// ⚠️ Na TELA, não no console: a v4.06 tirou o e-mail do console de propósito
+// (dado pessoal em lugar que qualquer um abre com F12). Aqui quem lê é o dono
+// do aparelho, nos Ajustes dele.
+function renderContaAjustes() {
+  const el = document.getElementById('ajContaEmail');
+  if (!el) return;
+  const u = (typeof usuarioLogado === 'function') ? usuarioLogado() : null;
+  if (u && u.email) { el.textContent = 'Conta: ' + u.email; el.style.display = ''; }
+  else              { el.textContent = ''; el.style.display = 'none'; }
+}
+
 document.getElementById('ajBtnSair').addEventListener('click', function () {
   // Fecha os Ajustes ANTES de pedir a confirmação: senão a confirmação sobe
   // atrás do painel e o motorista precisa fechar um pra ver o outro.

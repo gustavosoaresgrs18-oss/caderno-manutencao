@@ -1071,6 +1071,26 @@ async function inicializarSupabase(callbackAuth) {
   await sincronizarFilaOffline();
   // 5. Confere o plano no servidor (silencioso: falhou, fica a cópia de antes)
   await buscarPlano();
+  // 5b. QUEM É O DONO, NA PRIMEIRA ABERTURA (v4.30).
+  // Aparelho que já vinha logado de antes desta versão não tem marcador, e pode
+  // nunca mais passar pelo login (a sessão dura semanas) — sem isto ficaria
+  // eternamente sem proteção.
+  //
+  // ⚠️ MAS ADOTAR SEMPRE ERA O ERRO. Aparelho com dados do A e sessão do B
+  // viraria "dados do B" na primeira abertura, calado — a trava carimbaria como
+  // legítima exatamente a mistura que ela existe pra impedir. Então:
+  //   aparelho VAZIO  → adota a conta logada (não há o que confundir)
+  //   aparelho COM DADO → marca LEGADO: "tem dado aqui e eu não sei de quem é"
+  // Legado não incomoda ninguém na abertura; ele cobra a resposta na hora em
+  // que algo for MANDADO pra nuvem, que é quando a resposta importa.
+  if (_usuarioAtual && typeof donoDosDados === 'function' && !donoDosDados()) {
+    const temDado = (typeof aparelhoTemDados === 'function') ? aparelhoTemDados() : true;
+    if (!temDado && typeof marcarDonoDosDados === 'function') {
+      marcarDonoDosDados(_usuarioAtual.id);
+    } else {
+      try { localStorage.setItem('donoDosDados', 'legado'); } catch (e) {}
+    }
+  }
   // mesmo motivo do de cima: o estado interessa, a identidade não
   console.log('[Copiloto] Supabase inicializado.', _usuarioAtual ? 'Logado.' : 'Sem sessão.');
 }
