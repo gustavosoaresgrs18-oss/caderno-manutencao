@@ -43,6 +43,9 @@ CAPACITOR.md
 # desenho das tabelas de graça. Sem motivo pra estar público.
 *.sql
 
+# Base privada de conhecimento — nao versionar
+docs-private/
+
 # lixo de sistema
 .DS_Store
 Thumbs.db
