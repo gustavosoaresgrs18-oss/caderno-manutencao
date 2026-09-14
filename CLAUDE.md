@@ -68,6 +68,14 @@ Never suggest un-ignoring these or committing their contents. `STATUS_LANCAMENTO
 `PESQUISA_MONETIZACAO.md`, by contrast, *are* tracked/public — don't assume every root `.md`
 file is private.
 
+## Deeper documentation
+
+A more detailed knowledge base lives in `docs/` (public, tracked here) — start at
+`docs/00-CONSTITUICAO.md` for the classification system used across it. A separate,
+gitignored `docs-private/` directory holds business strategy, financial rules, data/schema
+detail, risk tracking, and multi-agent governance docs — not covered by this file and not
+part of this repository.
+
 ## Architecture
 
 ### Files and their roles
