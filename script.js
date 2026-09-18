@@ -2632,7 +2632,8 @@ function avaliarOferta(e, agora) {
   const x        = e.valor / kmBase;
   const am       = avAmostras(metrica);
   const r = { metrica: metrica, temBusca: temBusca, x: x, nTodas: corridasDaMemoria().length,
-              n: am.length, nivel: 1, recorte: null, primeiro: null, media: null,
+              n: am.length, diasN: new Set(am.map(function (a) { return a.dataISO; })).size,
+              nivel: 1, recorte: null, primeiro: null, media: null,
               lo: null, hi: null, veredito: null, dif: 0, nRec: 0, diasRec: 0 };
 
   const recortes = avRecortes(agora);
@@ -2682,14 +2683,31 @@ function avTexto(r) {
   }
   t.principal = oferta;
   if (ressalva) t.sub.push(ressalva);
-  if (r.nivel === 2) {
-    t.sub.push('Aprendendo seu padrão. Já tenho ' + r.n + (r.n === 1 ? ' corrida sua.' : ' corridas suas.'));
-  } else if (r.temBusca && r.nTodas > 0 && r.n === 0) {
-    t.sub.push('Ainda não tenho corridas suas realizadas com o km até o passageiro pra comparar.');
-  } else {
-    t.sub.push('Ainda não tenho corridas suas realizadas pra comparar.');
-  }
+  t.sub.push(avTextoProgresso(r));
   return t;
+}
+// Quanto falta pra comparar (níveis 1 e 2). Sai de AV_PARAMS — nenhum número fixo aqui: se o
+// parâmetro mudar, a frase muda junto. Acompanha o recorte "geral" (todas as corridas), o mais
+// fácil de satisfazer: batendo o mínimo de corridas E de dias, a comparação acontece de verdade.
+// Só corridas REALIZADAS contam (as avaliadas e ainda não confirmadas não entram).
+function avTextoProgresso(r) {
+  const minC = AV_PARAMS.AMOSTRA_MIN_COMPARAR, minD = AV_PARAMS.DIAS_MIN_DISTINTOS;
+  const n = r.n, d = r.diasN;
+  const corr = function (x) { return x + (x === 1 ? ' corrida' : ' corridas'); };
+  const dias = function (x) { return x + (x === 1 ? ' dia' : ' dias'); };
+  const faltaC = Math.max(0, minC - n), faltaD = Math.max(0, minD - d);
+  if (n === 0) {
+    if (r.temBusca && r.nTodas > 0) {
+      return 'Suas corridas realizadas ainda não têm o km até o passageiro. Comparo a partir de ' + corr(minC) + ' com esse dado, em ' + dias(minD) + '.';
+    }
+    return 'Ainda não tenho corridas suas realizadas. Comparo a partir de ' + corr(minC) + ' em ' + dias(minD) + '.';
+  }
+  const tenho = (r.nivel === 2 ? 'Aprendendo seu padrão. ' : '') + 'Tenho ' + corr(n) + (n === 1 ? ' sua' : ' suas')
+              + (r.temBusca ? ' com o km até o passageiro' : '');
+  if (faltaC > 0 && faltaD > 0) return tenho + ' em ' + dias(d) + '. Comparo a partir de ' + corr(minC) + ' em ' + dias(minD) + '.';
+  if (faltaC > 0) return tenho + ' em ' + dias(d) + '. ' + (faltaC === 1 ? 'Falta 1 corrida' : 'Faltam ' + faltaC + ' corridas') + ' pra eu comparar.';
+  if (faltaD > 0) return tenho + ', mas só em ' + dias(d) + '. Preciso de ' + (minD === 1 ? '1 dia' : minD + ' dias diferentes') + '.';
+  return tenho + ' em ' + dias(d) + '.';
 }
 function avHtmlResultado(t) {
   return '<div class="av-linha1' + (t.cor === 'neutro' ? '' : ' ' + t.cor) + '">' + dot(t.cor) + ' ' + esc(t.principal) + '</div>'
@@ -10891,6 +10909,35 @@ const _DIA_ARTIGO = ['Seus','Suas','Suas','Suas','Suas','Suas','Seus'];
 //  do motorista. Sem histórico, ele informa e cala a boca.
 //  A última frase é sempre o detalhe específico que prova atenção.
 // ═══════════════════════════════════════════════════════════════
+// ═══ SEM RECEITA: o que o motorista JÁ fez hoje ═══
+// ⚠️ "O dia ainda tá zerado" era dito mesmo com o turno feito: o app SABE as horas e o km, e
+// dizer "zerado" ignora o esforço dele (a mesma lição da inteligência do dia). Aqui só entram
+// FATOS que já estão gravados — turno em andamento, horas e km de hoje. Nenhuma receita, nenhum
+// lucro, nenhuma estimativa (Regra Sagrada nº 2). Devolve '' quando não há nada de hoje: aí
+// "zerado" volta a ser verdade e quem chama usa o texto de sempre.
+// ⚠️ O km sai de kmPorDia[hoje], NÃO de kmRodadoHoje(): aquela função subtrai os dois últimos
+// odômetros sem olhar a data e poderia devolver o km de um dia anterior.
+function textoEsforcoDoDia() {
+  // minutos inteiros: _horasDuplo() arredonda o resto e, perto de cada hora cheia, escreveria "2h60"
+  const emHoras = function (h) { return Math.round(h * 60) / 60; };
+  const ta = lerLS('turnoAtivo', null);
+  if (ta && ta.inicio) {
+    const h = (Date.now() - ta.inicio) / 3600000;
+    // 1 min é o piso pra dizer alguma coisa; acima de 16h é turno esquecido ligado (a mesma trava
+    // do fechamento do turno) — aí não afirma nada.
+    if (h >= 1 / 60 && h <= 16) return `Você está rodando há ${_horasDuplo(emHoras(h))}.`;
+  }
+  const horas = horasHojeVal();
+  const kmDia = lerLS('kmPorDia', {})[hojeISO()];
+  const km    = (kmDia && kmDia.km > 0) ? kmDia.km : 0;
+  const partes = [];
+  if (horas >= 0.1) partes.push(_horasDuplo(emHoras(horas)));
+  if (km > 0) {
+    const nd = diasDoRegistro(hojeISO());   // o registro pode cobrir mais de um dia: diz quantos
+    partes.push(D(fmtKm(km) + ' km', km + ' quilômetros') + (nd > 1 ? ` (em ${nd} dias)` : ''));
+  }
+  return partes.length ? `Hoje você rodou ${partes.join(' e ')}.` : '';
+}
 function gerarTextoCade() {
   const perfil = getPerfil();
   const nome   = esc(perfil.nome ? perfil.nome.split(' ')[0] : 'parceiro');
@@ -10924,9 +10971,11 @@ function gerarTextoCade() {
 
   // ── sem receita registrada: não tem o que analisar, e ele diz isso ──
   if (regs.length === 0) {
+    // "zerado" só quando é verdade: com turno, horas ou km de hoje, reconhece o que já foi registrado
+    const esforco = textoEsforcoDoDia();
     return abertura + retro
       + `##balao\t${saud.toUpperCase()}, ${nome.toUpperCase()}\n`
-      + `O dia ainda tá zerado aqui. Registra quanto entrou que eu fecho a conta contigo.`;
+      + (esforco || `O dia ainda tá zerado aqui. Registra quanto entrou que eu fecho a conta contigo.`);
   }
 
   const cartoes = [];
