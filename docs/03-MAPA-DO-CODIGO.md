@@ -13,7 +13,7 @@ própria, privada. Taxonomia conforme `docs/00-CONSTITUICAO.md`.
 | Arquivo | Papel |
 |---|---|
 | `index.html` | Markup de todas as telas e modais, sprite de ícones SVG. Carrega Supabase (CDN) + `supabase-service.js` + `script.js`. |
-| `script.js` | Toda a lógica do app (~10.900 linhas), organizada em seções demarcadas por comentários "═══". |
+| `script.js` | Toda a lógica do app (~11.500 linhas), organizada em seções demarcadas por comentários "═══". |
 | `supabase-service.js` | Cliente Supabase, autenticação, e a camada híbrida de gravação (local → nuvem). |
 | `style.css` | Estilos, variáveis CSS, sem preprocessador. |
 | `sw.js` | Service worker — só ativo na versão web (fora do app nativo). |
@@ -23,6 +23,10 @@ própria, privada. Taxonomia conforme `docs/00-CONSTITUICAO.md`.
 | `fontes/` | Fontes locais do app; copiada para o pacote nativo pelo `copiar-para-www.js` (lista `PASTAS`). |
 | `privacidade.html`, `excluir-conta.html` | Páginas públicas independentes. |
 
+O avaliador de corrida (v4.31) também usa, em `index.html`, o botão `btnAbrirAvaliador`, o modal
+`modalAvaliador`, o contêiner `cadePendentes` e o selo `navCadeBadge`, e, em `style.css`, as classes
+`av-*` (mais `.nav-badge.neutro` e `.dot-neutro`). Não usa `supabase-service.js`.
+
 ## 2. Mapa de seções do `script.js`
 
 **Classificação: `ESTADO ATUAL DO CÓDIGO`.**
@@ -30,7 +34,8 @@ própria, privada. Taxonomia conforme `docs/00-CONSTITUICAO.md`.
 O arquivo é dividido em blocos, cada um iniciado por um comentário de seção (`═══`).
 
 As referências de linha são aproximadas e servem apenas como ponto inicial de localização.
-Elas podem mudar conforme o código evolui.
+Elas podem mudar conforme o código evolui. Atualizadas após a v4.31 (commit `1319348`), que
+inseriu a seção do avaliador na linha 2388 e deslocou tudo o que vem depois dela.
 
 | Linha | Seção |
 |---|---|
@@ -44,50 +49,55 @@ Elas podem mudar conforme o código evolui.
 | 711 | Ícones SVG |
 | 1027 | Login |
 | 1205 | Presente de boas-vindas (onboarding) |
-| 1463 | Instrumentos do painel principal |
-| 1628 | Guia do app |
-| 2003 | Cálculo de piso por km |
-| 2385 | Modal de reserva financeira |
-| 2466 | Modal de meta do dia |
-| 2504 | Balão de ajuda contextual |
-| 2877 | Modal de manutenção |
-| 3438 | Correção manual de odômetro |
-| 4310 | Tratamento de gasto que não é do dia corrente |
-| 4596 | Extratos (combustível e finanças) |
-| 4746 | Comparador por tipo de combustível |
-| 4906 | Exportação (PDF/CSV) |
-| 5400 | Balões progressivos de orientação |
-| 5477 | Tela de ajustes |
-| 5526 | Ferramenta de diagnóstico de rolagem (uso interno) |
-| 5617 | Leitura por foto (OCR) |
-| 5861 | Importação de extrato de plataforma |
-| 6651 | Fluxo de conferência de dono de dados ao logar |
-| 7125 | Projeção do mês |
-| 7590 | Fechamento do mês (cálculo) |
-| 7713 | Texto do fechamento do mês |
-| 7948 | Tela de relatório do mês |
-| 7980 | Comparador analítico ("Lupa") |
-| 8008 | O portão do Premium (controle de acesso ao que é pago) |
-| 8380 | Cortesia do primeiro mês |
-| 8621 | Tutorial de primeira abertura / modo demonstração |
-| 8900 | Detector interno de inconsistência ("Sentinela") |
-| 9005 | Lembrete local de fechar o dia |
-| 9443 | Tutorial guiado por aba |
-| 9692 | Tratamento do botão físico de voltar (Android) |
-| 9840 | Painel de turno ao vivo |
-| 9871 | Inteligência por dia da semana |
-| 9877 | Cálculo de valor por hora |
-| 10091 | Tela "Cadê" (fechamento diário em cartões) |
-| 10314 | Geração de texto da tela "Cadê" |
-| 10517 | Integração visual do sistema de níveis |
-| 10638 | Compartilhar fechamento (v2.3) |
-| 10661 | Isaac e o veículo dentro do cartão de compartilhar |
-| 10861 | Recorde pessoal (v2.4) |
-| 10885 | Retrospecto de domingo (v2.5) |
+| 1465 | Instrumentos do painel principal |
+| 1630 | Guia do app |
+| 2006 | Cálculo de piso por km |
+| 2388 | Avaliador de corrida (MVP-0): cálculo, modal, aviso de pendências e cartão de confirmação na tela Cadê — 100% local |
+| 2956 | Modal de reserva financeira |
+| 3037 | Modal de meta do dia |
+| 3075 | Balão de ajuda contextual |
+| 3448 | Modal de manutenção |
+| 4009 | Correção manual de odômetro |
+| 4881 | Tratamento de gasto que não é do dia corrente |
+| 5167 | Extratos (combustível e finanças) |
+| 5317 | Comparador por tipo de combustível |
+| 5477 | Exportação (PDF/CSV) |
+| 5971 | Balões progressivos de orientação |
+| 6048 | Tela de ajustes |
+| 6097 | Ferramenta de diagnóstico de rolagem (uso interno) |
+| 6188 | Leitura por foto (OCR) |
+| 6432 | Importação de extrato de plataforma |
+| 7222 | Fluxo de conferência de dono de dados ao logar |
+| 7696 | Projeção do mês |
+| 8161 | Fechamento do mês (cálculo) |
+| 8284 | Texto do fechamento do mês |
+| 8519 | Tela de relatório do mês |
+| 8551 | Comparador analítico ("Lupa") |
+| 8579 | O portão do Premium (controle de acesso ao que é pago) |
+| 8951 | Cortesia do primeiro mês |
+| 9192 | Tutorial de primeira abertura / modo demonstração |
+| 9471 | Detector interno de inconsistência ("Sentinela") |
+| 9576 | Lembrete local de fechar o dia |
+| 10014 | Tutorial guiado por aba |
+| 10263 | Tratamento do botão físico de voltar (Android) |
+| 10412 | Painel de turno ao vivo |
+| 10443 | Inteligência por dia da semana |
+| 10449 | Cálculo de valor por hora |
+| 10663 | Tela "Cadê" (fechamento diário em cartões) |
+| 10886 | Geração de texto da tela "Cadê" |
+| 11089 | Integração visual do sistema de níveis |
+| 11210 | Compartilhar fechamento (v2.3) |
+| 11233 | Isaac e o veículo dentro do cartão de compartilhar |
+| 11433 | Recorde pessoal (v2.4) |
+| 11457 | Retrospecto de domingo (v2.5) |
 
-**Nota (`HISTÓRICO`):** o comentário-título da seção em 10091 ainda diz "Cadê — consultora
+**Nota (`HISTÓRICO`):** o comentário-título da seção em 10663 ainda diz "Cadê — consultora
 por voz". O recurso de voz foi removido; hoje a tela é em cartões, sem voz. Nomes e comentários
 que mencionam "voz" no código são resquício, não comportamento atual.
+
+**Pontos de ligação do avaliador fora da sua seção** (uma linha cada): `iniciarApp` (~1319,
+limpeza de avaliações pendentes vencidas), `atualizarResumoDia` (~1808, contador de pendências) e
+o clique da aba Cadê (~10406, cartão de confirmação).
 
 ## 3. `supabase-service.js` — visão geral
 
@@ -115,9 +125,9 @@ As mesmas ressalvas de precisão de linha da seção 4 valem aqui.
 
 **Classificação: `INFERÊNCIA` / `NÃO CONFIRMADO`.**
 
-- Os números de linha refletem o estado do código no momento desta auditoria — qualquer edição
-  subsequente pode deslocá-los. Trate como ponto de partida para busca, não como referência
-  permanentemente exata.
+- Os números de linha refletem o estado do código no momento desta auditoria (atualizada após a
+  v4.31, commit `1319348`) — qualquer edição subsequente pode deslocá-los. Trate como ponto de
+  partida para busca, não como referência permanentemente exata.
 - Esta lista foi construída a partir dos comentários de seção existentes (`═══`); **não é
   confirmado** que ela cubra toda função relevante do arquivo — funções menores sem comentário
   de seção próprio podem existir dentro de cada bloco sem estarem listadas aqui individualmente.
