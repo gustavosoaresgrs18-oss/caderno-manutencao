@@ -1316,6 +1316,8 @@ function iniciarApp(perfil) {
   // antes, reportaria como bug exatamente o que a linha de cima acabou de
   // consertar — e o painel viraria ruído.
   setTimeout(auditarInvariantes, 2500);
+  avLimparVencidas();                   // avaliação pendente que venceu some; a memória não é tocada
+  renderAvisoPendentes();
 
   // NOVO: se tinha um turno rodando quando fechou o app, restaura o estado
   const ta = lerLS('turnoAtivo', null);
@@ -1803,6 +1805,7 @@ function atualizarResumoDia() {
                                       : 'meta batida! 🎯';
   renderGaugeLucro(lucro, meta, temReceita);   // o arco saiu na v3.99; a função se protege sozinha
   renderPisoLinha();                           // a régua de decisão, na tela toda hora
+  renderAvisoPendentes();                      // contador do avaliador: só existe quando há pendência
   reconciliarStreak();                         // conserta quem semeou ou restaurou dados
 }
 
@@ -2381,6 +2384,574 @@ function guardarReservaDoDia(dia) {
   sincronizarPerfil();
   salvarLS('reservaUltimoDia', alvo);
 }
+
+// ═══════════════════════════════════════════════════════════════
+//  AVALIADOR DE CORRIDA — MVP-0 do Isaac (100% local, offline)
+// ═══════════════════════════════════════════════════════════════
+// O problema: a oferta aparece, o motorista tem uns 7 segundos, e a melhor
+// régua que ele tem é o que ELE MESMO já fez. O Isaac compara a oferta com o
+// histórico do próprio motorista — e só isso.
+//
+// ⚠️ O ISAAC SÓ RECOMENDA. Não aceita, não recusa, não escolhe (D-015). O modal
+// nem tem botão de aceitar ou de salvar: ajudar vem primeiro, registrar vem
+// depois (cartão de confirmação na tela do Isaac).
+//
+// ⚠️ ESTE BLOCO NÃO É CONTA DE CUSTO NEM DE LUCRO. A única conta nova aqui é
+// valor ÷ km da OFERTA e a média ponderada disso nas corridas que o motorista
+// disse que fez. Nada de combustível, reserva, piso ou lucro. Quando as frases
+// de custo entrarem, elas chamam a função ÚNICA de custo por km — nunca uma
+// cópia. (O app já tem 3 contas de custo/km; esta não é a 4ª.)
+//
+// ⚠️ TUDO FICA NO APARELHO. Nenhuma chamada de rede, nada vai pro Supabase,
+// nada passa pela fila offline (Regra Sagrada nº 10). No modo demo ele calcula
+// e responde, mas não grava nada.
+//
+// Uma coleção só (`eventosCorrida`) e um evento por avaliação, com o MESMO id
+// do começo ao fim. O que muda é o `estado`:
+//   pendente ─ Fiz ───────► realizada
+//            ├ Não fiz ───► nao_realizada  (fica guardada, fora de qualquer conta)
+//            ├ venceu ────► removida
+//            └ campos apagados na mesma sessão ► removida
+//   `cancelada` existe no formato; nenhuma tela escreve nela ainda.
+// A memória do Isaac só lê `realizada`, e só por corridasDaMemoria().
+
+const AV_CHAVE_EVENTOS = 'eventosCorrida';
+const AV_CHAVE_META    = 'avaliadorMeta';
+
+// ⚠️ PARÂMETROS PROVISÓRIOS, PARA TESTE DE CAMPO. Não são regra de produto nem
+// decisão: existem pro código rodar e pra serem trocados quando o campo disser.
+const AV_PARAMS = {
+  AMOSTRA_MIN_APRENDER:         1,     // corridas realizadas pra sair do "sem histórico"
+  AMOSTRA_MIN_COMPARAR:         8,     // corridas no MESMO recorte pra comparar
+  DIAS_MIN_DISTINTOS:           3,     // ...espalhadas em pelo menos tantos dias
+  JANELA_DIAS:                  90,    // corrida mais velha que isso sai da memória
+  DIAS_VALIDADE_PENDENTE:       1,     // pendente vale hoje e ontem
+  RETENCAO_NAO_REALIZADAS_DIAS: 90,
+  TETO_EVENTOS:                 1000,
+  IDLE_GRAVAR_MS:               1200,  // pausa na digitação antes de gravar
+  ARRED_DIFERENCA:              0.05,  // a diferença mostrada anda de 5 em 5 centavos
+  DIAS_DE_USO_MAX:              120
+};
+
+const AV_MSG_FALHA_GRAVAR = 'Não foi possível salvar esta avaliação neste aparelho.';   // o mesmo texto está em #avAvisoGravar (index.html)
+
+const AV_FAIXA_TXT = {
+  manha:     { em: 'de manhã',     plural: 'as suas manhãs' },
+  tarde:     { em: 'à tarde',      plural: 'as suas tardes' },
+  noite:     { em: 'à noite',      plural: 'as suas noites' },
+  madrugada: { em: 'de madrugada', plural: 'as suas madrugadas' }
+};
+function avFaixaHoraria(hora) {
+  if (hora >= 5  && hora <= 11) return 'manha';
+  if (hora >= 12 && hora <= 17) return 'tarde';
+  if (hora >= 18 && hora <= 23) return 'noite';
+  return 'madrugada';
+}
+
+// ── armazenamento ───────────────────────────────────────────────
+function avEventos() {
+  const l = lerLS(AV_CHAVE_EVENTOS, []);
+  return Array.isArray(l) ? l : [];
+}
+// Não avisa por conta própria: isto roda enquanto o motorista digita, e um toast a
+// cada tecla seria pior que a falha. Quem chama avisa (no modal, uma linha fixa
+// que não repete; no cartão, um toast por toque). A resposta na tela não depende
+// de gravar, e nada aqui bloqueia o app.
+function avSalvarEventos(lista) {
+  try { localStorage.setItem(AV_CHAVE_EVENTOS, JSON.stringify(lista)); return true; }
+  catch (e) { migalha('avaliador:falha-gravar'); return false; }
+}
+function avMeta() {
+  const m = lerLS(AV_CHAVE_META, null);
+  const base = { avaliacoes: 0, diasDeUso: [], fiz: 0, naoFiz: 0, primeiraEm: null, ultimaEm: null, infoVista: false,
+                 ultimaResolucao: null };   // { id, de, em }: a ÚNICA resolução que ainda dá pra desfazer
+  return (m && typeof m === 'object' && !Array.isArray(m)) ? Object.assign(base, m) : base;
+}
+function avSalvarMeta(m) {
+  try { localStorage.setItem(AV_CHAVE_META, JSON.stringify(m)); } catch (e) {}
+}
+function avNovoId() { return 'co' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+// dias inteiros entre hoje e uma data ISO (o app já lê data assim: meio-dia, sem UTC)
+function avDiasAtras(iso) {
+  const a = new Date(hojeISO() + 'T12:00:00'), b = new Date(String(iso) + 'T12:00:00');
+  return Math.round((a - b) / 86400000);
+}
+
+// contadores de uso: só no aparelho, sem valor nem dado pessoal
+function avContar(tipo, resolucao) {
+  if (emDemo()) return;
+  const m = avMeta();
+  const agora = new Date().toISOString();
+  if (!m.primeiraEm) m.primeiraEm = agora;
+  m.ultimaEm = agora;
+  if (tipo === 'avaliacao') {
+    m.avaliacoes = (m.avaliacoes || 0) + 1;
+    const hoje = hojeISO();
+    if (!Array.isArray(m.diasDeUso)) m.diasDeUso = [];
+    if (m.diasDeUso.indexOf(hoje) < 0) {
+      m.diasDeUso.push(hoje);
+      if (m.diasDeUso.length > AV_PARAMS.DIAS_DE_USO_MAX) m.diasDeUso = m.diasDeUso.slice(-AV_PARAMS.DIAS_DE_USO_MAX);
+    }
+  } else if (tipo === 'fiz')    { m.fiz    = (m.fiz    || 0) + 1; m.ultimaResolucao = resolucao || null; }
+  else if (tipo === 'naoFiz')   { m.naoFiz = (m.naoFiz || 0) + 1; m.ultimaResolucao = resolucao || null; }
+  // desfazer: o toque errado sai da contagem, e não sobra "último estado" pra desfazer de novo
+  else if (tipo === 'desfezFiz')    { m.fiz    = Math.max(0, (m.fiz    || 0) - 1); m.ultimaResolucao = null; }
+  else if (tipo === 'desfezNaoFiz') { m.naoFiz = Math.max(0, (m.naoFiz || 0) - 1); m.ultimaResolucao = null; }
+  avSalvarMeta(m);
+}
+
+// ── o ÚNICO ponto que altera um evento ────────────────────────────
+// Devolve { r }: 'ok' (com o evento em `e`) · 'ausente' · 'bloqueado' (não é pendente
+// e só se podia mexer em pendente) · 'falhou' (o armazenamento recusou).
+function avAtualizarEvento(id, mudancas, soPendente) {
+  const lista = avEventos();
+  const e = lista.find(function (x) { return x && x.id === id; });
+  if (!e) return { r: 'ausente' };
+  if (soPendente && e.estado !== 'pendente') return { r: 'bloqueado' };
+  Object.keys(mudancas).forEach(function (k) { e[k] = mudancas[k]; });
+  return avSalvarEventos(lista) ? { r: 'ok', e: e } : { r: 'falhou' };
+}
+// ⚠️ Só remove PENDENTE. Corrida realizada ou não realizada nunca some por aqui.
+// Devolve 'ok' · 'ausente' · 'bloqueado' · 'falhou'.
+function avRemoverEvento(id) {
+  const lista = avEventos();
+  const i = lista.findIndex(function (x) { return x && x.id === id; });
+  if (i < 0) return 'ausente';
+  if (lista[i].estado !== 'pendente') return 'bloqueado';
+  lista.splice(i, 1);
+  return avSalvarEventos(lista) ? 'ok' : 'falhou';
+}
+// Aviso de falha ao gravar: UMA linha fixa dentro do modal (não é toast, então não
+// repete a cada pausa na digitação, e some quando uma gravação seguinte dá certo).
+function avFalhaGravar(falhou) {
+  const el = document.getElementById('avAvisoGravar');
+  if (el) el.style.display = falhou ? 'block' : 'none';
+}
+
+function avPendentesValidos() {
+  return avEventos().filter(function (e) {
+    if (!e || e.estado !== 'pendente') return false;
+    const d = avDiasAtras(e.dataISO);
+    return isFinite(d) && d <= AV_PARAMS.DIAS_VALIDADE_PENDENTE;
+  });
+}
+
+// ⚠️ O ÚNICO LEITOR DA MEMÓRIA. Só `realizada`, dentro da janela e do veículo
+// ativo. Pendente, não realizada e cancelada não entram em conta nenhuma — e
+// nenhuma outra função calcula em cima de eventosCorrida sem passar por aqui.
+function corridasDaMemoria() {
+  return avEventos().filter(function (e) {
+    if (!e || e.estado !== 'realizada') return false;
+    if (!ehDoVeiculoAtivo(e)) return false;
+    const d = avDiasAtras(e.dataISO);
+    return isFinite(d) && d <= AV_PARAMS.JANELA_DIAS;
+  });
+}
+
+// Limpeza (ao abrir o app). Ordem: pendente vencida → não realizada fora da
+// retenção → se ainda passar do teto, as não realizadas mais antigas e depois
+// as realizadas FORA da janela. Realizada dentro da janela nunca é apagada aqui.
+function avLimparVencidas() {
+  if (emDemo()) return;
+  const lista = avEventos();
+  if (!lista.length) return;
+  let mudou = false;
+  const novos = lista.filter(function (e) {
+    if (!e || typeof e !== 'object') { mudou = true; return false; }
+    const d = avDiasAtras(e.dataISO);
+    if (e.estado === 'pendente' && !(isFinite(d) && d <= AV_PARAMS.DIAS_VALIDADE_PENDENTE)) { mudou = true; return false; }
+    if (e.estado === 'nao_realizada' && isFinite(d) && d > AV_PARAMS.RETENCAO_NAO_REALIZADAS_DIAS) { mudou = true; return false; }
+    return true;
+  });
+  let excesso = novos.length - AV_PARAMS.TETO_EVENTOS;
+  for (let i = novos.length - 1; i >= 0 && excesso > 0; i--) {
+    if (novos[i].estado === 'nao_realizada') { novos.splice(i, 1); excesso--; mudou = true; }
+  }
+  for (let i = novos.length - 1; i >= 0 && excesso > 0; i--) {
+    const d = avDiasAtras(novos[i].dataISO);
+    if (novos[i].estado === 'realizada' && isFinite(d) && d > AV_PARAMS.JANELA_DIAS) { novos.splice(i, 1); excesso--; mudou = true; }
+  }
+  if (mudou) avSalvarEventos(novos);
+}
+
+// ── o cálculo ─────────────────────────────────────────────────────
+// amostras da memória na MESMA métrica da oferta: igual com igual, nunca mistura.
+// 'corrida' = valor ÷ km da corrida · 'total' = valor ÷ (km até o passageiro + km da corrida)
+function avAmostras(metrica) {
+  return corridasDaMemoria().map(function (e) {
+    const valor = Number(e.valor), kc = Number(e.kmCorrida);
+    if (!(valor > 0 && kc > 0)) return null;
+    let km = kc;
+    if (metrica === 'total') {
+      if (e.kmBusca == null || !isFinite(Number(e.kmBusca)) || Number(e.kmBusca) < 0) return null;
+      km = kc + Number(e.kmBusca);
+    }
+    const hora = new Date(e.criadoEm).getHours();
+    const dow  = new Date(e.dataISO + 'T12:00:00').getDay();
+    return { valor: valor, km: km, rkm: valor / km, dataISO: e.dataISO,
+             dow: isFinite(dow) ? dow : null,
+             faixa: isFinite(hora) ? avFaixaHoraria(hora) : null };
+  }).filter(Boolean);
+}
+// média PONDERADA (Σ valor ÷ Σ km), a mesma lição do R$/hora: média das razões
+// dá o mesmo peso a uma corrida de 1 km e a uma de 20.
+function avPonderadoKm(am) {
+  const v = am.reduce(function (s, a) { return s + a.valor; }, 0);
+  const k = am.reduce(function (s, a) { return s + a.km; }, 0);
+  return k > 0 ? v / k : null;
+}
+// do recorte mais específico ao mais geral
+function avRecortes(agora) {
+  const dow = agora.getDay(), faixa = avFaixaHoraria(agora.getHours());
+  const nomeDia = DIAS_NOME[dow] + 's';
+  const de      = (DIA_MASC[dow] ? 'dos ' : 'das ') + nomeDia;
+  const os      = (DIA_MASC[dow] ? 'os seus ' : 'as suas ') + nomeDia;
+  const fx      = AV_FAIXA_TXT[faixa];
+  return [
+    { id: 'dia-faixa', base: nomeDia + ' ' + fx.em, frase: de + ' ' + fx.em, compara: os + ' ' + fx.em,
+      filtra: function (a) { return a.dow === dow && a.faixa === faixa; } },
+    { id: 'faixa', base: fx.em, frase: fx.em, compara: fx.plural,
+      filtra: function (a) { return a.faixa === faixa; } },
+    { id: 'dia', base: nomeDia, frase: de, compara: os,
+      filtra: function (a) { return a.dow === dow; } },
+    { id: 'geral', base: 'todas as corridas', frase: 'de todas as suas corridas', compara: 'todas as suas corridas',
+      filtra: function () { return true; } }
+  ];
+}
+// Devolve só números e o nível de confiança; quem escreve a frase é avTexto().
+//   nível 1 · sem histórico suficiente  → nenhuma comparação
+//   nível 2 · aprendendo padrão         → nenhuma comparação numérica
+//   nível 3 · padrão estabelecido       → compara com a média de UM recorte
+// A confiança é do recorte usado, não do motorista inteiro.
+function avaliarOferta(e, agora) {
+  agora = agora || new Date();
+  const temBusca = e.kmBusca != null;
+  const metrica  = temBusca ? 'total' : 'corrida';
+  const kmBase   = temBusca ? (e.kmBusca + e.kmCorrida) : e.kmCorrida;
+  const x        = e.valor / kmBase;
+  const am       = avAmostras(metrica);
+  const r = { metrica: metrica, temBusca: temBusca, x: x, nTodas: corridasDaMemoria().length,
+              n: am.length, nivel: 1, recorte: null, primeiro: null, media: null,
+              lo: null, hi: null, veredito: null, dif: 0, nRec: 0, diasRec: 0 };
+
+  const recortes = avRecortes(agora);
+  r.primeiro = recortes[0];
+  for (let i = 0; i < recortes.length; i++) {
+    const sub  = am.filter(recortes[i].filtra);
+    const dias = new Set(sub.map(function (a) { return a.dataISO; })).size;
+    if (sub.length >= AV_PARAMS.AMOSTRA_MIN_COMPARAR && dias >= AV_PARAMS.DIAS_MIN_DISTINTOS) {
+      const rk = sub.map(function (a) { return a.rkm; });
+      r.nivel = 3; r.recorte = recortes[i]; r.nRec = sub.length; r.diasRec = dias;
+      r.media = avPonderadoKm(sub); r.lo = Math.min.apply(null, rk); r.hi = Math.max.apply(null, rk);
+      break;
+    }
+  }
+  if (r.nivel === 3) {
+    r.veredito = x > r.hi ? 'acima' : (x < r.lo ? 'abaixo' : 'dentro');
+    // a diferença anda em passos: não fingir centavo que o dado não sustenta
+    r.dif = Math.round(Math.abs(x - r.media) / AV_PARAMS.ARRED_DIFERENCA) * AV_PARAMS.ARRED_DIFERENCA;
+    if (r.veredito !== 'dentro' && !(r.dif > 0)) r.veredito = 'dentro';
+  } else if (am.length >= AV_PARAMS.AMOSTRA_MIN_APRENDER) {
+    r.nivel = 2;
+  }
+  return r;
+}
+// As frases. Vermelho não existe aqui: "abaixo da sua média" não é alerta (Regra
+// Sagrada nº 4). Sempre diz a BASE da comparação e nunca vende valor estimado
+// como se fosse o valor recebido.
+function avTexto(r) {
+  const rkm     = fmtBRL(r.x) + '/km';
+  const oferta  = r.temBusca ? (rkm + ' contando a busca.') : (rkm + ' só da corrida.');
+  const ressalva = r.temBusca ? null : 'Sem o km até o passageiro, é o melhor caso.';
+  const t = { cor: 'neutro', principal: '', sub: [], base: '' };
+
+  if (r.nivel === 3) {
+    const dif = fmtBRL(r.dif) + '/km';
+    if (r.veredito === 'acima')       { t.cor = 'verde';   t.principal = dif + ' acima da sua média ' + r.recorte.frase + '.'; }
+    else if (r.veredito === 'abaixo') { t.cor = 'amarelo'; t.principal = dif + ' abaixo da sua média ' + r.recorte.frase + '.'; }
+    else                              { t.principal = 'Dentro da sua faixa ' + r.recorte.frase + '.'; }
+    t.sub.push(r.temBusca ? oferta : (rkm + ' só da corrida (melhor caso).'));
+    if (r.recorte.id !== r.primeiro.id) {
+      t.sub.push('Sem ' + r.primeiro.base + ' suficientes, comparei com ' + r.recorte.compara + '.');
+    }
+    t.base = 'Padrão estabelecido · ' + r.recorte.base + ' · ' + r.nRec + (r.nRec === 1 ? ' corrida' : ' corridas')
+           + ' em ' + r.diasRec + (r.diasRec === 1 ? ' dia' : ' dias')
+           + (r.temBusca ? ' · contando a busca' : '') + ' · valores da oferta';
+    return t;
+  }
+  t.principal = oferta;
+  if (ressalva) t.sub.push(ressalva);
+  if (r.nivel === 2) {
+    t.sub.push('Aprendendo seu padrão. Já tenho ' + r.n + (r.n === 1 ? ' corrida sua.' : ' corridas suas.'));
+  } else if (r.temBusca && r.nTodas > 0 && r.n === 0) {
+    t.sub.push('Ainda não tenho corridas suas realizadas com o km até o passageiro pra comparar.');
+  } else {
+    t.sub.push('Ainda não tenho corridas suas realizadas pra comparar.');
+  }
+  return t;
+}
+function avHtmlResultado(t) {
+  return '<div class="av-linha1' + (t.cor === 'neutro' ? '' : ' ' + t.cor) + '">' + dot(t.cor) + ' ' + esc(t.principal) + '</div>'
+       + t.sub.map(function (s) { return '<div class="av-linha2">' + esc(s) + '</div>'; }).join('')
+       + (t.base ? '<div class="av-base">' + esc(t.base) + '</div>' : '');
+}
+
+// ── o modal ───────────────────────────────────────────────────────
+// Uma "sessão" é uma abertura do modal. O evento gravado nela leva o id da sessão.
+let _avSessaoId       = null;    // id do evento desta sessão (null no modo demo)
+let _avSessaoContada  = false;   // a avaliação conta UMA vez por sessão, mesmo se o evento for removido e recriado
+let _avEntrada        = null;    // última entrada válida da sessão (null = inválida agora)
+let _avTimer          = null;
+let _avPlat           = null;
+
+// campo opcional: vazio ou lixo = "não informado" (null). Zero só vale se pedir.
+function avNumOpcional(txt, aceitaZero, casas) {
+  const n = numBR(txt);
+  if (!isFinite(n) || n < 0) return null;
+  const f = Math.pow(10, casas);
+  const r = Math.round(n * f) / f;
+  if (r === 0 && !aceitaZero) return null;
+  return r;
+}
+function avLerEntrada() {
+  const valor = avNumOpcional(document.getElementById('avValor').value, false, 2);
+  const kmC   = avNumOpcional(document.getElementById('avKm').value,    false, 2);
+  if (valor === null || kmC === null) return null;
+  return { valor: valor, kmCorrida: kmC,
+           kmBusca: avNumOpcional(document.getElementById('avKmBusca').value, true, 2),   // 0 explícito vale: "0 km até o passageiro"
+           min:     avNumOpcional(document.getElementById('avMin').value, false, 0),
+           plat:    _avPlat };
+}
+function avMontarChips() {
+  const box = document.getElementById('avChips');
+  if (!box) return;
+  box.innerHTML = PLATAFORMAS_CONHECIDAS.map(function (p) {
+    return '<button type="button" class="av-chip' + (_avPlat === p ? ' sel' : '') + '" onclick="avEscolherPlat(\'' + esc(p) + '\')">' + esc(p) + '</button>';
+  }).join('');
+}
+function avEscolherPlat(p) {
+  _avPlat = (_avPlat === p) ? null : p;
+  avMontarChips();
+  renderAvaliador();
+}
+// aviso único, discreto, dentro do modal: sem toast, sem bloquear
+function avMostrarInfoInicial() {
+  const el = document.getElementById('avInfoUnica');
+  if (!el) return;
+  const m = avMeta();
+  if (emDemo() || m.infoVista) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  m.infoVista = true;
+  avSalvarMeta(m);
+}
+function abrirAvaliador() {
+  avFlush();                                   // fecha a sessão anterior sem perder o que ela tinha de válido
+  _avSessaoId      = emDemo() ? null : avNovoId();
+  _avSessaoContada = false;
+  _avEntrada       = null;
+  _avPlat          = null;
+  ['avValor', 'avKm', 'avKmBusca', 'avMin'].forEach(function (id) { document.getElementById(id).value = ''; });
+  document.getElementById('avResultado').style.display = 'none';
+  document.getElementById('avDetalhes').open = false;
+  avFalhaGravar(false);                        // sessão nova, sem herdar o aviso da anterior
+  avMontarChips();
+  avMostrarInfoInicial();
+  migalha('avaliador:abriu');
+  document.getElementById('modalAvaliador').style.display = 'flex';
+  // se o teclado abre sozinho no Android é o aparelho que decide; a tentativa não custa nada
+  setTimeout(function () { try { document.getElementById('avValor').focus(); } catch (e) {} }, 60);
+}
+function renderAvaliador() {
+  const box     = document.getElementById('avResultado');
+  const entrada = avLerEntrada();
+  if (!entrada) {
+    box.style.display = 'none';
+    avSincronizarSessao(null);
+    return;
+  }
+  box.innerHTML = avHtmlResultado(avTexto(avaliarOferta(entrada)));
+  box.style.display = 'block';
+  avSincronizarSessao(entrada);
+}
+// ⚠️ NÃO DEIXAR UMA VERSÃO ANTIGA VÁLIDA SOBREVIVER. Se a avaliação desta sessão
+// já foi gravada e o motorista apagou (ou estragou) o valor ou o km, a pendência
+// some NA HORA — sem esperar a pausa. Senão ele confirmaria depois uma corrida
+// de "R$ 25" que, na tela, já nem existia mais.
+function avSincronizarSessao(entrada) {
+  if (emDemo() || !_avSessaoId) return;        // demo calcula, não grava
+  _avEntrada = entrada;
+  if (!entrada) {
+    clearTimeout(_avTimer); _avTimer = null;
+    const rm = avRemoverEvento(_avSessaoId);
+    if (rm === 'ok') renderAvisoPendentes();
+    avFalhaGravar(rm === 'falhou');            // se não conseguiu apagar, a versão antiga segue no aparelho: ele precisa saber
+    return;
+  }
+  clearTimeout(_avTimer);
+  _avTimer = setTimeout(avFlush, AV_PARAMS.IDLE_GRAVAR_MS);
+}
+// grava agora o que estiver válido (pausa na digitação, página escondida, modal fechado)
+function avFlush() {
+  clearTimeout(_avTimer); _avTimer = null;
+  if (emDemo() || !_avSessaoId || !_avEntrada) return;
+  const dados = { valor: _avEntrada.valor, kmCorrida: _avEntrada.kmCorrida, kmBusca: _avEntrada.kmBusca,
+                  min: _avEntrada.min, plat: _avEntrada.plat };
+  const jaExiste = avEventos().some(function (e) { return e && e.id === _avSessaoId; });
+  if (jaExiste) {
+    // só edita enquanto pendente: o helper recusa qualquer outro estado
+    const res = avAtualizarEvento(_avSessaoId, dados, true);
+    if (res.r === 'ok') renderAvisoPendentes();
+    if (res.r !== 'bloqueado') avFalhaGravar(res.r === 'falhou');
+    return;
+  }
+  const agora = new Date();
+  const lista = avEventos();
+  lista.unshift({ id: _avSessaoId, v: 1, estado: 'pendente',
+                  criadoEm: agora.toISOString(), dataISO: isoLocal(agora), vid: vidAtivo(),
+                  valor: dados.valor, kmCorrida: dados.kmCorrida, kmBusca: dados.kmBusca, min: dados.min, plat: dados.plat,
+                  valorReal: null, kmReal: null, minReal: null, corrigidoEm: null,
+                  origem: 'manual', resolvidaEm: null });
+  const gravou = avSalvarEventos(lista);
+  if (gravou) {
+    if (!_avSessaoContada) { _avSessaoContada = true; avContar('avaliacao'); }
+    renderAvisoPendentes();
+  }
+  avFalhaGravar(!gravou);
+}
+
+// ── confirmação depois: aviso discreto + cartão na tela do Isaac ──
+// O aviso só existe quando há pendência. Sem toast, sem modal, sem bloquear nada.
+function renderAvisoPendentes() {
+  const n = avPendentesValidos().length;
+  const c = document.getElementById('avContador');
+  if (c) {
+    if (n > 0) { c.textContent = '· ' + n; c.style.display = ''; }
+    else         c.style.display = 'none';
+  }
+  const b = document.getElementById('navCadeBadge');
+  if (b) {
+    if (n > 0) { b.textContent = n; b.style.display = 'flex'; }
+    else         b.style.display = 'none';
+  }
+}
+let _avCadeAdiado = false;   // "deixar pra depois": vale só até sair da tela do Isaac
+let _avCadeVisita = false;   // o cartão já apareceu nesta visita (fica pra mostrar o "✓ Fiz" e o "Desfazer")
+function avHoraTxt(iso) {
+  const d = new Date(iso);
+  return isFinite(d) ? String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') : '--:--';
+}
+function avDescreverEvento(e) {
+  const quando = (e.dataISO === ontemISO() ? 'ontem ' : '') + avHoraTxt(e.criadoEm);
+  const km = Number(e.kmCorrida).toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  return quando + ' · ' + fmtBRL(e.valor) + ' · ' + km + ' km';
+}
+function renderPendentesCade(novaVisita) {
+  const box = document.getElementById('cadePendentes');
+  if (!box) return;
+  if (novaVisita) { _avCadeAdiado = false; _avCadeVisita = false; }
+  const pend = avPendentesValidos();
+  const ult  = avUltimaResolucaoDesfazivel();   // o único evento que ainda dá pra desfazer (ou null)
+  if (pend.length || ult) _avCadeVisita = true;
+  if (_avCadeAdiado || !_avCadeVisita) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const hoje = hojeISO();
+  const feitas = avEventos().filter(function (e) {
+    return e && e.estado === 'realizada' && e.resolvidaEm && isoLocal(new Date(e.resolvidaEm)) === hoje;
+  });
+  const btnDesfazer = function (e) {
+    return (ult && ult.id === e.id)
+      ? ' <button class="av-desf" onclick="avDesfazer(\'' + esc(e.id) + '\')">Desfazer</button>' : '';
+  };
+  let h = '<div class="isc-card"><div class="isc-cab">' + ico('alvo') + '<span>Corridas avaliadas</span></div>';
+  if (pend.length) {
+    h += '<div class="av-cade-txt">Você avaliou ' + pend.length + (pend.length === 1 ? ' corrida' : ' corridas') + '. Quais você fez?</div>';
+    pend.forEach(function (e) {
+      const id = esc(e.id);
+      h += '<div class="av-row"><div class="av-row-info">' + esc(avDescreverEvento(e)) + '</div>'
+         + '<div class="av-row-btns"><button class="av-btn fiz" onclick="avResolver(\'' + id + '\',\'fiz\')">Fiz</button>'
+         + '<button class="av-btn" onclick="avResolver(\'' + id + '\',\'naofiz\')">Não fiz</button></div></div>';
+    });
+  }
+  feitas.forEach(function (e) {
+    h += '<div class="av-feita">✓ Fiz · ' + esc(avDescreverEvento(e)) + ' · valores da oferta' + btnDesfazer(e) + '</div>';
+  });
+  // "Não fiz" some da lista; se foi o último toque, aparece uma linha só pra dar chance de desfazer
+  if (ult && ult.estado === 'nao_realizada') {
+    h += '<div class="av-feita">Não fiz · ' + esc(avDescreverEvento(ult)) + btnDesfazer(ult) + '</div>';
+  }
+  if (pend.length) h += '<button class="av-adiar" onclick="avAdiarCade()">Deixar pra depois</button>';
+  h += '</div>';
+  box.innerHTML = h;
+  box.style.display = 'block';
+}
+function avAdiarCade() { _avCadeAdiado = true; renderPendentesCade(); }
+// "Fiz" = fiz a corrida, com os valores da OFERTA (estimados; o valor real pode ser
+// corrigido depois, quando essa tela existir). "Não fiz" = fica guardada, fora da conta.
+// Vale mudar o estado do MESMO evento; nada se move de lista.
+function avResolver(id, acao) {
+  if (emDemo()) return;
+  const fez    = (acao === 'fiz');
+  const estado = fez ? 'realizada' : 'nao_realizada';
+  const em     = new Date().toISOString();
+  const res = avAtualizarEvento(id, { estado: estado, resolvidaEm: em }, true);
+  if (res.r === 'falhou') { toast(AV_MSG_FALHA_GRAVAR, 'erro'); return; }   // um toque, um aviso; não trava nada
+  if (res.r !== 'ok') return;
+  avContar(fez ? 'fiz' : 'naoFiz', { id: id, de: estado, em: em });          // vira "o último estado alterado"
+  migalha('avaliador:' + (fez ? 'fiz' : 'nao-fiz'));
+  renderAvisoPendentes();
+  renderPendentesCade();
+}
+
+// ── desfazer o último toque (Fiz ou Não fiz) ─────────────────────
+// Regras: só o ÚLTIMO estado alterado · só no MESMO dia em que foi alterado · volta o
+// MESMO evento pra pendente (não cria evento novo) · só `estado` e `resolvidaEm`
+// mudam: valor, km, id e timestamp de criação ficam como estavam. Depois de desfazer
+// não sobra outro pra desfazer: o próximo só existe depois de um novo toque.
+function avUltimaResolucaoDesfazivel() {
+  const u = avMeta().ultimaResolucao;
+  if (!u || !u.id || !u.em) return null;
+  if (isoLocal(new Date(u.em)) !== hojeISO()) return null;             // virou o dia: fechou
+  const e = avEventos().find(function (x) { return x && x.id === u.id; });
+  if (!e || e.estado !== u.de || e.resolvidaEm !== u.em) return null;  // algo mudou depois: não mexe
+  return e;
+}
+function avDesfazer(id) {
+  if (emDemo()) return;
+  const alvo = avUltimaResolucaoDesfazivel();
+  if (!alvo || alvo.id !== id) return;
+  const de  = alvo.estado;
+  const res = avAtualizarEvento(id, { estado: 'pendente', resolvidaEm: null }, false);
+  if (res.r === 'falhou') { toast(AV_MSG_FALHA_GRAVAR, 'erro'); return; }
+  if (res.r !== 'ok') return;
+  avContar(de === 'realizada' ? 'desfezFiz' : 'desfezNaoFiz');
+  migalha('avaliador:desfez');
+  renderAvisoPendentes();
+  renderPendentesCade();
+}
+
+// leitura só do dono (medir se o motorista realmente usa) — mesma porta do medidor de rolagem
+function mostrarUsoAvaliador() {
+  if (!souODono()) { toast('Isso não está disponível nesta conta', 'erro'); return; }
+  const m  = avMeta();
+  const ev = avEventos();
+  const qt = function (s) { return ev.filter(function (e) { return e && e.estado === s; }).length; };
+  pedirConfirmacao('Avaliador · uso neste aparelho',
+    'Avaliações: ' + (m.avaliacoes || 0) + ' · dias de uso: ' + (Array.isArray(m.diasDeUso) ? m.diasDeUso.length : 0)
+    + ' — Fiz: ' + (m.fiz || 0) + ' · Não fiz: ' + (m.naoFiz || 0)
+    + ' — Guardadas agora: pendentes ' + qt('pendente') + ' · realizadas ' + qt('realizada')
+    + ' · não realizadas ' + qt('nao_realizada'),
+    function () {}, { sim: 'Ok', nao: 'Fechar' });
+}
+
+document.getElementById('btnAbrirAvaliador').addEventListener('click', abrirAvaliador);
+document.getElementById('btnFecharAvaliador').addEventListener('click', function () {
+  avFlush();
+  document.getElementById('modalAvaliador').style.display = 'none';
+});
+// a pessoa volta pro Uber/99 antes da pausa? grava agora (o botão voltar do Android
+// só esconde o modal, então "gravar ao fechar" sozinho não bastaria)
+document.addEventListener('visibilitychange', function () { if (document.hidden) avFlush(); });
+window.addEventListener('pagehide', avFlush);
 
 // ═══════════════════════════════════════════════════════════════
 //  MODAL RESERVA (cofrinho: guardar + tirar + objetivo)
@@ -9832,6 +10403,7 @@ navCade.addEventListener('click', () => {
   renderCarameloCade();
   document.getElementById('cadeShareBtn').style.display = registrosHojeFin().length ? 'inline-flex' : 'none';
   pintarSeloMes();   // o botão do mês e o selo "novo" acendem aqui
+  renderPendentesCade(true);   // corridas avaliadas esperando confirmação (contêiner à parte do balão)
   mostrarTela(telaCade);
   navCade.classList.add('ativo');
   talvezTutorial('isaac');

@@ -19,10 +19,10 @@
     <!-- O HTML nunca deve ser guardado: e ele que aponta a versao do script.js -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
-    <link rel="stylesheet" href="style.css?v=448">
+    <link rel="stylesheet" href="style.css?v=449">
     <!-- ── Supabase (Fatia 1): CDN + camada híbrida do app ── -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="supabase-service.js?v=448"></script>
+    <script src="supabase-service.js?v=449"></script>
   </head>
   <body>
 
@@ -317,6 +317,9 @@
         </div>
         <div class="acao-secundaria">
           <button class="btn-simulador-mini" id="btnAbrirSimulador"><svg class="ico"><use href="#i-calc"></use></svg> Planejar o dia</button>
+          <!-- Avaliador de corrida (MVP-0 do Isaac). Sempre disponível; o contador
+               só aparece quando há avaliação pendente de confirmação. -->
+          <button class="btn-simulador-mini" id="btnAbrirAvaliador"><svg class="ico"><use href="#i-alvo"></use></svg> Avaliar corrida<span class="av-cont" id="avContador" style="display:none;"></span></button>
         </div>
       </div>
 
@@ -629,6 +632,9 @@
         <div class="cade-balao" id="cadeBalao">
           Tô aqui pra te contar como foi seu dia. Aperta o botão abaixo.
         </div>
+        <!-- Corridas avaliadas esperando confirmação (avaliador de corrida). Fica FORA
+             do balão de propósito: os cartões do balão são texto com marcadores, sem botão. -->
+        <div class="av-cade" id="cadePendentes" style="display:none;"></div>
         <button class="cade-share" id="cadeShareBtn" style="display:none;" onclick="abrirShareFechamento()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v13"/></svg>
           Compartilhar meu fechamento
@@ -693,7 +699,7 @@
         <button class="nav-item" id="navCombustivel"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="9" height="18" rx="1.5"/><path d="M4 11h9"/><path d="M16 8l3 3v7a1.5 1.5 0 0 1-3 0v-4"/></svg><span>Combust.</span></button>
         <button class="nav-item" id="navFinancas"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M6 12h.01M18 12h.01"/></svg><span>Finanças</span></button>
         <button class="nav-item" id="navDocumentos"><span class="nav-badge" id="navDocsBadge" style="display:none;">1</span><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h8l4 4v16H6z"/><path d="M14 2v4h4"/><path d="M9 13h6M9 17h6"/></svg><span>Docs</span></button>
-        <button class="nav-item" id="navCade"><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 2.6 C4.5 6 4.7 8.4 4.9 10 C4.6 14 6.6 17.4 12 20.8 C17.4 17.4 19.4 14 19.1 10 C19.3 8.4 19.5 6 19.8 2.6 L15.4 7 L8.6 7 Z"/><path d="M9.2 11.4 L10.7 11.4"/><path d="M13.3 11.4 L14.8 11.4"/><path d="M10.6 15.2 L12 16.4 L13.4 15.2"/><path d="M12 16.4 L12 18"/></svg><span id="navCadeLabel">Isaac</span></button>
+        <button class="nav-item" id="navCade"><span class="nav-badge neutro" id="navCadeBadge" style="display:none;"></span><svg class="nav-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.2 2.6 C4.5 6 4.7 8.4 4.9 10 C4.6 14 6.6 17.4 12 20.8 C17.4 17.4 19.4 14 19.1 10 C19.3 8.4 19.5 6 19.8 2.6 L15.4 7 L8.6 7 Z"/><path d="M9.2 11.4 L10.7 11.4"/><path d="M13.3 11.4 L14.8 11.4"/><path d="M10.6 15.2 L12 16.4 L13.4 15.2"/><path d="M12 16.4 L12 18"/></svg><span id="navCadeLabel">Isaac</span></button>
       </nav>
 
       <!-- ══════════ RELATÓRIO DO MÊS — a carta do Isaac ══════════
@@ -1046,6 +1052,29 @@
         </div>
       </div>
 
+      <!-- ══════════ MODAL AVALIAR CORRIDA (MVP-0 do Isaac) ══════════
+           Só ajuda a decidir: não tem botão de aceitar nem de salvar. A avaliação
+           fica guardada sozinha (só neste aparelho) e o motorista confirma depois,
+           no cartão da tela do Isaac. -->
+      <div class="modal-overlay" id="modalAvaliador">
+        <div class="modal-caixa">
+          <h2 class="modal-titulo"><svg class="ico"><use href="#i-alvo"></use></svg> Avaliar corrida</h2>
+          <div class="av-seguranca">Só com o veículo parado.</div>
+          <div class="av-info" id="avInfoUnica" style="display:none;">Por enquanto, o histórico deste avaliador fica neste aparelho.</div>
+          <div class="comb-field"><label>Valor da corrida (R$)</label><input type="text" inputmode="decimal" id="avValor" placeholder="Ex: 25" class="modal-input" autocomplete="off" oninput="renderAvaliador()"></div>
+          <div class="comb-field"><label>Km da corrida</label><input type="text" inputmode="decimal" id="avKm" placeholder="Ex: 8" class="modal-input" autocomplete="off" oninput="renderAvaliador()"></div>
+          <details class="av-detalhes" id="avDetalhes">
+            <summary>mais detalhes</summary>
+            <div class="comb-field"><label>Km até o passageiro <span style="color:var(--faint)">· opcional</span></label><input type="text" inputmode="decimal" id="avKmBusca" placeholder="Ex: 2" class="modal-input" autocomplete="off" oninput="renderAvaliador()"></div>
+            <div class="comb-field"><label>Minutos <span style="color:var(--faint)">· opcional</span></label><input type="text" inputmode="numeric" id="avMin" placeholder="Ex: 25" class="modal-input" autocomplete="off" oninput="renderAvaliador()"></div>
+            <div class="comb-field"><label>Plataforma <span style="color:var(--faint)">· opcional</span></label><div class="av-chips" id="avChips"></div></div>
+          </details>
+          <div class="av-res" id="avResultado" style="display:none;"></div>
+          <div class="av-info av-falha" id="avAvisoGravar" style="display:none;">Não foi possível salvar esta avaliação neste aparelho.</div>
+          <div class="modal-botoes" style="margin-top:16px;"><button class="modal-btn cancelar" id="btnFecharAvaliador">Fechar</button></div>
+        </div>
+      </div>
+
       <!-- ══════════ MODAL RESERVA (cofrinho) ══════════ -->
       <div class="modal-overlay" id="modalReserva">
         <div class="modal-caixa">
@@ -1373,6 +1402,7 @@
               <button class="modal-btn cancelar aj-dono-btn" onclick="fecharAjustes(); testarLembrete();">Testar lembrete (1 min)</button>
               <button class="modal-btn cancelar aj-dono-btn" id="ajBtnPremium" onclick="alternarPremiumTeste();">Premium: —</button>
               <button class="modal-btn cancelar aj-dono-btn" id="ajBtnMedirRolagem" onclick="fecharAjustes(); alternarMedidorRolagem();">Medir rolagem: —</button>
+              <button class="modal-btn cancelar aj-dono-btn" onclick="fecharAjustes(); mostrarUsoAvaliador();">Avaliador · ver uso</button>
               <div class="aj-dica" id="ajDonoInfo">—</div>
             </div>
           </details>
@@ -1395,7 +1425,7 @@
       </div>
 
     <div id="toast" class="toast"></div>
-    <script src="script.js?v=448"></script>
+    <script src="script.js?v=449"></script>
     <!-- ── liga o app instalavel (nao mexe em nada do app) ── -->
     <script>
       // ⚠️ Dentro do app nativo os arquivos JÁ são locais — não há rede pra
