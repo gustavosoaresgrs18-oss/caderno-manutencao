@@ -20,6 +20,7 @@ própria, privada. Taxonomia conforme `docs/00-CONSTITUICAO.md`.
 | `copiar-para-www.js` | Único "build step" do projeto: monta a pasta consumida pelo empacotamento nativo. |
 | `capacitor.config.json`, `manifest.json`, `package.json` | Configuração do empacotamento nativo / metadados de instalação / scripts npm. |
 | `android/` | Projeto nativo utilizado pelo empacotamento Android. |
+| `fontes/` | Fontes locais do app; copiada para o pacote nativo pelo `copiar-para-www.js` (lista `PASTAS`). |
 | `privacidade.html`, `excluir-conta.html` | Páginas públicas independentes. |
 
 ## 2. Mapa de seções do `script.js`
@@ -66,6 +67,7 @@ Elas podem mudar conforme o código evolui.
 | 7713 | Texto do fechamento do mês |
 | 7948 | Tela de relatório do mês |
 | 7980 | Comparador analítico ("Lupa") |
+| 8008 | O portão do Premium (controle de acesso ao que é pago) |
 | 8380 | Cortesia do primeiro mês |
 | 8621 | Tutorial de primeira abertura / modo demonstração |
 | 8900 | Detector interno de inconsistência ("Sentinela") |
@@ -78,18 +80,36 @@ Elas podem mudar conforme o código evolui.
 | 10091 | Tela "Cadê" (fechamento diário em cartões) |
 | 10314 | Geração de texto da tela "Cadê" |
 | 10517 | Integração visual do sistema de níveis |
-| 10661 | Cartão de compartilhamento |
+| 10638 | Compartilhar fechamento (v2.3) |
+| 10661 | Isaac e o veículo dentro do cartão de compartilhar |
+| 10861 | Recorde pessoal (v2.4) |
+| 10885 | Retrospecto de domingo (v2.5) |
 
-**Nota:** existe uma diferença entre a descrição presente no comentário da seção e o
-comportamento atualmente observado no código.
+**Nota (`HISTÓRICO`):** o comentário-título da seção em 10091 ainda diz "Cadê — consultora
+por voz". O recurso de voz foi removido; hoje a tela é em cartões, sem voz. Nomes e comentários
+que mencionam "voz" no código são resquício, não comportamento atual.
 
 ## 3. `supabase-service.js` — visão geral
 
 **Classificação: `ESTADO ATUAL DO CÓDIGO`.**
 
 Inicialização do cliente Supabase, controle de sessão/usuário logado, e a camada híbrida de
-gravação (grava local, tenta sincronizar, enfileira se falhar) ficam concentradas neste arquivo,
-menor que `script.js` e sem a mesma divisão em dezenas de seções nomeadas.
+gravação (grava local, tenta sincronizar, enfileira se falhar) ficam concentradas neste arquivo
+(~1.100 linhas), dividido em seções demarcadas por comentários "═══":
+
+| Linha | Seção |
+|---|---|
+| 85 | Camada híbrida de gravação |
+| 202 | Exclusão híbrida |
+| 263 | Sincronizador de segundo plano (fila offline) |
+| 325 | Autenticação (helpers básicos) |
+| 415 | O plano (quem decide se é Premium é o servidor) |
+| 481 | Migração do 1º login |
+| 677 | Excluir a conta |
+| 705 | Restaurar do Supabase |
+| 1060 | Inicialização geral |
+
+As mesmas ressalvas de precisão de linha da seção 4 valem aqui.
 
 ## 4. Como usar este mapa — limitações
 
