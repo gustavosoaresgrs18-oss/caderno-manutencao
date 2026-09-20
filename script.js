@@ -2289,6 +2289,42 @@ function avisarPisoSeMudou() {
   enfileirarBalaoProg(chave);
 }
 
+// ═══════════════════════════════════════════════════════════════
+// ═══ FUNÇÃO OFICIAL DE CUSTO POR KM ═══
+// Fonte única da régua de confiabilidade (teto de R$/km suspeito + cobertura mínima de dias)
+// que decide se um custo/km calculado pode ir pra tela. Antes cada tela tinha sua própria
+// régua e elas já divergiram na prática: a mesma janela de dias podia mostrar um custo/km na
+// Início e outro, diferente, na carta do mês (R-002/R-003 em docs-private/14-RISCOS-E-BUGS.md).
+// Nunca inventa número: sem base confiável, devolve valor:null (Regra Sagrada nº 2).
+//
+// `combPorKm` é o combustível já dividido pelo km — o CHAMADOR decide como apurou isso (média
+// do mês corrente, ou só os dias com km confiável de um mês fechado; essa parte continua
+// diferente por natureza e não muda aqui). `reservaPorKm` é opcional: a carta do mês nunca
+// incluiu reserva de manutenção no custo/km, e passar 0 (ou omitir) preserva isso.
+// `diasComKm`/`minDiasComKm` e `cobertura`/`coberturaMin` também são opcionais — quem não
+// trabalha com cobertura de dias (ex.: "o mês corrente, agora mesmo") simplesmente não passa.
+// ⚠️ AINDA NÃO CHAMADA POR NINGUÉM. Criada primeiro, sozinha, pra migrar os call sites um de
+// cada vez sem trocar comportamento de uma vez só.
+// ═══════════════════════════════════════════════════════════════
+const CUSTO_KM_TETO_SUSPEITO = 3;   // acima disso o número é dado furado, não custo real
+function calcularCustoKmReal(opts) {
+  opts = opts || {};
+  const reservaPorKm = opts.reservaPorKm || 0;
+  const combPorKm = opts.combPorKm != null
+    ? opts.combPorKm
+    : ((opts.km > 0) ? (opts.comb || 0) / opts.km : 0);
+
+  if (!(combPorKm > 0)) return { valor: null, confiavel: false, motivo: 'sem-combustivel-medido' };
+  if (opts.minDiasComKm != null && (opts.diasComKm || 0) < opts.minDiasComKm)
+    return { valor: null, confiavel: false, motivo: 'poucos-dias' };
+  if (opts.coberturaMin != null && (opts.cobertura || 0) < opts.coberturaMin)
+    return { valor: null, confiavel: false, motivo: 'cobertura-baixa' };
+
+  const bruto = combPorKm + reservaPorKm;
+  if (bruto > CUSTO_KM_TETO_SUSPEITO) return { valor: null, confiavel: false, motivo: 'acima-do-teto' };
+  return { valor: bruto, confiavel: true, motivo: null };
+}
+
 function atualizarCustoRealKm() {
   const reservaKm = reservaKmAtual();
   // fonte única: mesma média da aba Combustível (não o último abastecimento isolado, que é ruído)
@@ -4617,6 +4653,23 @@ document.getElementById('btnCancelarAbastecer').addEventListener('click', functi
 
 // ─── SALVAR ABASTECIMENTO ────────────────────────────────────
 function gerarIdAbast() { return 'ab' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+// ═══════════════════════════════════════════════════════════════
+// ═══ FUNÇÃO OFICIAL DE LUCRO ═══
+// Fonte única da fórmula receita − taxa − comb − desp. Até aqui a mesma conta estava
+// reimplementada em pelo menos 6 lugares (preview de receita, confirmação, resync do dia,
+// a reconciliação logo abaixo, os dados de demonstração e a auditoria da Sentinela) — corrigir
+// um bug nela normalmente corrigia só uma das cópias (R-001 em
+// docs-private/14-RISCOS-E-BUGS.md). O lucro é sempre DERIVADO destes quatro campos; nunca o
+// contrário — é a mesma regra que `reconciliarFinancas()`, logo abaixo, já aplicava.
+// ⚠️ AINDA NÃO CHAMADA POR NINGUÉM. Criada primeiro, sozinha, pra migrar os call sites um de
+// cada vez sem trocar comportamento de uma vez só.
+// ═══════════════════════════════════════════════════════════════
+function calcularLucroReal(dados) {
+  dados = dados || {};
+  return (dados.receita || 0) - (dados.taxa || 0) - (dados.comb || 0) - (dados.desp || 0);
+}
+
 // Conserta abastecimentos que voltaram da nuvem antes da correção: eles vinham
 // sem `vid` (invisíveis pra TODA conta por veículo), sem `ppl` (sem selinho de
 // caro/barato e sem aviso de preço) e com `data` em ISO em vez do formato de
