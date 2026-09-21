@@ -2795,17 +2795,17 @@ function avaliarCorridaCompleta(e, agora, ctx) {
 function avConcordanciaTexto(completo) {
   switch (completo.concordancia) {
     case 'ambos-bons':
-      return { cor: 'verde', texto: 'Cobre seu piso e está acima do seu histórico.' };
+      return { cor: 'verde', texto: 'Boa oportunidade: cobre seu custo e está acima do que você costuma receber.' };
     case 'ambos-ruins':
-      return { cor: 'amarelo', texto: 'Fica abaixo do seu piso e do seu histórico.' };
+      return { cor: 'amarelo', texto: 'Abaixo do que compensa: não cobre seu custo nem o que você costuma receber.' };
     case 'diverge':
       return completo.pisoOk
-        ? { cor: 'amarelo', texto: 'Cobre seu custo, mas está abaixo do que você costuma receber.' }
-        : { cor: 'amarelo', texto: 'Está acima do seu histórico, mas não cobre seu custo estimado.' };
+        ? { cor: 'amarelo', texto: 'Cobre o custo, mas menos que seu normal: dá pra aceitar sabendo que rende menos hoje.' }
+        : { cor: 'amarelo', texto: 'Acima do seu normal, mas não cobre o custo: cuidado pra não sair no prejuízo.' };
     case 'so-piso':
-      return { cor: 'neutro', texto: 'Ainda não tenho histórico suficiente para comparar. A análise usa apenas seu custo estimado.' };
+      return { cor: 'neutro', texto: 'Cobre seu custo — ainda sem histórico seu pra comparar.' };
     case 'so-historico':
-      return { cor: 'neutro', texto: 'Ainda não tenho custo real suficiente. A análise usa apenas seu histórico.' };
+      return { cor: 'neutro', texto: 'Acima do que você costuma receber — ainda sem seu custo medido pra confirmar.' };
     default:   // 'sem-base-suficiente'
       return { cor: 'neutro', texto: avTextoProgresso(completo.historico) };
   }
@@ -2818,14 +2818,15 @@ function avTextoCompleto(completo) {
 
   t.sub.push(fmtBRL(completo.ofertaRsKm) + '/km');
 
+  if (completo.lucroEstimado != null) t.sub.push('Lucro estimado: ' + fmtBRL(completo.lucroEstimado)
+    + (completo.rsHoraEstimado != null ? ' (' + fmtBRL0(completo.rsHoraEstimado) + '/h)' : ''));
+
   if (completo.pisoOk !== null) {
     const dif = completo.ofertaRsKm - completo.pisoMinimo.piso;
     t.sub.push('Piso: ' + fmtBRL(completo.pisoMinimo.piso) + '/km'
       + (dif >= 0 ? ' (' + fmtBRL(dif) + '/km acima)' : ' (' + fmtBRL(Math.abs(dif)) + '/km abaixo)'));
   }
   if (completo.historico.nivel >= 2) t.sub.push(avTexto(completo.historico).principal);
-  if (completo.lucroEstimado  != null) t.sub.push('Lucro estimado: ' + fmtBRL(completo.lucroEstimado));
-  if (completo.rsHoraEstimado != null) t.sub.push('R$/hora estimado: ' + fmtBRL0(completo.rsHoraEstimado) + '/h');
 
   return t;
 }
