@@ -2319,17 +2319,17 @@ function calcularCustoKmReal(opts) {
     return { valor: null, confiavel: false, motivo: 'poucos-dias' };
   if (opts.coberturaMin != null && (opts.cobertura || 0) < opts.coberturaMin)
     return { valor: null, confiavel: false, motivo: 'cobertura-baixa' };
-
-  const bruto = combPorKm + reservaPorKm;
-  if (bruto > CUSTO_KM_TETO_SUSPEITO) return { valor: null, confiavel: false, motivo: 'acima-do-teto' };
-  return { valor: bruto, confiavel: true, motivo: null };
+  // ⚠️ o teto é sobre o COMBUSTÍVEL, não sobre o total. A reserva de manutenção entra DEPOIS
+  // da checagem — os dois call sites originais já faziam assim (a reserva nunca empurrou um
+  // valor bom pra cima do teto nem foi ela quem devia ser julgada "suspeita").
+  if (combPorKm > CUSTO_KM_TETO_SUSPEITO) return { valor: null, confiavel: false, motivo: 'acima-do-teto' };
+  return { valor: combPorKm + reservaPorKm, confiavel: true, motivo: null };
 }
 
 function atualizarCustoRealKm() {
   const reservaKm = reservaKmAtual();
   // fonte única: mesma média da aba Combustível (não o último abastecimento isolado, que é ruído)
   const combKm = combustivelKmMes();   // já sem os furados
-  const real = combKm + reservaKm;
   // Usa a MESMA regra do detector (custo absurdo OU consumo impossível).
   // Antes aqui só olhava o custo > 3: um registro de 11L para 20 km (1,8 km/L,
   // impossível) passava batido porque o custo dava R$ 2,50.
@@ -2352,7 +2352,10 @@ function atualizarCustoRealKm() {
   // aceitaria corrida por qualquer coisa. Sem combustível medido o app não
   // sabe o custo por km — e não saber se escreve "—", não se preenche com a
   // metade que ele tem à mão. Regra sagrada nº 2.
-  const mostra = (suspeito || !(combKm > 0)) ? null : real;
+  // fonte única da régua de teto de R$/km — antes duplicada aqui e no fechamento do mês,
+  // e as duas já divergiram na prática (R-002/R-003). `suspeito` acima continua controlando
+  // o banner de aviso (ele sabe de registro flagrado; a função nova não precisa saber disso).
+  const mostra = calcularCustoKmReal({ combPorKm: combKm, reservaPorKm: reservaKm }).valor;
   custoPorKmValor.textContent = mostra === null ? '—' : fmtBRL(mostra);
   custoKmStrip.textContent    = mostra === null ? '—' : fmtBRL(mostra);
 
@@ -8305,8 +8308,12 @@ function fecharMes(ym) {
   // sobre o mês. Regra sagrada nº 2: faltou dado, avisa e cala.
   const cobertura = dias > 0 ? (diasComKm.length / dias) : 0;
   const kmConfiavel = temKm && km > 0 && diasComKm.length >= 2 && cobertura >= 0.5;
-  const bruto = (kmConfiavel && combDosDias > 0) ? (combDosDias / km) : null;
-  const custoKm = (bruto !== null && bruto <= 3) ? bruto : null;
+  // fonte única do teto de R$/km — antes duplicada aqui e em atualizarCustoRealKm(), e as
+  // duas já divergiram na prática (R-002/R-003). kmConfiavel continua igual: também decide
+  // o campo `km` do retorno, abaixo, independente de ter combustível medido.
+  const custoKm = kmConfiavel
+    ? calcularCustoKmReal({ km: km, comb: combDosDias }).valor
+    : null;
 
   // ── o melhor dia (um FATO pontual, não um padrão) ──
   // ⚠️ "qual DIA DA SEMANA rende mais" é padrão — isso é lupa, é premium.
