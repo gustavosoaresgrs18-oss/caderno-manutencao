@@ -8272,11 +8272,14 @@ function fecharMes(ym) {
   // entrava nas horas e não no lucro — a hora dele saía menor do que foi.
   // Numerador e denominador agora vêm do mesmo conjunto de dias.
   // ⚠️ v4.29 — mesmo gate do resto do app (era 0,5 aqui e 1 na lupa).
-  const diasDoRitmo  = fin.filter(r => (horas[r.dataISO] || 0) >= HORAS_MIN_AMOSTRA);
-  const diasComHora  = diasDoRitmo.length;
-  const lucroComHora = diasDoRitmo.reduce((t, r) => t + (r.lucro || 0), 0);
-  const horasDoRitmo = diasDoRitmo.reduce((t, r) => t + (horas[r.dataISO] || 0), 0);
-  const porHora = (diasComHora >= 2 && horasDoRitmo > 0) ? (lucroComHora / horasDoRitmo) : null;
+  const diasDoRitmo = fin.filter(r => (horas[r.dataISO] || 0) >= HORAS_MIN_AMOSTRA);
+  const diasComHora = diasDoRitmo.length;
+  // fonte única de R$/hora — antes essa soma/divisão era feita na mão aqui e na lupa,
+  // e as duas podiam divergir (R-004). O gate de 2 dias fica aqui fora: porHoraPonderado()
+  // não exige mínimo de amostras, só soma o que receber.
+  const porHora = diasComHora >= 2
+    ? porHoraPonderado(diasDoRitmo.map(r => ({ lucro: r.lucro || 0, horas: horas[r.dataISO] || 0 })))
+    : null;
 
   // ── km: só dias de 1 dia (registro que cobre vários não se reparte) ──
   // ⚠️ DOIS PROBLEMAS AQUI, os dois graves:
@@ -8719,10 +8722,12 @@ function lupaDiaDaSemana(fin) {
   const porHora = porDia.map(function (arr, i) {
     const comH = arr.filter(function (x) { return x.h >= HORAS_MIN_AMOSTRA; });
     if (comH.length < LUPA_MIN_AMOSTRA) return null;
-    const somaL = comH.reduce(function (t, x) { return t + x.lucro; }, 0);
+    // fonte única de R$/hora — antes essa soma/divisão era feita na mão aqui e no
+    // fechamento do mês, e as duas podiam divergir (R-004)
     const somaH = comH.reduce(function (t, x) { return t + x.h; }, 0);
-    if (!(somaH > 0)) return null;
-    return { dia: i, n: comH.length, ph: somaL / somaH, horas: somaH };
+    const ph = porHoraPonderado(comH.map(function (x) { return { lucro: x.lucro, horas: x.h }; }));
+    if (ph === null) return null;
+    return { dia: i, n: comH.length, ph: ph, horas: somaH };
   }).filter(Boolean);
 
   if (porHora.length >= 3) {
