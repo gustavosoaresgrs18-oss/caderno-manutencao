@@ -4737,8 +4737,7 @@ function reconciliarFinancas() {
     const combNovo = jaUsou[iso] ? 0 : (combPorDia[iso] || 0);
     const despNovo = jaUsou[iso] ? 0 : (despPorDia[iso] != null ? despPorDia[iso] : (r.desp || 0));
     jaUsou[iso] = true;
-    const taxa  = r.taxa || 0;
-    const lucroNovo = (r.receita || 0) - taxa - combNovo - despNovo;
+    const lucroNovo = calcularLucroReal({ receita: r.receita, taxa: r.taxa, comb: combNovo, desp: despNovo });
     const desvio = Math.abs((r.lucro || 0) - lucroNovo);
     if (Math.abs((r.comb || 0) - combNovo) > 0.005 ||
         Math.abs((r.desp || 0) - despNovo) > 0.005 || desvio > 0.005) {
@@ -4904,10 +4903,9 @@ function ressincronizarReceitaHoje() {
   let jaAlocou = false;                        // combustível e despesas do dia entram uma vez só
   hist.forEach(r => {
     if (r.dataISO === hojeISO()) {
-      const liquido = r.receita - r.taxa;      // líquido = bruto menos taxa
       if (!jaAlocou) { r.comb = combTotal; r.desp = despTotal; jaAlocou = true; }
       else           { r.comb = 0; r.desp = 0; }
-      r.lucro = liquido - r.comb - (r.desp || 0);
+      r.lucro = calcularLucroReal({ receita: r.receita, taxa: r.taxa, comb: r.comb, desp: r.desp });
     }
   });
   salvarLS('historicoFinancas', hist);
@@ -5960,7 +5958,7 @@ function calcPreviewReceita() {
   const combHoje = combustívelHoje();
   const c = contaReceita(valor, brutoOpc);
   const desp = despesasTotalHoje();
-  const lucro = c.liquido - combHoje - desp;
+  const lucro = calcularLucroReal({ receita: c.bruto, taxa: c.taxa, comb: combHoje, desp: desp });
 
   document.getElementById('prevReceita').textContent = fmtBRL(c.bruto);
   document.getElementById('prevTaxa').textContent    = '- ' + fmtBRL(c.taxa);
@@ -5999,7 +5997,7 @@ btnConfirmarReceita.addEventListener('click', function() {
   const combHoje = combustívelHoje();
   const c = contaReceita(valor, brutoOpc);
   const desp = despesasTotalHoje();
-  const lucro = c.liquido - combHoje - desp;
+  const lucro = calcularLucroReal({ receita: c.bruto, taxa: c.taxa, comb: combHoje, desp: desp });
 
   // se veio bruto + líquido, aprende a taxa real
   if (tipoReceita === 'liquido' && brutoOpc > valor) aprenderTaxa(brutoOpc, valor);
@@ -9365,7 +9363,7 @@ function montarDadosDemo() {
     fin.unshift({
       data: dt.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: '2-digit' }),
       dataISO: iso, receita: receita, taxa: taxa, comb: combDoDia, desp: desp,
-      lucro: receita - taxa - combDoDia - desp, tipo: 'bruto',
+      lucro: calcularLucroReal({ receita: receita, taxa: taxa, comb: combDoDia, desp: desp }), tipo: 'bruto',
       odo: odo, kmDia: km, vid: VID
     });
   }
@@ -9901,7 +9899,7 @@ function auditarInvariantes() {
     // 1. o livro tem que fechar (bug v3.87 — lucro inflado em R$ 71)
     let abertos = 0, piorDesvio = 0;
     fin.forEach(function (r) {
-      const esperado = (r.receita || 0) - (r.taxa || 0) - (r.comb || 0) - (r.desp || 0);
+      const esperado = calcularLucroReal(r);
       const d = Math.abs(esperado - (r.lucro || 0));
       if (d > 0.5) { abertos++; if (d > piorDesvio) piorDesvio = d; }
     });
