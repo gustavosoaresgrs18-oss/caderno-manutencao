@@ -2726,6 +2726,21 @@ function avTexto(r) {
   return t;
 }
 
+let _avCtxSessao = null;
+
+function avCtxSessao() {
+  if (_avCtxSessao === null) {
+    _avCtxSessao = {
+      pisoMinimo: pisoPorKm(),
+      custoReal: calcularCustoKmReal({
+        combPorKm: combustivelKmMes(),
+        reservaPorKm: reservaKmAtual()
+      })
+    };
+  }
+  return _avCtxSessao;
+}
+
 // ═══ AVALIADOR COMPLETO DA CORRIDA (MVP) ═══
 // Combina os sinais que já existem — piso mínimo (custo + meta), comparação com o próprio
 // histórico e o custo/km confiável — num objeto só. NÃO decide nada: nenhum campo diz
@@ -2735,14 +2750,15 @@ function avTexto(r) {
 // sustenta.
 // ⚠️ AINDA NÃO CHAMADA POR NINGUÉM. Aditiva e isolada — não altera avaliarOferta() nem
 // pisoPorKm(), só compõe as duas.
-function avaliarCorridaCompleta(e, agora) {
+function avaliarCorridaCompleta(e, agora, ctx) {
   agora = agora || new Date();
+  ctx = ctx || {};
   const historico  = avaliarOferta(e, agora);          // já calcula x = valor/kmBase
   const ofertaRsKm = historico.x;
   const kmBase     = (e.kmBusca != null) ? (e.kmBusca + e.kmCorrida) : e.kmCorrida;
 
-  const pisoMinimo = pisoPorKm();
-  const custoReal  = calcularCustoKmReal({
+  const pisoMinimo = ctx.pisoMinimo !== undefined ? ctx.pisoMinimo : pisoPorKm();
+  const custoReal  = ctx.custoReal !== undefined ? ctx.custoReal : calcularCustoKmReal({
     combPorKm: combustivelKmMes(), reservaPorKm: reservaKmAtual()
   });
 
@@ -2769,8 +2785,49 @@ function avaliarCorridaCompleta(e, agora) {
 
   return {
     ofertaRsKm: ofertaRsKm, pisoMinimo: pisoMinimo, historico: historico, custoReal: custoReal,
-    lucroEstimado: lucroEstimado, rsHoraEstimado: rsHoraEstimado, concordancia: concordancia
+    lucroEstimado: lucroEstimado, rsHoraEstimado: rsHoraEstimado, concordancia: concordancia,
+    pisoOk: pisoOk, historicoOk: historicoOk
   };
+}
+
+// As 6 frases aprovadas pra concordancia. 'diverge' tem 2 variações (qual lado falhou).
+// Vermelho não existe aqui — mesma regra do resto do avaliador (Regra Sagrada nº 4).
+function avConcordanciaTexto(completo) {
+  switch (completo.concordancia) {
+    case 'ambos-bons':
+      return { cor: 'verde', texto: 'Cobre seu piso e está acima do seu histórico.' };
+    case 'ambos-ruins':
+      return { cor: 'amarelo', texto: 'Fica abaixo do seu piso e do seu histórico.' };
+    case 'diverge':
+      return completo.pisoOk
+        ? { cor: 'amarelo', texto: 'Cobre seu custo, mas está abaixo do que você costuma receber.' }
+        : { cor: 'amarelo', texto: 'Está acima do seu histórico, mas não cobre seu custo estimado.' };
+    case 'so-piso':
+      return { cor: 'neutro', texto: 'Ainda não tenho histórico suficiente para comparar. A análise usa apenas seu custo estimado.' };
+    case 'so-historico':
+      return { cor: 'neutro', texto: 'Ainda não tenho custo real suficiente. A análise usa apenas seu histórico.' };
+    default:   // 'sem-base-suficiente'
+      return { cor: 'neutro', texto: avTextoProgresso(completo.historico) };
+  }
+}
+// Monta {cor, principal, sub, base} — o MESMO formato que avTexto() já produz — pra
+// reaproveitar avHtmlResultado() sem criar nenhuma estrutura de HTML nova.
+function avTextoCompleto(completo) {
+  const p = avConcordanciaTexto(completo);
+  const t = { cor: p.cor, principal: p.texto, sub: [], base: '' };
+
+  t.sub.push(fmtBRL(completo.ofertaRsKm) + '/km');
+
+  if (completo.pisoOk !== null) {
+    const dif = completo.ofertaRsKm - completo.pisoMinimo.piso;
+    t.sub.push('Piso: ' + fmtBRL(completo.pisoMinimo.piso) + '/km'
+      + (dif >= 0 ? ' (' + fmtBRL(dif) + '/km acima)' : ' (' + fmtBRL(Math.abs(dif)) + '/km abaixo)'));
+  }
+  if (completo.historico.nivel >= 2) t.sub.push(avTexto(completo.historico).principal);
+  if (completo.lucroEstimado  != null) t.sub.push('Lucro estimado: ' + fmtBRL(completo.lucroEstimado));
+  if (completo.rsHoraEstimado != null) t.sub.push('R$/hora estimado: ' + fmtBRL0(completo.rsHoraEstimado) + '/h');
+
+  return t;
 }
 
 // Quanto falta pra comparar (níveis 1 e 2). Sai de AV_PARAMS — nenhum número fixo aqui: se o
@@ -2856,6 +2913,7 @@ function abrirAvaliador() {
   _avSessaoContada = false;
   _avEntrada       = null;
   _avPlat          = null;
+  _avCtxSessao     = null;   // piso/custo recalculam na 1ª leitura desta sessão
   ['avValor', 'avKm', 'avKmBusca', 'avMin'].forEach(function (id) { document.getElementById(id).value = ''; });
   document.getElementById('avResultado').style.display = 'none';
   document.getElementById('avDetalhes').open = false;
@@ -2875,7 +2933,7 @@ function renderAvaliador() {
     avSincronizarSessao(null);
     return;
   }
-  box.innerHTML = avHtmlResultado(avTexto(avaliarOferta(entrada)));
+  box.innerHTML = avHtmlResultado(avTextoCompleto(avaliarCorridaCompleta(entrada, null, avCtxSessao())));
   box.style.display = 'block';
   avSincronizarSessao(entrada);
 }
@@ -3051,6 +3109,7 @@ function mostrarUsoAvaliador() {
 document.getElementById('btnAbrirAvaliador').addEventListener('click', abrirAvaliador);
 document.getElementById('btnFecharAvaliador').addEventListener('click', function () {
   avFlush();
+  _avCtxSessao = null;   // não carregar piso/custo velhos pra próxima abertura
   document.getElementById('modalAvaliador').style.display = 'none';
 });
 // a pessoa volta pro Uber/99 antes da pausa? grava agora (o botão voltar do Android
