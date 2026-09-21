@@ -2725,6 +2725,54 @@ function avTexto(r) {
   t.sub.push(avTextoProgresso(r));
   return t;
 }
+
+// ═══ AVALIADOR COMPLETO DA CORRIDA (MVP) ═══
+// Combina os sinais que já existem — piso mínimo (custo + meta), comparação com o próprio
+// histórico e o custo/km confiável — num objeto só. NÃO decide nada: nenhum campo diz
+// "aceite" ou "recuse", só informa. A decisão continua sendo do motorista.
+// Regra Sagrada nº 2: quando falta base pra um dos dois sinais, `concordancia` diz
+// explicitamente QUAL falta, em vez de fingir concordância ou discordância que o dado não
+// sustenta.
+// ⚠️ AINDA NÃO CHAMADA POR NINGUÉM. Aditiva e isolada — não altera avaliarOferta() nem
+// pisoPorKm(), só compõe as duas.
+function avaliarCorridaCompleta(e, agora) {
+  agora = agora || new Date();
+  const historico  = avaliarOferta(e, agora);          // já calcula x = valor/kmBase
+  const ofertaRsKm = historico.x;
+  const kmBase     = (e.kmBusca != null) ? (e.kmBusca + e.kmCorrida) : e.kmCorrida;
+
+  const pisoMinimo = pisoPorKm();
+  const custoReal  = calcularCustoKmReal({
+    combPorKm: combustivelKmMes(), reservaPorKm: reservaKmAtual()
+  });
+
+  const lucroEstimado = custoReal.confiavel
+    ? (e.valor - custoReal.valor * kmBase)
+    : null;
+  const rsHoraEstimado = (e.min > 0 && lucroEstimado != null)
+    ? porHoraPonderado([{ lucro: lucroEstimado, horas: e.min / 60 }])
+    : null;
+
+  // null = sem base suficiente pra esse sinal (nunca inventa um veredito)
+  // ⚠️ pisoPorKm() pode devolver `null` puro (custo calculado <= 0) — não só o objeto com
+  // `piso: null` — por isso a checagem de `pisoMinimo` vem antes de acessar `.piso`.
+  const pisoOk      = (pisoMinimo && pisoMinimo.piso != null) ? (ofertaRsKm >= pisoMinimo.piso) : null;
+  const historicoOk = (historico.nivel === 3) ? (historico.veredito !== 'abaixo') : null;
+
+  let concordancia;
+  if      (pisoOk === null && historicoOk === null) concordancia = 'sem-base-suficiente';
+  else if (pisoOk === null)                          concordancia = 'so-historico';
+  else if (historicoOk === null)                     concordancia = 'so-piso';
+  else if (pisoOk && historicoOk)                    concordancia = 'ambos-bons';
+  else if (!pisoOk && !historicoOk)                  concordancia = 'ambos-ruins';
+  else                                                concordancia = 'diverge';
+
+  return {
+    ofertaRsKm: ofertaRsKm, pisoMinimo: pisoMinimo, historico: historico, custoReal: custoReal,
+    lucroEstimado: lucroEstimado, rsHoraEstimado: rsHoraEstimado, concordancia: concordancia
+  };
+}
+
 // Quanto falta pra comparar (níveis 1 e 2). Sai de AV_PARAMS — nenhum número fixo aqui: se o
 // parâmetro mudar, a frase muda junto. Acompanha o recorte "geral" (todas as corridas), o mais
 // fácil de satisfazer: batendo o mínimo de corridas E de dias, a comparação acontece de verdade.
